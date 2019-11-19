@@ -8,13 +8,13 @@ import (
 
 // Strategy object
 type Strategy struct {
-    model models.StrategyModel
+    model models.MongoStrategy
 }
 
 func GetStrategy(cur *mongo.Cursor) (*Strategy, error) {
-    result := &models.StrategyModel{}
+    result := &models.MongoStrategy{}
     err := cur.Decode(&result)
-    return &Strategy{model:models.StrategyModel{}}, err
+    return &Strategy{model:models.MongoStrategy{}}, err
 }
 
 func (strategy * Strategy) Start() {

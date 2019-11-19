@@ -17,7 +17,7 @@ func main() {
     //TODO: init top-level context
     //notif := filtering.NewNotifier()
     //log.Println(notif)
-    //sub := mongodb.NewSubscription(notif, "ccai-dev", "notifications")
+    //sub := mongodb.NewSubscription(notif, "ccai-dev", "notifications2")
     //go sub.RunDataPull()
     //log.Println(err)
     //redisSub := redis.NewSubscription(notif)
