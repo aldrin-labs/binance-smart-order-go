@@ -3,9 +3,9 @@ package strategies
 import (
 	"context"
 	"fmt"
-	"gitlab.com/crypto_project/core/strategy_service/src/models"
 	"gitlab.com/crypto_project/core/strategy_service/src/service"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb"
+	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"log"

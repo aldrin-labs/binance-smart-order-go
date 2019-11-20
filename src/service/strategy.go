@@ -1,7 +1,7 @@
 package service
 
 import (
-    "gitlab.com/crypto_project/core/strategy_service/src/models"
+    "gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
     "gitlab.com/crypto_project/core/strategy_service/src/trading"
     "go.mongodb.org/mongo-driver/mongo"
 )
@@ -23,7 +23,5 @@ func (strategy * Strategy) Start() {
 
 
 func (strategy * Strategy) CreateOrder(rawOrder trading.CreateOrderRequest) {
-    createdOrder := trading.CreateOrder(rawOrder)
-
-    client := mongodb
+    trading.CreateOrder(rawOrder)
 }
