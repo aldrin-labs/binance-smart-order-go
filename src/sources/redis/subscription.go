@@ -13,7 +13,6 @@ import (
 type ChangeStream struct {
 }
 
-
 func SubscribeToRedis(client *redis.Client) <-chan *redis.Message {
 	redSub := client.PSubscribe("*:*:60")
 	_, err := redSub.Receive()

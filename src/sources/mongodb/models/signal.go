@@ -3,12 +3,12 @@ package models
 import "go.mongodb.org/mongo-driver/bson/primitive"
 
 type MongoSignalEvent struct {
-	T int64
+	T    int64
 	Data interface{}
 }
 
 type MongoSignal struct {
-	Id			primitive.ObjectID `json:"_id"`
+	Id          primitive.ObjectID `json:"_id"`
 	MonType     MongoSignalType
 	Condition   MongoSignalCondition
 	TriggerWhen TriggerOptions
@@ -31,7 +31,7 @@ type MongoSignalCondition struct {
 	Amount        float64
 	Spread        float64
 	ExchangeId    primitive.ObjectID
-	ExchangeIds   [] primitive.ObjectID
+	ExchangeIds   []primitive.ObjectID
 	Pair          string
 }
 

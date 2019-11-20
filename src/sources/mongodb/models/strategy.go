@@ -32,8 +32,8 @@ type MongoStrategy struct {
 	Expiration  ExpirationSchema
 	OpenEnded   bool
 	LastUpdate  int64
-	SignalIds   [] primitive.ObjectID
-	OrderIds    [] primitive.ObjectID
+	SignalIds   []primitive.ObjectID
+	OrderIds    []primitive.ObjectID
 	OwnerId     primitive.ObjectID
 	Social      MongoSocial // {sharedWith: [RBAC]}
 }
@@ -63,7 +63,7 @@ type MongoStrategyCondition struct {
 	Amount              float64
 	Spread              float64
 	ExchangeId          primitive.ObjectID
-	ExchangeIds         [] primitive.ObjectID
+	ExchangeIds         []primitive.ObjectID
 	Pair                string
 	Side                string
 	TakeProfit          float64
@@ -80,8 +80,8 @@ type MongoStrategyCondition struct {
 	TimeoutLoss               float64
 	ForcedLoss                float64
 	Leverage                  float64
-	EntryLevels               [] MongoEntryPoint
-	ExitLeveles               [] MongoEntryPoint
+	EntryLevels               []MongoEntryPoint
+	ExitLeveles               []MongoEntryPoint
 	TrailingEntries           bool
 	TrailingExit              bool
 }

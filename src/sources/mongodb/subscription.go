@@ -11,6 +11,7 @@ type ChangeStream struct {
 	///TODO: save which collection was used
 	stream *mongo.ChangeStream
 }
+
 func BuildChangeStream(client *mongo.Client, colName string, pipeline []bson.M) (*mongo.ChangeStream, error) {
 	var coll *mongo.Collection = client.Database(os.Getenv("MONGODBNAME")).Collection(colName)
 	//TODO: check replica mechanic

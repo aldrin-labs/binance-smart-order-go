@@ -34,7 +34,6 @@ func Start(signal primitive.ObjectID, stategy *service.Strategy) {
 				FullDocument models.MongoSignal `bson:"fullDocument"`
 			}{}
 
-
 			for changeStream.Next(ctx) {
 				elem := changeDoc
 				if err := changeStream.Decode(changeDoc); err != nil {

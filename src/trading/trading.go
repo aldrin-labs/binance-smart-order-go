@@ -36,7 +36,6 @@ func Request (method string, data interface{}) interface{} {
 	return body
 }
 
-
 /*
 {
 	"keyId": "5ca48f82744e09001ac430d5",
@@ -52,15 +51,15 @@ func Request (method string, data interface{}) interface{} {
 
 type OrderParams struct {
 	StopPrice float64
-	Type string
+	Type      string
 }
 
 type Order struct {
 	Symbol string
-	Type string
-	Side string
+	Type   string
+	Side   string
 	Amount float64
-	Price float64
+	Price  float64
 	Params OrderParams
 }
 
