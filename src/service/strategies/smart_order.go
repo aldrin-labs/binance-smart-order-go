@@ -6,7 +6,6 @@ import (
 
 type  SmartOrder struct {
 	model models.MongoStrategy
-
 }
 
 func NewSmartOrder(sm *SmartOrder) *SmartOrder {
@@ -20,10 +19,10 @@ func (sm *SmartOrder) Init(){
 func (sm* SmartOrder) Start(){
 
 }
-func StartEventLoop() {
-
-}
 
 func (sm* SmartOrder) processEventLoop(){
 
+}
+
+func StartEventLoop() {
 }

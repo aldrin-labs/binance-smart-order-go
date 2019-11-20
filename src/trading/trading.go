@@ -8,6 +8,12 @@ import (
 	"net/http"
 	"os"
 )
+
+type ITrading interface {
+	CreateOrder(order CreateOrderRequest)
+	CancelOrder(params CancelOrderRequest)
+}
+
 func Request (method string, data interface{}) interface{} {
 	url := "http://"+ os.Getenv("EXCHANGESERVCE") +"/" + method
 	fmt.Println("URL:>", url)
@@ -49,7 +55,7 @@ type OrderParams struct {
 	Type string
 }
 
-type KeyParams struct {
+type Order struct {
 	Symbol string
 	Type string
 	Side string
@@ -59,16 +65,20 @@ type KeyParams struct {
 }
 
 type CreateOrderRequest struct {
-	KeyId string
-	KeyParams KeyParams
+	KeyId     string
+	KeyParams Order
+}
+
+type CancelOrderRequest struct {
+	KeyId     string
+	OrderId string
 }
 
 func CreateOrder(order CreateOrderRequest) interface{} {
 	return Request("createOrder", order)
 }
 
-
-func CancelOrder() {
-
+func CancelOrder(cancelRequest CancelOrderRequest) interface{} {
+	return Request("cancelOrder", cancelRequest)
 }
 
