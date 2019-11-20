@@ -1,6 +1,6 @@
 module gitlab.com/crypto_project/core/strategy_service
 
-go 1.12
+go 1.13
 
 require (
 	github.com/go-redis/redis v6.15.2+incompatible
@@ -8,7 +8,6 @@ require (
 	github.com/golang/snappy v0.0.1 // indirect
 	github.com/google/go-cmp v0.3.0 // indirect
 	github.com/joho/godotenv v1.3.0
-	github.com/mongodb/mongo-go-driver v1.0.2
 	github.com/onsi/ginkgo v1.8.0 // indirect
 	github.com/onsi/gomega v1.5.0 // indirect
 	github.com/stretchr/testify v1.3.0 // indirect

@@ -20,6 +20,9 @@ func (sm *SmartOrder) Init(){
 func (sm* SmartOrder) Start(){
 
 }
+func StartEventLoop() {
+
+}
 
 func (sm* SmartOrder) processEventLoop(){
 
