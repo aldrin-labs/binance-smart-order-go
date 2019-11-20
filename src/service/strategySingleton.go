@@ -10,17 +10,18 @@ import (
 
 // StrategyService strategy service type
 type StrategyService struct {
-    strategies map[string]*Strategy
+	strategies map[string]*Strategy
 }
+
 var singleton *StrategyService
 var once sync.Once
 
 // GetStrategyService to get singleton
 func GetStrategyService() *StrategyService {
-    once.Do(func() {
-        singleton = &StrategyService{}
-    })
-    return singleton
+	once.Do(func() {
+		singleton = &StrategyService{}
+	})
+	return singleton
 }
 
 func InitSingleton(wg *sync.WaitGroup) {

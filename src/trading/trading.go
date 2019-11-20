@@ -8,8 +8,9 @@ import (
 	"net/http"
 	"os"
 )
-func Request (method string, data interface{}) interface{} {
-	url := "http://"+ os.Getenv("EXCHANGESERVCE") +"/" + method
+
+func Request(method string, data interface{}) interface{} {
+	url := "http://" + os.Getenv("EXCHANGESERVCE") + "/" + method
 	fmt.Println("URL:>", url)
 
 	var jsonStr, err = json.Marshal(data)
@@ -30,7 +31,6 @@ func Request (method string, data interface{}) interface{} {
 	return body
 }
 
-
 /*
 {
 	"keyId": "5ca48f82744e09001ac430d5",
@@ -46,20 +46,20 @@ func Request (method string, data interface{}) interface{} {
 
 type OrderParams struct {
 	StopPrice float64
-	Type string
+	Type      string
 }
 
 type KeyParams struct {
 	Symbol string
-	Type string
-	Side string
+	Type   string
+	Side   string
 	Amount float64
-	Price float64
+	Price  float64
 	Params OrderParams
 }
 
 type CreateOrderRequest struct {
-	KeyId string
+	KeyId     string
 	KeyParams KeyParams
 }
 
@@ -67,8 +67,6 @@ func CreateOrder(order CreateOrderRequest) interface{} {
 	return Request("createOrder", order)
 }
 
-
 func CancelOrder() {
 
 }
-

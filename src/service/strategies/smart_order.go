@@ -4,26 +4,25 @@ import (
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
 )
 
-type  SmartOrder struct {
+type SmartOrder struct {
 	model models.MongoStrategy
-
 }
 
 func NewSmartOrder(sm *SmartOrder) *SmartOrder {
 	return nil
 }
 
-func (sm *SmartOrder) Init(){
+func (sm *SmartOrder) Init() {
 
 }
 
-func (sm* SmartOrder) Start(){
+func (sm *SmartOrder) Start() {
 
 }
 func StartEventLoop() {
 
 }
 
-func (sm* SmartOrder) processEventLoop(){
+func (sm *SmartOrder) processEventLoop() {
 
 }
