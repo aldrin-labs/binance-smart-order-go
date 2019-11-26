@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/qmuntal/stateless"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
+	"reflect"
 	"time"
 )
 
@@ -21,8 +22,12 @@ const (
 	TriggerTrade = 0
 )
 
+type OHLCV struct {
+	Open, High, Low, Close, Volume float64
+}
+
 type IDataFeed interface {
-	GetPriceForPairAtExchange(pair string, exchange string) float64
+	GetPriceForPairAtExchange(pair string, exchange string) OHLCV
 }
 
 type ITrading interface {
@@ -40,8 +45,9 @@ type SmartOrder struct {
 func NewSmartOrder(smartOrder *models.MongoStrategy, DataFeed IDataFeed) *SmartOrder {
 	sm := &SmartOrder{Model: smartOrder, DataFeed: DataFeed}
 	State := stateless.NewStateMachine(WaitForEntry)
-
+	State.SetTriggerParameters(TriggerTrade, reflect.TypeOf(0.0))
 	State.Configure(WaitForEntry).Permit(TriggerTrade, sm.exitWaitEntry, sm.checkWaitEntry, sm.checkTrailingEntry)
+
 	State.Configure(TrailingEntry).Permit(TriggerTrade, InEntry, sm.checkWaitEntry)
 
 	State.Configure(InEntry).PermitDynamic(TriggerTrade, sm.exit,

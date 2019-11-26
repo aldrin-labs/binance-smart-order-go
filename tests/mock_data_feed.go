@@ -16,7 +16,7 @@ func NewMockedDataFeed(mockedStream [] float64) strategies.IDataFeed {
 	return &dataFeed
 }
 
-func (df *MockDataFeed) GetPriceForPairAtExchange(pair string, exchange string) float64 {
+func (df *MockDataFeed) GetPriceForPairAtExchange(pair string, exchange string) strategies.OHLCV {
 	df.currentTick += 1
 	if df.currentTick >= len(df.tickerData) {
 		df.currentTick = 0
