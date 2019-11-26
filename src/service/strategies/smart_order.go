@@ -23,7 +23,6 @@ const (
 
 type IDataFeed interface {
 	GetPriceForPairAtExchange(pair string, exchange string) float64
-	SubscribeToPairUpdate()
 }
 
 type ITrading interface {
