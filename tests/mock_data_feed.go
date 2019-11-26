@@ -3,11 +3,11 @@ package testing
 import "gitlab.com/crypto_project/core/strategy_service/src/service/strategies"
 
 type MockDataFeed struct {
-	tickerData [] float64
+	tickerData [] strategies.OHLCV
 	currentTick int
 }
 
-func NewMockedDataFeed(mockedStream [] float64) strategies.IDataFeed {
+func NewMockedDataFeed(mockedStream [] strategies.OHLCV) strategies.IDataFeed {
 	dataFeed := MockDataFeed{
 		tickerData: mockedStream,
 		currentTick: -1,
@@ -21,7 +21,7 @@ func (df *MockDataFeed) GetPriceForPairAtExchange(pair string, exchange string) 
 	if df.currentTick >= len(df.tickerData) {
 		df.currentTick = 0
 	}
-	println(df.tickerData[df.currentTick])
+
 	return df.tickerData[df.currentTick]
 }
 

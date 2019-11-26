@@ -26,7 +26,25 @@ func TestStartingForEntry(t *testing.T) {
 		OwnerId:     primitive.ObjectID{},
 		Social:      models.MongoSocial{},
 	}
-	fakeDataStream := []float64{8000.0, 7900.0}
+	fakeDataStream := []strategies.OHLCV{{
+		Open:   0,
+		High:   0,
+		Low:    0,
+		Close:  0,
+		Volume: 0,
+	}, {
+		Open:   0,
+		High:   0,
+		Low:    0,
+		Close:  0,
+		Volume: 0,
+	}, {
+		Open:   0,
+		High:   0,
+		Low:    0,
+		Close:  0,
+		Volume: 0,
+	}}
 	df := NewMockedDataFeed(fakeDataStream)
 	smartOrder := strategies.NewSmartOrder(&smartOrderModel, df)
 	go smartOrder.Start()
