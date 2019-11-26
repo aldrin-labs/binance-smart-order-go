@@ -28,6 +28,7 @@ type MongoStrategy struct {
 	Id          primitive.ObjectID `json:"_id"`
 	MonType     MongoStrategyType
 	Condition   MongoStrategyCondition
+	State		MongoStrategyState
 	TriggerWhen TriggerOptions
 	Expiration  ExpirationSchema
 	OpenEnded   bool
@@ -41,6 +42,11 @@ type MongoStrategy struct {
 type MongoStrategyType struct {
 	SigType  string `json:"type"`
 	Required interface{}
+}
+
+type MongoStrategyState struct {
+	State	int8
+	TrailingEntryPrice float64
 }
 
 type MongoEntryPoint struct {
@@ -60,6 +66,8 @@ type MongoStrategyCondition struct {
 	PortfolioId         primitive.ObjectID
 	PercentChange       float64
 	Price               float64
+	ActivationPrice     float64
+	EntryDeviation      float64
 	Amount              float64
 	Spread              float64
 	ExchangeId          primitive.ObjectID

@@ -41,7 +41,7 @@ func Start(signal primitive.ObjectID, stategy *service.Strategy) {
 				}
 				fmt.Printf("%+v\n", elem)
 				// do something with elem....
-				stategy.CreateOrder()
+				// stategy.CreateOrder()
 			}
 		}
 
