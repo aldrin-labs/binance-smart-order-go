@@ -1,6 +1,9 @@
 package testing
 
-import "gitlab.com/crypto_project/core/strategy_service/src/service/strategies"
+import (
+	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies"
+	"time"
+)
 
 type MockDataFeed struct {
 	tickerData [] strategies.OHLCV
@@ -19,7 +22,7 @@ func NewMockedDataFeed(mockedStream [] strategies.OHLCV) strategies.IDataFeed {
 func (df *MockDataFeed) GetPriceForPairAtExchange(pair string, exchange string) strategies.OHLCV {
 	df.currentTick += 1
 	if df.currentTick >= len(df.tickerData) {
-		df.currentTick = 0
+		time.Sleep(60 * time.Second)
 	}
 
 	return df.tickerData[df.currentTick]

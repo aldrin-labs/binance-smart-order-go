@@ -45,8 +45,12 @@ type MongoStrategyType struct {
 }
 
 type MongoStrategyState struct {
-	State	int8
+	State	string
 	TrailingEntryPrice float64
+	EntryPrice float64
+	Amount float64
+	ExecutedAmount float64
+	ReachedTargetCount int
 }
 
 type MongoEntryPoint struct {
