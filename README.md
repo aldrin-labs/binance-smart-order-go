@@ -1,3 +1,24 @@
+# Strategy service
+
+Strategy service uses same singleton pattern around managing runtime of database model (Strategy)
+
+Implemented strategies:
+ - Smart-order
+
+#### Testing
+
+``
+go test -v ./tests
+``
+
+#### Run
+
+``
+go build main
+``
+
+---
+---
 # Try Out Development Containers: Go
 
 This is a sample project that lets you try out the **[VS Code Remote - Containers](https://aka.ms/vscode-remote/containers)** extension in a few easy steps.
@@ -40,21 +61,3 @@ Some things to try:
    - Select port 5000.
    - Click "Open Browser" in the notification that appears to access the web app on this new port.
   
-## Contributing
-
-This project welcomes contributions and suggestions. Most contributions require you to agree to a
-Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us
-the rights to use your contribution. For details, visit https://cla.microsoft.com.
-
-When you submit a pull request, a CLA-bot will automatically determine whether you need to provide
-a CLA and decorate the PR appropriately (e.g., label, comment). Simply follow the instructions
-provided by the bot. You will only need to do this once across all repos using our CLA.
-
-This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
-For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or
-contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
-
-## License
-
-Copyright © Microsoft Corporation All rights reserved.<br />
-Licensed under the MIT License. See LICENSE in the project root for license information.

@@ -1,4 +1,4 @@
-package strategy_service
+package main
 
 import (
     "github.com/joho/godotenv"
