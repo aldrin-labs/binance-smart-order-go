@@ -35,12 +35,12 @@ variables:
   POSTGRES_ENABLED: "false"
   POSTGRES_DB: $CI_ENVIRONMENT_SLUG
 
-  KUBERNETES_VERSION: 1.8.6
-  HELM_VERSION: 2.6.1
+  KUBERNETES_VERSION: 1.14.8
+  HELM_VERSION: 2.13.0
   CODECLIMATE_VERSION: 0.69.0
 
+
 stages:
-  - bundle
   - build
   - test
   - review
@@ -51,31 +51,6 @@ stages:
   - production
   - performance
   - cleanup
-
-bundle:
-  stage: bundle
-  image: node:11.7
-  script:
-    - eval $(ssh-agent -s)
-    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null
-    - mkdir -p ~/.ssh
-    - chmod 700 ~/.ssh
-    - touch  ~/.ssh/known_hosts
-    - ssh-keygen -f ~/.ssh/known_hosts -R gitlab.com
-    - echo "StrictHostKeyChecking no" > ~/.ssh/config
-    - echo -e "machine gitlab.com\nlogin gitlab-ci-token\npassword ${CI_JOB_TOKEN}" > ~/.netrc
-    - yarn install
-    - yarn build
-    - ls
-  cache:
-    paths:
-    - ./node_modules
-    - ./dist
-  artifacts:
-    when: on_success
-    paths:
-    - ./node_modules
-    - ./dist
     
 build:
   stage: build
@@ -115,7 +90,7 @@ test:
   only:
     - branches
 
-codequality:
+.codequality:
   image: docker:latest
   variables:
     DOCKER_DRIVER: overlay2
@@ -128,7 +103,7 @@ codequality:
   artifacts:
     paths: [codeclimate.json]
 
-sast:
+.sast:
   image: registry.gitlab.com/gitlab-org/gl-sast:latest
   variables:
     POSTGRES_DB: "false"
@@ -138,7 +113,7 @@ sast:
   artifacts:
     paths: [gl-sast-report.json]
 
-sast:container:
+.sast:container:
   image: docker:latest
   variables:
     DOCKER_DRIVER: overlay2
@@ -151,7 +126,7 @@ sast:container:
   artifacts:
     paths: [gl-sast-container-report.json]
 
-dast:
+.dast:
   stage: dast
   allow_failure: true
   image: owasp/zap2docker-stable

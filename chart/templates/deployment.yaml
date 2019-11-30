@@ -56,24 +56,24 @@ spec:
         - name: GOOGLE_AUTH
           valueFrom:
             secretKeyRef:
-              name: portfolio-secrets
+              name: strategy-secrets
               key: google-auth
         - name: GOOGLE_APPLICATION_CREDENTIALS
           valueFrom:
             secretKeyRef:
-              name: portfolio-secrets
+              name: strategy-secrets
               key: google-application-credentials
         - name: DB_HOST
           value: 127.0.0.1
         - name: OHLCDB_NAME
           valueFrom:
             secretKeyRef:
-              name: portfolio-secrets
+              name: strategy-secrets
               key: ohlcvdb-name
         - name: OHLCV_TABLE_NAME
           valueFrom:
             secretKeyRef:
-              name: portfolio-secrets
+              name: strategy-secrets
               key: ohlcvdb-table-name
         - name: DB_USER
           valueFrom:
