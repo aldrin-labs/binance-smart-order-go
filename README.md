@@ -5,19 +5,20 @@ Strategy service uses same singleton pattern around managing runtime of database
 Implemented strategies:
  - Smart-order
 
-#### Testing
+---
+### Testing
 
 ``
 go test -v ./tests
 ``
 
-#### Run
+---
+### Run
 
 ``
 go build main
 ``
 
----
 ---
 # Try Out Development Containers: Go
 
