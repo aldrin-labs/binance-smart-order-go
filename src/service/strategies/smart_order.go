@@ -389,6 +389,9 @@ func (sm *SmartOrder) Start() {
 	}
 }
 
+func (sm *SmartOrder) Stop() {
+}
+
 func (sm *SmartOrder) processEventLoop() {
 	currentOHLCV := sm.DataFeed.GetPriceForPairAtExchange(sm.Model.Condition.Pair, sm.ExchangeName)
 	println("new trade", currentOHLCV.Close)
@@ -402,5 +405,9 @@ func (sm *SmartOrder) processEventLoop() {
 	}
 }
 
-func StartEventLoop() {
+func RunSmartOrder(strategy *Strategy, df IDataFeed, td ITrading) IStrategyRuntime {
+	runtime := NewSmartOrder(strategy.Model, strategy.Datafeed, strategy.Trading)
+	runtime.Start()
+
+	return runtime
 }

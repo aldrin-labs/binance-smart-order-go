@@ -2,6 +2,10 @@ package models
 
 import "go.mongodb.org/mongo-driver/bson/primitive"
 
+type MongoStrategyUpdateEvent struct {
+	FullDocument MongoStrategy `json:"fullDocument" bson:"fullDocument"`
+}
+
 type MongoStrategyEvent struct {
 	T    int64
 	Data interface{}
@@ -26,7 +30,8 @@ type MongoSocial struct {
 
 type MongoStrategy struct {
 	Id          primitive.ObjectID `json:"_id"`
-	MonType     MongoStrategyType
+	StrategyType      string `json:"strategyType"`
+	Enabled 	bool
 	Condition   MongoStrategyCondition
 	State		MongoStrategyState
 	TriggerWhen TriggerOptions
@@ -62,6 +67,7 @@ type MongoEntryPoint struct {
 	HedgeActivation         float64
 	HedgeOppositeActivation float64
 	Type                    int64
+	OrderType               string
 }
 
 type MongoStrategyCondition struct {
@@ -73,11 +79,11 @@ type MongoStrategyCondition struct {
 	ActivationPrice     float64
 	EntryDeviation      float64
 	Amount              float64
-	Spread              float64
 	ExchangeId          primitive.ObjectID
 	ExchangeIds         []primitive.ObjectID
 	Pair                string
 	Side                string
+	ExitDeviation       float64
 	TakeProfit          float64
 	TimeoutIfProfitable float64
 	// then take profit after some time

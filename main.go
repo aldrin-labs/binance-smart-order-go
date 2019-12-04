@@ -25,6 +25,6 @@ func main() {
     wg.Add(1)
     go server.RunServer(&wg)
     wg.Add(1)
-    go service.InitSingleton(&wg)
+    go service.GetStrategyService().Init(&wg)
     wg.Wait()
 }

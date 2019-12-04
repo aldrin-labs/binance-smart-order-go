@@ -4,6 +4,8 @@ import (
 	"context"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/readpref"
+	"go.mongodb.org/mongo-driver/mongo/writeconcern"
 	"os"
 	"time"
 )
@@ -29,6 +31,12 @@ func GetMongoClientInstance() *mongo.Client {
 
 func Connect(url string, connectTimeout time.Duration) (*mongo.Client, error) {
 	ctx, _ := context.WithTimeout(context.Background(), connectTimeout)
-	mongoClient, err := mongo.Connect(ctx, options.Client().ApplyURI(url).SetDirect(true))
+	timeout := 10 * time.Second
+	mongoClient, err := mongo.Connect(ctx, options.Client().SetDirect(true).
+		SetReadPreference(readpref.Primary()).
+		SetWriteConcern(writeconcern.New(writeconcern.WMajority())).
+		SetRetryWrites(true).
+		SetReplicaSet("rs0").
+		SetConnectTimeout(timeout).ApplyURI(url))
 	return mongoClient, err
 }
