@@ -12,7 +12,7 @@ type Strategy struct {
 	Model           *models.MongoStrategy
 	StrategyRuntime IStrategyRuntime
 	Datafeed        IDataFeed
-	Trading         ITrading
+	Trading         trading.ITrading
 }
 
 type IStrategyRuntime interface {
@@ -23,21 +23,17 @@ type IStrategyRuntime interface {
 func GetStrategy(cur *mongo.Cursor) (*Strategy, error) {
 	result := &models.MongoStrategy{}
 	err := cur.Decode(&result)
-	return &Strategy{Model: &models.MongoStrategy{}}, err
+	return &Strategy{Model: result}, err
 }
 
 func (strategy *Strategy) Start() {
 	switch strategy.Model.StrategyType {
-	case "smart":
+	case 1:
 		println("runSmartOrder")
-		strategy.StrategyRuntime = RunSmartOrder(strategy, strategy.Datafeed, strategy.Trading)
+		strategy.StrategyRuntime = RunSmartOrder(strategy, strategy.Datafeed, strategy.Trading, "")
 	default:
-		fmt.Println("this type of signal is not supported yet:", strategy.Model.StrategyType)
+		fmt.Println("this type of strategy is not supported yet:", strategy.Model.Id.String(), strategy.Model.StrategyType)
 	}
-}
-
-func (strategy *Strategy) CreateOrder(rawOrder trading.CreateOrderRequest) {
-	trading.CreateOrder(rawOrder)
 }
 
 

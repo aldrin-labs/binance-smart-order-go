@@ -5,6 +5,8 @@ import (
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
+	"gitlab.com/crypto_project/core/strategy_service/src/sources/redis"
+	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -15,6 +17,8 @@ import (
 // StrategyService strategy service type
 type StrategyService struct {
 	strategies map[string]*strategies.Strategy
+	trading trading.ITrading
+	dataFeed strategies.IDataFeed
 }
 
 var singleton *StrategyService
@@ -23,7 +27,11 @@ var once sync.Once
 // GetStrategyService to get singleton
 func GetStrategyService() *StrategyService {
 	once.Do(func() {
-		singleton = &StrategyService{}
+		singleton = &StrategyService{
+			strategies: map[string]*strategies.Strategy{},
+			dataFeed: redis.InitRedis(),
+			trading: trading.InitTrading(),
+		}
 	})
 	return singleton
 }

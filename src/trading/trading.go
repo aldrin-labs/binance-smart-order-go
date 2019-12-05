@@ -10,12 +10,21 @@ import (
 )
 
 type ITrading interface {
-	CreateOrder(order CreateOrderRequest)
-	CancelOrder(params CancelOrderRequest)
+	CreateOrder(order CreateOrderRequest) interface{}
+	CancelOrder(params CancelOrderRequest) interface{}
 }
 
-func Request (method string, data interface{}) interface{} {
-	url := "http://"+ os.Getenv("EXCHANGESERVCE") +"/" + method
+type Trading struct {
+}
+
+func InitTrading() ITrading {
+	tr := &Trading{}
+
+	return tr
+}
+
+func Request(method string, data interface{}) interface{} {
+	url := "http://" + os.Getenv("EXCHANGESERVCE") + "/" + method
 	fmt.Println("URL:>", url)
 
 	var jsonStr, err = json.Marshal(data)
@@ -50,17 +59,19 @@ func Request (method string, data interface{}) interface{} {
 */
 
 type OrderParams struct {
-	StopPrice float64
-	Type      string
+	StopPrice float64 `json:"stopPrice" bson:"stopPrice"`
+	Type      string  `json:"type" bson:"type"`
 }
 
 type Order struct {
-	Symbol string
-	Type   string
-	Side   string
-	Amount float64
-	Price  float64
-	Params OrderParams
+	TargetPrice float64             `json:"targetPrice" bson:"targetPrice"`
+	Symbol      string              `json:"symbol" bson:"symbol"`
+	Side        string              `json:"side" bson:"side"`
+	Amount      float64             `json:"amount" bson:"amount"`
+	OrderParams Trading 			`json:"orderParams" bson:"orderParams"`
+	Type   string              `json:"orderType" bson:"orderType"`
+	Price       float64             `json:"amount" bson:"amount"`
+	Params      OrderParams         `json:"orderParams" bson:"orderParams"`
 }
 
 type CreateOrderRequest struct {
@@ -69,15 +80,14 @@ type CreateOrderRequest struct {
 }
 
 type CancelOrderRequest struct {
-	KeyId     string
+	KeyId   string
 	OrderId string
 }
 
-func CreateOrder(order CreateOrderRequest) interface{} {
+func (t *Trading) CreateOrder(order CreateOrderRequest) interface{} {
 	return Request("createOrder", order)
 }
 
-func CancelOrder(cancelRequest CancelOrderRequest) interface{} {
+func (t *Trading) CancelOrder(cancelRequest CancelOrderRequest) interface{} {
 	return Request("cancelOrder", cancelRequest)
 }
-

@@ -12,14 +12,16 @@ type RedisLoop struct {
 }
 var redisLoop *RedisLoop
 
-func InitRedis() {
+func InitRedis() strategies.IDataFeed {
 	if redisLoop == nil {
 		redisLoop = &RedisLoop{}
 		redisLoop.SubscribeToPairs()
 	}
+
+	return redisLoop
 }
 
-func GetPrice(pair, exchange string) *strategies.OHLCV {
+func (rl *RedisLoop) GetPriceForPairAtExchange(pair string, exchange string) *strategies.OHLCV {
 	if redisLoop == nil {
 		redisLoop = &RedisLoop{}
 	}
