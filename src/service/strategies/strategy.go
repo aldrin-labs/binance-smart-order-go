@@ -20,19 +20,19 @@ type IStrategyRuntime interface {
 	Start()
 }
 
-func GetStrategy(cur *mongo.Cursor) (*Strategy, error) {
-	result := &models.MongoStrategy{}
+func GetStrategy(cur *mongo.Cursor, df IDataFeed, tr trading.ITrading) (*Strategy, error) {
+	var result models.MongoStrategy
 	err := cur.Decode(&result)
-	return &Strategy{Model: result}, err
+	return &Strategy{Model: &result, Datafeed: df, Trading: tr }, err
 }
 
 func (strategy *Strategy) Start() {
 	switch strategy.Model.StrategyType {
 	case 1:
 		println("runSmartOrder")
-		strategy.StrategyRuntime = RunSmartOrder(strategy, strategy.Datafeed, strategy.Trading, "")
+		strategy.StrategyRuntime = RunSmartOrder(strategy, strategy.Datafeed, strategy.Trading, nil)
 	default:
-		fmt.Println("this type of strategy is not supported yet:", strategy.Model.Id.String(), strategy.Model.StrategyType)
+		fmt.Println("this type of strategy is not supported yet:", strategy.Model.ID.String(), strategy.Model.StrategyType)
 	}
 }
 

@@ -27,10 +27,12 @@ var once sync.Once
 // GetStrategyService to get singleton
 func GetStrategyService() *StrategyService {
 	once.Do(func() {
+		df := redis.InitRedis()
+		tr := trading.InitTrading()
 		singleton = &StrategyService{
 			strategies: map[string]*strategies.Strategy{},
-			dataFeed: redis.InitRedis(),
-			trading: trading.InitTrading(),
+			dataFeed: df,
+			trading: tr,
 		}
 	})
 	return singleton
@@ -47,13 +49,14 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup) {
 	defer cur.Close(ctx)
 
 	for cur.Next(ctx) {
-		strategy, err := strategies.GetStrategy(cur)
+		// create a value into which the single document can be decoded
+		strategy, err := strategies.GetStrategy(cur, ss.dataFeed, ss.trading)
 		println(strategy)
 		if err != nil {
 			log.Fatal(err)
 		}
-		println("objid " + strategy.Model.Id.String())
-		GetStrategyService().strategies[strategy.Model.Id.String()] = strategy
+		println("objid " + strategy.Model.ID.String())
+		GetStrategyService().strategies[strategy.Model.ID.String()] = strategy
 		go strategy.Start()
 	}
 	ss.WatchStrategies()
@@ -63,14 +66,14 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup) {
 	}
 }
 
-func GetStrategy(strategy *models.MongoStrategy) *strategies.Strategy {
-	return &strategies.Strategy{Model:strategy}
+func GetStrategy(strategy *models.MongoStrategy, df strategies.IDataFeed, tr trading.ITrading) *strategies.Strategy {
+	return &strategies.Strategy{Model:strategy, Datafeed: df, Trading: tr}
 }
 
 func (ss *StrategyService) AddStrategy(strategy * models.MongoStrategy) {
-	sig := GetStrategy(strategy)
-	println("objid ", sig.Model.Id.String())
-	ss.strategies[sig.Model.Id.String()] = sig
+	sig := GetStrategy(strategy, ss.dataFeed, ss.trading)
+	println("objid ", sig.Model.ID.String())
+	ss.strategies[sig.Model.ID.String()] = sig
 	go sig.Start()
 
 }
@@ -93,12 +96,12 @@ func (ss *StrategyService) WatchStrategies() error {
 		// println(data)
 		//		err := json.Unmarshal([]byte(data), &event)
 		if err != nil {
-			println(err)
+			println("event decode", err)
 		}
-		if ss.strategies[event.FullDocument.Id.String()] != nil {
-			ss.strategies[event.FullDocument.Id.String()].HotReload(event.FullDocument)
+		if ss.strategies[event.FullDocument.ID.String()] != nil {
+			ss.strategies[event.FullDocument.ID.String()].HotReload(event.FullDocument)
 			if event.FullDocument.Enabled == false {
-				delete(ss.strategies, event.FullDocument.Id.String())
+				delete(ss.strategies, event.FullDocument.ID.String())
 			}
 		} else {
 			if event.FullDocument.Enabled == true {

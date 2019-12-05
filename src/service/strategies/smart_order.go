@@ -7,6 +7,7 @@ import (
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
 	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"reflect"
 	"time"
 )
@@ -45,12 +46,12 @@ type SmartOrder struct {
 	Model        *models.MongoStrategy
 	State        *stateless.StateMachine
 	ExchangeName string
-	KeyId		 string
+	KeyId		 *primitive.ObjectID
 	DataFeed     IDataFeed
 	ExchangeApi  trading.ITrading
 }
 
-func NewSmartOrder(smartOrder *models.MongoStrategy, DataFeed IDataFeed, TradingAPI trading.ITrading, keyId string) *SmartOrder {
+func NewSmartOrder(smartOrder *models.MongoStrategy, DataFeed IDataFeed, TradingAPI trading.ITrading, keyId *primitive.ObjectID) *SmartOrder {
 	sm := &SmartOrder{Model: smartOrder, DataFeed: DataFeed, ExchangeApi: TradingAPI, KeyId: keyId}
 	State := stateless.NewStateMachine(WaitForEntry)
 	State.SetTriggerParameters(TriggerTrade, reflect.TypeOf(OHLCV{}))
@@ -427,36 +428,39 @@ func (sm *SmartOrder) Stop() {
 
 func (sm *SmartOrder) processEventLoop() {
 	currentOHLCV := sm.DataFeed.GetPriceForPairAtExchange(sm.Model.Conditions.Pair, sm.ExchangeName)
-	println("new trade", currentOHLCV.Close)
-	err := sm.State.FireCtx(context.TODO(), TriggerTrade, currentOHLCV)
-	err = sm.State.FireCtx(context.TODO(), CheckLossTrade, currentOHLCV)
-	err = sm.State.FireCtx(context.TODO(), CheckProfitTrade, currentOHLCV)
-	err = sm.State.FireCtx(context.TODO(), CheckTrailingLossTrade, currentOHLCV)
-	err = sm.State.FireCtx(context.TODO(), CheckTrailingProfitTrade, currentOHLCV)
-	if err != nil {
-		println(err.Error())
+	if currentOHLCV != nil {
+		println("new trade", currentOHLCV.Close)
+		err := sm.State.FireCtx(context.TODO(), TriggerTrade, currentOHLCV)
+		err = sm.State.FireCtx(context.TODO(), CheckLossTrade, currentOHLCV)
+		err = sm.State.FireCtx(context.TODO(), CheckProfitTrade, currentOHLCV)
+		err = sm.State.FireCtx(context.TODO(), CheckTrailingLossTrade, currentOHLCV)
+		err = sm.State.FireCtx(context.TODO(), CheckTrailingProfitTrade, currentOHLCV)
+		if err != nil {
+			println(err.Error())
+		}
 	}
 }
 
 type KeyAsset struct {
-	keyId string `json:"entryOrder" bson:"entryOrder"`
+	KeyId primitive.ObjectID `json:"keyId" bson:"keyId"`
 }
 
-func RunSmartOrder(strategy *Strategy, df IDataFeed, td trading.ITrading, keyId string) IStrategyRuntime {
-	if keyId == "" {
+func RunSmartOrder(strategy *Strategy, df IDataFeed, td trading.ITrading, keyId *primitive.ObjectID) IStrategyRuntime {
+	if keyId == nil {
 		KeyAssets := mongodb.GetCollection("core_key_assets")
+		keyAssetId := strategy.Model.Conditions.KeyAssetId.String()
 		var request bson.D
 		request = bson.D{
 			{"_id", strategy.Model.Conditions.KeyAssetId},
 		}
-
+		println(keyAssetId)
 		ctx := context.Background()
 		var keyAsset KeyAsset
 		err := KeyAssets.FindOne(ctx, request).Decode(&keyAsset)
 		if err != nil {
 			println("keyAssetsCursor", err)
 		}
-		keyId = keyAsset.keyId
+		keyId = &keyAsset.KeyId
 	}
 	runtime := NewSmartOrder(strategy.Model, df, td, keyId)
 	runtime.Start()

@@ -24,6 +24,7 @@ func InitRedis() strategies.IDataFeed {
 func (rl *RedisLoop) GetPriceForPairAtExchange(pair string, exchange string) *strategies.OHLCV {
 	if redisLoop == nil {
 		redisLoop = &RedisLoop{}
+		redisLoop.SubscribeToPairs()
 	}
 	return redisLoop.GetPrice(pair, exchange)
 }
@@ -77,7 +78,7 @@ func (rl *RedisLoop) FillPair(pair, exchange string) *strategies.OHLCV {
 
 func (rl *RedisLoop) GetPrice(pair, exchange string) *strategies.OHLCV  {
 	ohlcvRaw, ob := rl.OhlcvMap.Load(pair+exchange)
-	if ob {
+	if ob == true {
 		ohlcv := ohlcvRaw.(strategies.OHLCV)
 		return &ohlcv
 	}

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -66,16 +67,15 @@ type OrderParams struct {
 type Order struct {
 	TargetPrice float64             `json:"targetPrice" bson:"targetPrice"`
 	Symbol      string              `json:"symbol" bson:"symbol"`
-	Side        string              `json:"side" bson:"side"`
-	Amount      float64             `json:"amount" bson:"amount"`
-	OrderParams Trading 			`json:"orderParams" bson:"orderParams"`
-	Type   string              `json:"orderType" bson:"orderType"`
-	Price       float64             `json:"amount" bson:"amount"`
+	Side        string              `json:"side"`
+	Amount      float64             `json:"amount"`
+	Type   		string              `json:"orderType" bson:"orderType"`
+	Price       float64             `json:"price" bson:"price"`
 	Params      OrderParams         `json:"orderParams" bson:"orderParams"`
 }
 
 type CreateOrderRequest struct {
-	KeyId     string
+	KeyId     *primitive.ObjectID
 	KeyParams Order
 }
 

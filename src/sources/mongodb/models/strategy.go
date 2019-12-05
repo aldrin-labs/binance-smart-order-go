@@ -32,10 +32,10 @@ type MongoSocial struct {
 }
 
 type MongoStrategy struct {
-	Id           primitive.ObjectID `bson:"_id"`
+	ID           primitive.ObjectID `json:"_id"`
 	StrategyType int64              `bson:"strategyType"`
 	Enabled      bool				`bson:"enabled"`
-	Conditions    MongoStrategyCondition `bson:"conditions"`
+	Conditions   MongoStrategyCondition `bson:"conditions"`
 	State        MongoStrategyState	`bson:"state"`
 	TriggerWhen  TriggerOptions `bson:"triggerWhen"`
 	Expiration   ExpirationSchema
@@ -74,7 +74,7 @@ type MongoEntryPoint struct {
 }
 
 type MongoStrategyCondition struct {
-	KeyAssetId			string `json:"keyAssetId" bson:"keyAssetId"`
+	KeyAssetId			primitive.ObjectID `json:"keyAssetId" bson:"keyAssetId"`
 	Pair                string `json:"pair" bson:"pair"`
 	MarketType			int64 `json:"marketType" bson:"marketType"`
 	EntryOrder			trading.Order `json:"entryOrder" bson:"entryOrder"`
