@@ -2,6 +2,9 @@ package mongodb
 
 import (
 	"context"
+	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
@@ -39,4 +42,31 @@ func Connect(url string, connectTimeout time.Duration) (*mongo.Client, error) {
 		SetReplicaSet("rs0").
 		SetConnectTimeout(timeout).ApplyURI(url))
 	return mongoClient, err
+}
+
+type StateMgmt struct {
+
+}
+
+func (sm *StateMgmt) UpdateState(strategyId primitive.ObjectID, state *models.MongoStrategyState) {
+	col := GetCollection("core_strategies")
+	var request bson.D
+	request = bson.D{
+		{"_id", strategyId},
+	}
+	var update bson.D
+	update = bson.D{
+		{
+			"$set", bson.D{
+				{
+					"state", state,
+				},
+			},
+		},
+	}
+	res, err := col.UpdateOne(context.TODO(), request, update)
+	if err != nil {
+		println("error in arg", err)
+	}
+	println(res)
 }

@@ -13,6 +13,7 @@ type Strategy struct {
 	StrategyRuntime IStrategyRuntime
 	Datafeed        IDataFeed
 	Trading         trading.ITrading
+	StateMgmt 		IStateMgmt
 }
 
 type IStrategyRuntime interface {
@@ -20,17 +21,17 @@ type IStrategyRuntime interface {
 	Start()
 }
 
-func GetStrategy(cur *mongo.Cursor, df IDataFeed, tr trading.ITrading) (*Strategy, error) {
+func GetStrategy(cur *mongo.Cursor, df IDataFeed, tr trading.ITrading, sm IStateMgmt) (*Strategy, error) {
 	var result models.MongoStrategy
 	err := cur.Decode(&result)
-	return &Strategy{Model: &result, Datafeed: df, Trading: tr }, err
+	return &Strategy{Model: &result, Datafeed: df, Trading: tr, StateMgmt: sm }, err
 }
 
 func (strategy *Strategy) Start() {
 	switch strategy.Model.StrategyType {
 	case 1:
 		println("runSmartOrder")
-		strategy.StrategyRuntime = RunSmartOrder(strategy, strategy.Datafeed, strategy.Trading, nil)
+		strategy.StrategyRuntime = RunSmartOrder(strategy, strategy.Datafeed, strategy.Trading, nil, )
 	default:
 		fmt.Println("this type of strategy is not supported yet:", strategy.Model.ID.String(), strategy.Model.StrategyType)
 	}

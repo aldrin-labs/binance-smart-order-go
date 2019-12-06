@@ -35,11 +35,15 @@ type OHLCV struct {
 }
 
 type IDataFeed interface {
-	GetPriceForPairAtExchange(pair string, exchange string) *OHLCV
+	GetPriceForPairAtExchange(pair string, exchange string, marketType int64) *OHLCV
 }
 
 type ITrading interface {
 	CreateOrder(exchange string, pair string, price float64, amount float64, side string) string
+}
+
+type IStateMgmt interface {
+	UpdateState(strategyId primitive.ObjectID, state *models.MongoStrategyState)
 }
 
 type SmartOrder struct {
@@ -49,10 +53,11 @@ type SmartOrder struct {
 	KeyId		 *primitive.ObjectID
 	DataFeed     IDataFeed
 	ExchangeApi  trading.ITrading
+	StateMgmt 	 IStateMgmt
 }
 
-func NewSmartOrder(smartOrder *models.MongoStrategy, DataFeed IDataFeed, TradingAPI trading.ITrading, keyId *primitive.ObjectID) *SmartOrder {
-	sm := &SmartOrder{Model: smartOrder, DataFeed: DataFeed, ExchangeApi: TradingAPI, KeyId: keyId}
+func NewSmartOrder(smartOrder *models.MongoStrategy, DataFeed IDataFeed, TradingAPI trading.ITrading, keyId *primitive.ObjectID, stateMgmt IStateMgmt) *SmartOrder {
+	sm := &SmartOrder{Model: smartOrder, DataFeed: DataFeed, ExchangeApi: TradingAPI, KeyId: keyId, StateMgmt: stateMgmt}
 	State := stateless.NewStateMachine(WaitForEntry)
 	State.SetTriggerParameters(TriggerTrade, reflect.TypeOf(OHLCV{}))
 	State.Configure(WaitForEntry).PermitDynamic(TriggerTrade, sm.exitWaitEntry, sm.checkWaitEntry)
@@ -84,6 +89,7 @@ func NewSmartOrder(smartOrder *models.MongoStrategy, DataFeed IDataFeed, Trading
 func (sm *SmartOrder) enterTrailingEntry(ctx context.Context, args ...interface{}) error {
 	currentOHLCV := args[0].(OHLCV)
 	sm.Model.State.TrailingEntryPrice = currentOHLCV.Close
+	sm.StateMgmt.UpdateState(sm.Model.ID, &sm.Model.State)
 	return nil
 }
 func (sm *SmartOrder) checkTrailingEntry(ctx context.Context, args ...interface{}) bool {
@@ -124,7 +130,7 @@ func (sm *SmartOrder) exitWaitEntry(ctx context.Context, args ...interface{}) (s
 }
 func (sm *SmartOrder) checkWaitEntry(ctx context.Context, args ...interface{}) bool {
 	currentOHLCV := args[0].(OHLCV)
-	conditionPrice := sm.Model.Conditions.Price
+	conditionPrice := sm.Model.Conditions.EntryOrder.Price
 	if sm.Model.Conditions.ActivationPrice > 0 {
 		conditionPrice = sm.Model.Conditions.ActivationPrice
 	}
@@ -247,6 +253,7 @@ func (sm *SmartOrder) checkProfit(ctx context.Context, args ...interface{}) bool
 		if sm.Model.State.ExecutedAmount == sm.Model.Conditions.EntryOrder.Amount {
 			sm.Model.State.Amount = 0
 			sm.Model.State.State = TakeProfit // took all profits, exit now
+			sm.StateMgmt.UpdateState(sm.Model.ID, &sm.Model.State)
 			return true
 		}
 		if amount > 0 {
@@ -255,6 +262,7 @@ func (sm *SmartOrder) checkProfit(ctx context.Context, args ...interface{}) bool
 			currentState, _ := sm.State.State(context.Background())
 			if currentState == TakeProfit {
 				sm.Model.State.State = EnterNextTarget
+				sm.StateMgmt.UpdateState(sm.Model.ID, &sm.Model.State)
 			}
 			return true
 		}
@@ -264,12 +272,14 @@ func (sm *SmartOrder) checkProfit(ctx context.Context, args ...interface{}) bool
 		case "buy":
 			if (currentOHLCV.Close/sm.Model.State.EntryPrice-1)*100 >= sm.Model.Conditions.TakeProfit {
 				sm.Model.State.State = TakeProfit
+				sm.StateMgmt.UpdateState(sm.Model.ID, &sm.Model.State)
 				return true
 			}
 			break
 		case "sell":
 			if (sm.Model.State.EntryPrice/currentOHLCV.Close-1)*100 >= sm.Model.Conditions.TakeProfit {
 				sm.Model.State.State = TakeProfit
+				sm.StateMgmt.UpdateState(sm.Model.ID, &sm.Model.State)
 				return true
 			}
 			break
@@ -312,6 +322,7 @@ func (sm *SmartOrder) checkLoss(ctx context.Context, args ...interface{}) bool {
 				sm.Model.State.Amount = sm.Model.Conditions.EntryOrder.Amount - sm.Model.State.ExecutedAmount
 			}
 			sm.Model.State.State = Stoploss
+			sm.StateMgmt.UpdateState(sm.Model.ID, &sm.Model.State)
 			return true
 		}
 		break
@@ -321,6 +332,7 @@ func (sm *SmartOrder) checkLoss(ctx context.Context, args ...interface{}) bool {
 				sm.Model.State.Amount = sm.Model.Conditions.EntryOrder.Amount - sm.Model.State.ExecutedAmount
 			}
 			sm.Model.State.State = Stoploss
+			sm.StateMgmt.UpdateState(sm.Model.ID, &sm.Model.State)
 			return true
 		}
 		break
@@ -372,6 +384,7 @@ func (sm *SmartOrder) enterTakeProfit(ctx context.Context, args ...interface{}) 
 		)
 
 		sm.Model.State.ExecutedAmount += sm.Model.State.Amount
+		sm.StateMgmt.UpdateState(sm.Model.ID, &sm.Model.State)
 		if sm.Model.State.ExecutedAmount - sm.Model.Conditions.EntryOrder.Amount == 0 { // re-check all takeprofit conditions to exit trade ( no additional trades needed no )
 			ohlcv := args[0].(OHLCV)
 			err := sm.State.FireCtx(context.TODO(), TriggerTrade, ohlcv)
@@ -427,17 +440,34 @@ func (sm *SmartOrder) Stop() {
 }
 
 func (sm *SmartOrder) processEventLoop() {
-	currentOHLCV := sm.DataFeed.GetPriceForPairAtExchange(sm.Model.Conditions.Pair, sm.ExchangeName)
-	if currentOHLCV != nil {
+	currentOHLCVp := sm.DataFeed.GetPriceForPairAtExchange(sm.Model.Conditions.Pair, sm.ExchangeName, sm.Model.Conditions.MarketType)
+	if currentOHLCVp != nil {
+		currentOHLCV := *currentOHLCVp
 		println("new trade", currentOHLCV.Close)
-		err := sm.State.FireCtx(context.TODO(), TriggerTrade, currentOHLCV)
-		err = sm.State.FireCtx(context.TODO(), CheckLossTrade, currentOHLCV)
-		err = sm.State.FireCtx(context.TODO(), CheckProfitTrade, currentOHLCV)
-		err = sm.State.FireCtx(context.TODO(), CheckTrailingLossTrade, currentOHLCV)
-		err = sm.State.FireCtx(context.TODO(), CheckTrailingProfitTrade, currentOHLCV)
-		if err != nil {
-			println(err.Error())
+		state, err := sm.State.State(context.TODO())
+		err = sm.State.FireCtx(context.TODO(), TriggerTrade, currentOHLCV)
+		if err == nil {
+			return
 		}
+		if state == InEntry || state == TakeProfit || state == Stoploss {
+			err = sm.State.FireCtx(context.TODO(), CheckLossTrade, currentOHLCV)
+			if err == nil {
+				return
+			}
+			err = sm.State.FireCtx(context.TODO(), CheckProfitTrade, currentOHLCV)
+			if err == nil {
+				return
+			}
+			err = sm.State.FireCtx(context.TODO(), CheckTrailingLossTrade, currentOHLCV)
+			if err == nil {
+				return
+			}
+			err = sm.State.FireCtx(context.TODO(), CheckTrailingProfitTrade, currentOHLCV)
+			if err == nil {
+				return
+			}
+		}
+		println(sm.Model.Conditions.Pair, sm.Model.State.TrailingEntryPrice, sm.Model.Conditions.EntryDeviation, currentOHLCV.Close, err.Error())
 	}
 }
 
@@ -462,7 +492,7 @@ func RunSmartOrder(strategy *Strategy, df IDataFeed, td trading.ITrading, keyId 
 		}
 		keyId = &keyAsset.KeyId
 	}
-	runtime := NewSmartOrder(strategy.Model, df, td, keyId)
+	runtime := NewSmartOrder(strategy.Model, df, td, keyId, strategy.StateMgmt)
 	runtime.Start()
 
 	return runtime

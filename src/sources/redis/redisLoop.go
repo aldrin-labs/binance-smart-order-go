@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies"
+	"strconv"
 	"sync"
 )
 
@@ -21,23 +22,24 @@ func InitRedis() strategies.IDataFeed {
 	return redisLoop
 }
 
-func (rl *RedisLoop) GetPriceForPairAtExchange(pair string, exchange string) *strategies.OHLCV {
+func (rl *RedisLoop) GetPriceForPairAtExchange(pair string, exchange string, marketType int64) *strategies.OHLCV {
 	if redisLoop == nil {
 		redisLoop = &RedisLoop{}
 		redisLoop.SubscribeToPairs()
 	}
-	return redisLoop.GetPrice(pair, exchange)
+	return redisLoop.GetPrice(pair, exchange, marketType)
 }
 
 type OrderbookOHLCV struct {
 	Open float64 `json:"open_price,float"`
 	High float64 `json:"high_price,float"`
 	Low float64 `json:"low_price,float"`
+	MarketType int64 `json:"market_type,float"`
 	Close float64 `json:"close_price,float"`
 	Volume float64 `json:"volume,float"`
-	Base string `json:"fsym,string"`
-	Quote string `json:"tsym,string"`
-	Exchange string `json:"volume,string"`
+	Base string `json:"tsym"`
+	Quote string `json:"fsym"`
+	Exchange string `json:"exchange"`
 }
 
 func (rl *RedisLoop) SubscribeToPairs() {
@@ -50,7 +52,7 @@ func (rl *RedisLoop) SubscribeToPairs() {
 }
 
 func (rl *RedisLoop) UpdateOHLCV(channel string, data []byte) {
-	ohlcvOB := OrderbookOHLCV{}
+	var ohlcvOB OrderbookOHLCV
 	_ = json.Unmarshal(data, &ohlcvOB)
 	pair := ohlcvOB.Quote+"_"+ohlcvOB.Base
 	exchange := ohlcvOB.Exchange
@@ -61,7 +63,7 @@ func (rl *RedisLoop) UpdateOHLCV(channel string, data []byte) {
 		Close:  ohlcvOB.Close,
 		Volume: ohlcvOB.Volume,
 	}
-	rl.OhlcvMap.Store(exchange+pair, ohlcv)
+	rl.OhlcvMap.Store(exchange+pair+strconv.FormatInt(ohlcvOB.MarketType, 10), ohlcv)
 
 }
 func (rl *RedisLoop) FillPair(pair, exchange string) *strategies.OHLCV {
@@ -76,8 +78,8 @@ func (rl *RedisLoop) FillPair(pair, exchange string) *strategies.OHLCV {
 	return nil
 }
 
-func (rl *RedisLoop) GetPrice(pair, exchange string) *strategies.OHLCV  {
-	ohlcvRaw, ob := rl.OhlcvMap.Load(pair+exchange)
+func (rl *RedisLoop) GetPrice(pair, exchange string, marketType int64) *strategies.OHLCV  {
+	ohlcvRaw, ob := rl.OhlcvMap.Load(exchange+pair+strconv.FormatInt(marketType, 10))
 	if ob == true {
 		ohlcv := ohlcvRaw.(strategies.OHLCV)
 		return &ohlcv

@@ -19,6 +19,7 @@ type StrategyService struct {
 	strategies map[string]*strategies.Strategy
 	trading trading.ITrading
 	dataFeed strategies.IDataFeed
+	stateMgmt strategies.IStateMgmt
 }
 
 var singleton *StrategyService
@@ -29,10 +30,12 @@ func GetStrategyService() *StrategyService {
 	once.Do(func() {
 		df := redis.InitRedis()
 		tr := trading.InitTrading()
+		sm := mongodb.StateMgmt{}
 		singleton = &StrategyService{
 			strategies: map[string]*strategies.Strategy{},
 			dataFeed: df,
 			trading: tr,
+			stateMgmt: &sm,
 		}
 	})
 	return singleton
@@ -50,7 +53,7 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup) {
 
 	for cur.Next(ctx) {
 		// create a value into which the single document can be decoded
-		strategy, err := strategies.GetStrategy(cur, ss.dataFeed, ss.trading)
+		strategy, err := strategies.GetStrategy(cur, ss.dataFeed, ss.trading, ss.stateMgmt)
 		println(strategy)
 		if err != nil {
 			log.Fatal(err)
