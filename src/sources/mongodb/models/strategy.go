@@ -32,7 +32,7 @@ type MongoSocial struct {
 }
 
 type MongoStrategy struct {
-	ID           primitive.ObjectID `json:"_id"`
+	ID           primitive.ObjectID `json:"_id" bson:"_id"`
 	StrategyType int64              `bson:"strategyType"`
 	Enabled      bool				`bson:"enabled"`
 	Conditions   MongoStrategyCondition `bson:"conditions"`
@@ -57,6 +57,7 @@ type MongoStrategyState struct {
 	TrailingEntryPrice float64 `json:"trailingEntryPrice" bson:"trailingEntryPrice"`
 	EntryPrice         float64 `json:"entryPrice" bson:"entryPrice"`
 	Amount             float64 `json:"amount" bson:"amount"`
+	Orders             []string `json:"orders" bson:"orders"`
 	ExecutedAmount     float64 `json:"executedAmount" bson:"executedAmount"`
 	ReachedTargetCount int `json:"reachedTargetCount" bson:"reachedTargetCount"`
 }
