@@ -4,7 +4,9 @@ import (
 	"context"
 	"github.com/qmuntal/stateless"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies"
+	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
+	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"testing"
 	"time"
@@ -12,31 +14,29 @@ import (
 
 func GetTestSmartOrder(scenario string) models.MongoStrategy {
 	smartOrder := models.MongoStrategy{
-		Id:      primitive.ObjectID{},
-		MonType: models.MongoStrategyType{},
-		Condition: models.MongoStrategyCondition{
+		ID:           primitive.ObjectID{},
+		StrategyType: 1,
+		Conditions: models.MongoStrategyCondition{
 			ActivationPrice: 6900,
 			TakeProfit:      3,
 			StopLoss:        2,
 			EntryDeviation:  1.5,
-			Amount:          1000.0,
 			Pair:            "BTC_USDT",
-			Side:            "buy",
+			EntryOrder:      trading.Order{Side: "buy"},
 		},
-		State:       models.MongoStrategyState{},
+		State:       models.MongoStrategyState{Amount: 1000},
 		TriggerWhen: models.TriggerOptions{},
 		Expiration:  models.ExpirationSchema{},
 		OwnerId:     primitive.ObjectID{},
 		Social:      models.MongoSocial{},
 	}
 	if scenario == "TestEntries" {
-		smartOrder.Condition.TakeProfit = 0
-		smartOrder.Condition.ExitLeveles = []models.MongoEntryPoint{
+		smartOrder.Conditions.TakeProfit = 0
+		smartOrder.Conditions.ExitLevels = []models.MongoEntryPoint{
 			{
 				ActivatePrice:           0,
 				EntryDeviation:          0,
 				Price:                   1,
-				Amount:                  30,
 				HedgeEntry:              0,
 				HedgeActivation:         0,
 				HedgeOppositeActivation: 0,
@@ -46,7 +46,6 @@ func GetTestSmartOrder(scenario string) models.MongoStrategy {
 				ActivatePrice:           0,
 				EntryDeviation:          0,
 				Price:                   3,
-				Amount:                  50,
 				HedgeEntry:              0,
 				HedgeActivation:         0,
 				HedgeOppositeActivation: 0,
@@ -56,7 +55,6 @@ func GetTestSmartOrder(scenario string) models.MongoStrategy {
 				ActivatePrice:           0,
 				EntryDeviation:          0,
 				Price:                   5,
-				Amount:                  20,
 				HedgeEntry:              0,
 				HedgeActivation:         0,
 				HedgeOppositeActivation: 0,
@@ -89,8 +87,13 @@ func TestSmartOrderGetInTrailingEntry(t *testing.T) {
 		Volume: 30,
 	}}
 	df := NewMockedDataFeed(fakeDataStream)
-	tradingApi := NewMockedTradingAPI()
-	smartOrder := strategies.NewSmartOrder(&smartOrderModel, df, tradingApi)
+	tradingApi := *NewMockedTradingAPI()
+	strategy := strategies.Strategy{
+		Model: &smartOrderModel,
+	}
+	keyId := primitive.NewObjectID()
+	sm := mongodb.StateMgmt{}
+	smartOrder := strategies.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm) //TODO
 	go smartOrder.Start()
 	time.Sleep(800 * time.Millisecond)
 	isInState, _ := smartOrder.State.IsInState(strategies.TrailingEntry)
@@ -122,7 +125,12 @@ func TestSmartOrderGetInEntry(t *testing.T) {
 	}}
 	df := NewMockedDataFeed(fakeDataStream)
 	tradingApi := NewMockedTradingAPI()
-	smartOrder := strategies.NewSmartOrder(&smartOrderModel, df, tradingApi)
+	strategy := strategies.Strategy{
+		Model: &smartOrderModel,
+	}
+	keyId := primitive.NewObjectID()
+	sm := mongodb.StateMgmt{}
+	smartOrder := strategies.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm) //TODO
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
 	})
@@ -169,7 +177,12 @@ func TestSmartOrderTakeProfit(t *testing.T) {
 	}}
 	df := NewMockedDataFeed(fakeDataStream)
 	tradingApi := NewMockedTradingAPI()
-	smartOrder := strategies.NewSmartOrder(&smartOrderModel, df, tradingApi)
+	strategy := strategies.Strategy{
+		Model: &smartOrderModel,
+	}
+	keyId := primitive.NewObjectID()
+	sm := mongodb.StateMgmt{}
+	smartOrder := strategies.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm) //TODO
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
 	})
@@ -228,14 +241,19 @@ func TestSmartOrderTakeProfitAllTargets(t *testing.T) {
 	smartOrderModel := GetTestSmartOrder("TestEntries")
 	df := NewMockedDataFeed(fakeDataStream)
 	tradingApi := NewMockedTradingAPI()
-	smartOrder := strategies.NewSmartOrder(&smartOrderModel, df, tradingApi)
+	strategy := strategies.Strategy{
+		Model: &smartOrderModel,
+	}
+	keyId := primitive.NewObjectID()
+	sm := mongodb.StateMgmt{}
+	smartOrder := strategies.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm) //TODO
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
 	})
 	go smartOrder.Start()
 	time.Sleep(2 * time.Second)
-	if tradingApi.CallCount["sell"] != 3 && tradingApi.AmountSum["binanceBTC_USDTsell"] != smartOrder.Model.Condition.Amount {
-		t.Error("SmartOrder didn't reach all 3 targets, but reached", tradingApi.CallCount["sell"], tradingApi.AmountSum["binanceBTC_USDTsell"], smartOrder.Model.Condition.Amount)
+	if tradingApi.CallCount["sell"] != 3 && tradingApi.AmountSum["binanceBTC_USDTsell"] != smartOrder.Strategy.Model.Conditions.EntryOrder.Amount {
+		t.Error("SmartOrder didn't reach all 3 targets, but reached", tradingApi.CallCount["sell"], tradingApi.AmountSum["binanceBTC_USDTsell"], smartOrder.Strategy.Model.Conditions.EntryOrder.Amount)
 	}
 }
 
@@ -268,15 +286,20 @@ func TestSmartOrderStopLoss(t *testing.T) {
 	smartOrderModel := GetTestSmartOrder("TestEntries")
 	df := NewMockedDataFeed(fakeDataStream)
 	tradingApi := NewMockedTradingAPI()
-	smartOrder := strategies.NewSmartOrder(&smartOrderModel, df, tradingApi)
+	strategy := strategies.Strategy{
+		Model: &smartOrderModel,
+	}
+	keyId := primitive.NewObjectID()
+	sm := mongodb.StateMgmt{}
+	smartOrder := strategies.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm) //TODO
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
 	})
 	go smartOrder.Start()
 	time.Sleep(2 * time.Second)
 
-	if tradingApi.CallCount["sell"] != 1 && tradingApi.AmountSum["binanceBTC_USDTsell"] != smartOrder.Model.Condition.Amount {
-		t.Error("SmartOrder didn't sold everything on stop-loss", tradingApi.CallCount["sell"], tradingApi.AmountSum["binanceBTC_USDTsell"], smartOrder.Model.Condition.Amount)
+	if tradingApi.CallCount["sell"] != 1 && tradingApi.AmountSum["binanceBTC_USDTsell"] != smartOrder.Strategy.Model.Conditions.EntryOrder.Amount {
+		t.Error("SmartOrder didn't sold everything on stop-loss", tradingApi.CallCount["sell"], tradingApi.AmountSum["binanceBTC_USDTsell"], smartOrder.Strategy.Model.Conditions.EntryOrder.Amount)
 	}
 }
 
@@ -315,7 +338,12 @@ func TestSmartOrderStopLossAfterTakeFirstProfit(t *testing.T) {
 	smartOrderModel := GetTestSmartOrder("TestEntries")
 	df := NewMockedDataFeed(fakeDataStream)
 	tradingApi := NewMockedTradingAPI()
-	smartOrder := strategies.NewSmartOrder(&smartOrderModel, df, tradingApi)
+	strategy := strategies.Strategy{
+		Model: &smartOrderModel,
+	}
+	keyId := primitive.NewObjectID()
+	sm := mongodb.StateMgmt{}
+	smartOrder := strategies.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm) //TODO
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
 	})
