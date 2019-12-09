@@ -101,6 +101,7 @@ type Order struct {
 	Symbol      string              `json:"symbol" bson:"symbol"`
 	Side        string              `json:"side"`
 	Amount      float64             `json:"amount"`
+	TimeInForce string              `json:"timeInForce" bson:"timeInForce"`
 	Type   		string              `json:"type" bson:"type"`
 	Price       float64             `json:"price" bson:"price"`
 	Params      OrderParams         `json:"orderParams" bson:"orderParams"`

@@ -1,7 +1,6 @@
 package models
 
 import (
-	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -66,6 +65,7 @@ type MongoEntryPoint struct {
 	ActivatePrice           float64 `json:"activatePrice" bson:"activatePrice"`
 	EntryDeviation          float64 `json:"entryDeviation" bson:"entryDeviation"`
 	Price                   float64 `json:"price" bson:"price"`
+	Side               		string `json:"side" bson:"side"`
 	Amount                  float64 `json:"amount" bson:"amount"`
 	HedgeEntry              float64 `json:"hedgeEntry" bson:"hedgeEntry"`
 	HedgeActivation         float64 `json:"hedgeActivation" bson:"hedgeActivation"`
@@ -78,7 +78,7 @@ type MongoStrategyCondition struct {
 	KeyAssetId			primitive.ObjectID `json:"keyAssetId" bson:"keyAssetId"`
 	Pair                string `json:"pair" bson:"pair"`
 	MarketType			int64 `json:"marketType" bson:"marketType"`
-	EntryOrder			trading.Order `json:"entryOrder" bson:"entryOrder"`
+	EntryOrder			MongoEntryPoint `json:"entryOrder" bson:"entryOrder"`
 
 	PortfolioId         primitive.ObjectID `json:"portfolioId" bson:"portfolioId"`
 	PercentChange       float64 `json:"percentChange" bson:"percentChange"`
