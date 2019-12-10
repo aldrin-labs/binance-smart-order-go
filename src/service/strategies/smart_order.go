@@ -46,6 +46,7 @@ type ITrading interface {
 
 type IStateMgmt interface {
 	UpdateState(strategyId primitive.ObjectID, state *models.MongoStrategyState)
+	GetPosition(strategyId primitive.ObjectID, symbol string)
 }
 
 type SmartOrder struct {
@@ -71,7 +72,8 @@ func NewSmartOrder(strategy *Strategy, DataFeed IDataFeed, TradingAPI trading.IT
 	sm := &SmartOrder{Strategy: strategy, DataFeed: DataFeed, ExchangeApi: TradingAPI, KeyId: keyId, StateMgmt: stateMgmt}
 	initState := WaitForEntry
 	sm.QuantityPrecision = 3
-	if strategy.Model.State.State != "" {
+	// if state is not empty but if its in the end and open ended, then we skip state value, since want to start over
+	if strategy.Model.State.State != "" && !(strategy.Model.State.State == End && strategy.Model.Conditions.ContinueIfEnded == true) {
 		initState = strategy.Model.State.State
 	}
 	State := stateless.NewStateMachine(initState)
@@ -267,7 +269,7 @@ func (sm *SmartOrder) checkProfit(ctx context.Context, args ...interface{}) bool
 		case "buy":
 			for i, level := range sm.Strategy.Model.Conditions.ExitLevels {
 				if sm.Strategy.Model.State.ReachedTargetCount < i+1 {
-					if level.Type == 1 && currentOHLCV.Close >= sm.Strategy.Model.State.EntryPrice * (1 + level.Price / 100) ||
+					if level.Type == 1 && currentOHLCV.Close >= (sm.Strategy.Model.State.EntryPrice * (100 + level.Price/sm.Strategy.Model.Conditions.Leverage) / 100) ||
 						level.Type == 0 && currentOHLCV.Close >= level.Price {
 						sm.Strategy.Model.State.ReachedTargetCount += 1
 						if level.Type == 0 {
@@ -360,9 +362,10 @@ func (sm *SmartOrder) checkTrailingProfit(ctx context.Context, args ...interface
 
 func (sm *SmartOrder) checkLoss(ctx context.Context, args ...interface{}) bool {
 	currentOHLCV := args[0].(OHLCV)
+	stopLoss := (sm.Strategy.Model.Conditions.StopLoss/sm.Strategy.Model.Conditions.Leverage)
 	switch sm.Strategy.Model.Conditions.EntryOrder.Side {
 	case "buy":
-		if (sm.Strategy.Model.State.EntryPrice/currentOHLCV.Close - 1)*100 >= sm.Strategy.Model.Conditions.StopLoss {
+		if (sm.Strategy.Model.State.EntryPrice/currentOHLCV.Close - 1)*100 >= stopLoss {
 			if sm.Strategy.Model.State.ExecutedAmount < sm.Strategy.Model.Conditions.EntryOrder.Amount {
 				sm.Strategy.Model.State.Amount = sm.Strategy.Model.Conditions.EntryOrder.Amount - sm.Strategy.Model.State.ExecutedAmount
 			}
@@ -372,7 +375,7 @@ func (sm *SmartOrder) checkLoss(ctx context.Context, args ...interface{}) bool {
 		}
 		break
 	case "sell":
-		if (currentOHLCV.Close/sm.Strategy.Model.State.EntryPrice - 1)*100 >= sm.Strategy.Model.Conditions.StopLoss {
+		if (currentOHLCV.Close/sm.Strategy.Model.State.EntryPrice - 1)*100 >= stopLoss {
 			if sm.Strategy.Model.State.ExecutedAmount < sm.Strategy.Model.Conditions.EntryOrder.Amount {
 				sm.Strategy.Model.State.Amount = sm.Strategy.Model.Conditions.EntryOrder.Amount - sm.Strategy.Model.State.ExecutedAmount
 			}

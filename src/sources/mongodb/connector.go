@@ -47,7 +47,9 @@ func Connect(url string, connectTimeout time.Duration) (*mongo.Client, error) {
 type StateMgmt struct {
 
 }
+func (sm *StateMgmt) GetPosition(strategyId primitive.ObjectID, symbol string) {
 
+}
 func (sm *StateMgmt) UpdateState(strategyId primitive.ObjectID, state *models.MongoStrategyState) {
 	col := GetCollection("core_strategies")
 	var request bson.D
