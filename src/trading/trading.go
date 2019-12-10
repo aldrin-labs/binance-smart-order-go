@@ -12,7 +12,8 @@ import (
 )
 
 type OrderResponseData struct {
-	Id string `json:"id"`
+	Id string `json:"orderId"`
+	OrderId int64 `json:"orderId"`
 	Status string `json:"status"`
 }
 
@@ -24,6 +25,7 @@ type OrderResponse struct {
 type ITrading interface {
 	CreateOrder(order CreateOrderRequest) OrderResponse
 	CancelOrder(params CancelOrderRequest) interface{}
+	UpdateLeverage(keyId string, leverage float64) interface{}
 }
 
 type Trading struct {
@@ -92,20 +94,20 @@ func Request(method string, data interface{}) interface{} {
 */
 
 type OrderParams struct {
-	StopPrice float64 `json:"stopPrice" bson:"stopPrice"`
-	Type      string  `json:"type" bson:"type"`
-	MaxIfNotEnough int `json:"maxIfNotEnough"`
+	StopPrice float64 `json:"stopPrice,omitempty" bson:"stopPrice"`
+	Type      string  `json:"type,omitempty" bson:"type"`
+	MaxIfNotEnough int `json:"maxIfNotEnough,omitempty"`
 }
 
 type Order struct {
-	TargetPrice float64             `json:"targetPrice" bson:"targetPrice"`
+	TargetPrice float64             `json:"targetPrice,omitempty" bson:"targetPrice"`
 	Symbol      string              `json:"symbol" bson:"symbol"`
 	MarketType  int64               `json:"marketType" bson:"marketType"`
 	Side        string              `json:"side"`
 	Amount      float64             `json:"amount"`
-	TimeInForce string              `json:"timeInForce" bson:"timeInForce"`
+	TimeInForce string              `json:"timeInForce,omitempty" bson:"timeInForce"`
 	Type   		string              `json:"type" bson:"type"`
-	Price       float64             `json:"price" bson:"price"`
+	Price       float64             `json:"price,omitempty" bson:"price"`
 	Params      OrderParams         `json:"orderParams" bson:"orderParams"`
 }
 
@@ -124,10 +126,26 @@ func (t *Trading) CreateOrder(order CreateOrderRequest) OrderResponse {
 	if order.KeyParams.MarketType == 1 && order.KeyParams.Type == "limit" {
 		order.KeyParams.TimeInForce = "GTC"
 	}
+	if order.KeyParams.Type == "market" {
+		order.KeyParams.Price = 0.0
+	}
 	rawResponse := Request("createOrder", order)
 	var response OrderResponse
 	_ = mapstructure.Decode(rawResponse, &response)
+	response.Data.Id = fmt.Sprintf("%d", response.Data.OrderId)
 	return response
+}
+
+type UpdateLeverageParams struct {
+	Leverage float64 `json:"leverage"`
+	KeyId string `json:"keyId"`
+}
+func (t *Trading) UpdateLeverage(keyId string, leverage float64) interface{} {
+	request := UpdateLeverageParams{
+		KeyId: keyId,
+		Leverage:leverage,
+	}
+	return Request("updateLeverage", request)
 }
 
 func (t *Trading) CancelOrder(cancelRequest CancelOrderRequest) interface{} {

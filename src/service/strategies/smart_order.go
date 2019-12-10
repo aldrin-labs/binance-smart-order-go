@@ -426,7 +426,6 @@ func (sm *SmartOrder) enterTakeProfit(ctx context.Context, args ...interface{}) 
 					Type:   sm.Strategy.Model.Conditions.EntryOrder.OrderType,
 					Side:   side,
 					Amount: baseAmount,
-					TimeInForce: "GTC",
 					Price:  price.Close,
 					Params: trading.OrderParams{
 						StopPrice: 0,
