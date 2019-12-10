@@ -28,12 +28,12 @@ func GetStrategy(cur *mongo.Cursor, df IDataFeed, tr trading.ITrading, sm IState
 }
 
 func (strategy *Strategy) Start() {
-	switch strategy.Model.StrategyType {
+	switch strategy.Model.Type {
 	case 1:
 		println("runSmartOrder")
 		strategy.StrategyRuntime = RunSmartOrder(strategy, strategy.Datafeed, strategy.Trading, nil, )
 	default:
-		fmt.Println("this type of strategy is not supported yet:", strategy.Model.ID.String(), strategy.Model.StrategyType)
+		fmt.Println("this type of strategy is not supported yet:", strategy.Model.ID.String(), strategy.Model.Type)
 	}
 }
 

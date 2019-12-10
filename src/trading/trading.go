@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/mitchellh/mapstructure"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"io/ioutil"
 	"net/http"
@@ -99,6 +100,7 @@ type OrderParams struct {
 type Order struct {
 	TargetPrice float64             `json:"targetPrice" bson:"targetPrice"`
 	Symbol      string              `json:"symbol" bson:"symbol"`
+	MarketType  int64               `json:"marketType" bson:"marketType"`
 	Side        string              `json:"side"`
 	Amount      float64             `json:"amount"`
 	TimeInForce string              `json:"timeInForce" bson:"timeInForce"`
@@ -119,7 +121,12 @@ type CancelOrderRequest struct {
 
 func (t *Trading) CreateOrder(order CreateOrderRequest) OrderResponse {
 	order.KeyParams.Params.MaxIfNotEnough = 1
-	response := Request("createOrder", order).(OrderResponse)
+	if order.KeyParams.MarketType == 1 && order.KeyParams.Type == "limit" {
+		order.KeyParams.TimeInForce = "GTC"
+	}
+	rawResponse := Request("createOrder", order)
+	var response OrderResponse
+	_ = mapstructure.Decode(rawResponse, &response)
 	return response
 }
 

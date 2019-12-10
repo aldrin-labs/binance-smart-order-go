@@ -44,7 +44,7 @@ func GetStrategyService() *StrategyService {
 func (ss *StrategyService) Init(wg *sync.WaitGroup) {
 	ctx := context.Background()
 	var coll = mongodb.GetCollection("core_strategies")
-	cur, err := coll.Find(ctx, bson.D{})
+	cur, err := coll.Find(ctx, bson.D{{"enabled",true}})
 	if err != nil {
 		wg.Done()
 		log.Fatal(err)

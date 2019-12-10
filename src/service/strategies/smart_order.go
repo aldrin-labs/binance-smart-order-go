@@ -9,6 +9,7 @@ import (
 	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"math"
 	"reflect"
 	"time"
 )
@@ -55,11 +56,21 @@ type SmartOrder struct {
 	DataFeed     IDataFeed
 	ExchangeApi  trading.ITrading
 	StateMgmt 	 IStateMgmt
+	QuantityPrecision int32
+}
+func round(num float64) int {
+	return int(num + math.Copysign(0.5, num))
+}
+
+func (sm *SmartOrder) toFixed(num float64) float64 {
+	output := math.Pow(10, float64(sm.QuantityPrecision))
+	return float64(round(num * output)) / output
 }
 
 func NewSmartOrder(strategy *Strategy, DataFeed IDataFeed, TradingAPI trading.ITrading, keyId *primitive.ObjectID, stateMgmt IStateMgmt) *SmartOrder {
 	sm := &SmartOrder{Strategy: strategy, DataFeed: DataFeed, ExchangeApi: TradingAPI, KeyId: keyId, StateMgmt: stateMgmt}
 	initState := WaitForEntry
+	sm.QuantityPrecision = 3
 	if strategy.Model.State.State != "" {
 		initState = strategy.Model.State.State
 	}
@@ -138,8 +149,8 @@ func (sm *SmartOrder) exitWaitEntry(ctx context.Context, args ...interface{}) (s
 func (sm *SmartOrder) checkWaitEntry(ctx context.Context, args ...interface{}) bool {
 	currentOHLCV := args[0].(OHLCV)
 	conditionPrice := sm.Strategy.Model.Conditions.EntryOrder.Price
-	if sm.Strategy.Model.Conditions.ActivationPrice > 0 {
-		conditionPrice = sm.Strategy.Model.Conditions.ActivationPrice
+	if sm.Strategy.Model.Conditions.EntryOrder.ActivatePrice > 0 {
+		conditionPrice = sm.Strategy.Model.Conditions.EntryOrder.ActivatePrice
 	}
 	switch sm.Strategy.Model.Conditions.EntryOrder.Side {
 	case "buy":
@@ -162,13 +173,14 @@ func (sm *SmartOrder) enterEntry(ctx context.Context, args ...interface{}) error
 	sm.Strategy.Model.State.EntryPrice = currentOHLCV.Close
 	sm.Strategy.Model.State.State = InEntry
 	sm.StateMgmt.UpdateState(sm.Strategy.Model.ID, &sm.Strategy.Model.State)
-	baseAmount := sm.Strategy.Model.Conditions.EntryOrder.Amount / currentOHLCV.Close
+	baseAmount := sm.toFixed((sm.Strategy.Model.Conditions.EntryOrder.Amount*sm.Strategy.Model.Conditions.Leverage) / currentOHLCV.Close)
 	for {
 		response := sm.ExchangeApi.CreateOrder(
 			trading.CreateOrderRequest{
 				KeyId: sm.KeyId,
 				KeyParams: trading.Order{
 					Symbol: sm.Strategy.Model.Conditions.Pair,
+					MarketType: sm.Strategy.Model.Conditions.MarketType,
 					Type:   sm.Strategy.Model.Conditions.EntryOrder.OrderType,
 					Side:   sm.Strategy.Model.Conditions.EntryOrder.Side,
 					Amount: baseAmount,
@@ -404,12 +416,13 @@ func (sm *SmartOrder) enterTakeProfit(ctx context.Context, args ...interface{}) 
 		if sm.Strategy.Model.Conditions.EntryOrder.Side == side {
 			side = "sell"
 		}
-		baseAmount := sm.Strategy.Model.State.Amount / price.Close
+		baseAmount := sm.toFixed((sm.Strategy.Model.State.Amount*sm.Strategy.Model.Conditions.Leverage) / price.Close)
 		sm.ExchangeApi.CreateOrder(
 			trading.CreateOrderRequest{
 				KeyId: sm.KeyId,
 				KeyParams: trading.Order{
 					Symbol: sm.Strategy.Model.Conditions.Pair,
+					MarketType: sm.Strategy.Model.Conditions.MarketType,
 					Type:   sm.Strategy.Model.Conditions.EntryOrder.OrderType,
 					Side:   side,
 					Amount: baseAmount,
@@ -444,17 +457,17 @@ func (sm *SmartOrder) enterStopLoss(ctx context.Context, args ...interface{}) er
 		}
 		sm.cancelOpenOrders(sm.Strategy.Model.Conditions.Pair)
 
-		baseAmount := sm.Strategy.Model.State.Amount / price.Close
+		baseAmount := sm.toFixed((sm.Strategy.Model.State.Amount*sm.Strategy.Model.Conditions.Leverage) / price.Close)
 		sm.ExchangeApi.CreateOrder(
 			trading.CreateOrderRequest{
 				KeyId: sm.KeyId,
 				KeyParams: trading.Order{
 					Symbol: sm.Strategy.Model.Conditions.Pair,
+					MarketType: sm.Strategy.Model.Conditions.MarketType,
 					Type:   sm.Strategy.Model.Conditions.EntryOrder.OrderType,
 					Side:   side,
 					Amount: baseAmount,
 					Price:  price.Close,
-					TimeInForce: "GTC",
 					Params: trading.OrderParams{
 						StopPrice: 0,
 						Type:      sm.Strategy.Model.Conditions.EntryOrder.OrderType,
@@ -474,13 +487,17 @@ func (sm *SmartOrder) cancelOpenOrders(pair string) {
 func (sm *SmartOrder) Start() {
 	state, _ := sm.State.State(context.Background())
 	for state != End {
+		if sm.Strategy.Model.Enabled == false {
+			return
+		}
 		sm.processEventLoop()
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(300 * time.Millisecond)
 		state, _ = sm.State.State(context.Background())
 	}
 }
 
 func (sm *SmartOrder) Stop() {
+	// TODO: implement here canceling all open orders, etc
 }
 
 func (sm *SmartOrder) processEventLoop() {
