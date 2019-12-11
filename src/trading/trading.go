@@ -4,18 +4,41 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/mitchellh/mapstructure"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"io/ioutil"
 	"net/http"
 	"os"
 )
 
-type ITrading interface {
-	CreateOrder(order CreateOrderRequest)
-	CancelOrder(params CancelOrderRequest)
+type OrderResponseData struct {
+	Id string `json:"orderId"`
+	OrderId int64 `json:"orderId"`
+	Status string `json:"status"`
 }
 
-func Request (method string, data interface{}) interface{} {
-	url := "http://"+ os.Getenv("EXCHANGESERVCE") +"/" + method
+type OrderResponse struct {
+	Status string `json:"status"`
+	Data OrderResponseData `json:"data"`
+}
+
+type ITrading interface {
+	CreateOrder(order CreateOrderRequest) OrderResponse
+	CancelOrder(params CancelOrderRequest) interface{}
+	UpdateLeverage(keyId string, leverage float64) interface{}
+}
+
+type Trading struct {
+}
+
+func InitTrading() ITrading {
+	tr := &Trading{}
+
+	return tr
+}
+
+func Request(method string, data interface{}) interface{} {
+	url := "http://" + os.Getenv("EXCHANGESERVICE") + "/" + method
 	fmt.Println("URL:>", url)
 
 	var jsonStr, err = json.Marshal(data)
@@ -33,9 +56,30 @@ func Request (method string, data interface{}) interface{} {
 	fmt.Println("response Headers:", resp.Header)
 	body, _ := ioutil.ReadAll(resp.Body)
 	fmt.Println("response Body:", string(body))
-	return body
+	var response interface{}
+	_ = json.Unmarshal(body, &response)
+	return response
 }
-
+/*
+{"status":"OK","data":{"info":
+{"symbol":"BTCUSDT","orderId":878847053,"orderListId":-1,
+"clientOrderId":"xLWGEmTb8wdS1dxHo8wJoP","transactTime":1575711104420,
+"price":"0.00000000",
+"origQty":"0.00200100",
+"executedQty":"0.00200100",
+"cummulativeQuoteQty":"15.01872561",
+"status":"FILLED",
+"timeInForce":"GTC",
+"type":"MARKET","side":"BUY","fills":[{"price":"7505.61000000","qty":"0.00200100",
+"commission":"0.00072150","commissionAsset":"BNB","tradeId":214094126}]},
+"id":"878847053","timestamp":1575711104420,"datetime":"2019-12-07T09:31:44.420Z",
+"symbol":"BTC_USDT","type":"market","side":"buy","price":7505.61,"amount":0.002001,
+"cost":15.01872561,"average":7505.61,"filled":0.002001,"remaining":0,"status":"closed",
+"fee":{"cost":0.0007215,"currency":"BNB"},"trades":[{"info":{"price":"7505.61000000",
+"qty":"0.00200100","commission":"0.00072150","commissionAsset":"BNB","tradeId":214094126},
+"symbol":"BTC/USDT","price":7505.61,"amount":0.002001,"cost":15.01872561,
+"fee":{"cost":0.0007215,"currency":"BNB"}}]}}
+ */
 /*
 {
 	"keyId": "5ca48f82744e09001ac430d5",
@@ -50,34 +94,60 @@ func Request (method string, data interface{}) interface{} {
 */
 
 type OrderParams struct {
-	StopPrice float64
-	Type      string
+	StopPrice float64 `json:"stopPrice,omitempty" bson:"stopPrice"`
+	Type      string  `json:"type,omitempty" bson:"type"`
+	MaxIfNotEnough int `json:"maxIfNotEnough,omitempty"`
 }
 
 type Order struct {
-	Symbol string
-	Type   string
-	Side   string
-	Amount float64
-	Price  float64
-	Params OrderParams
+	TargetPrice float64             `json:"targetPrice,omitempty" bson:"targetPrice"`
+	Symbol      string              `json:"symbol" bson:"symbol"`
+	MarketType  int64               `json:"marketType" bson:"marketType"`
+	Side        string              `json:"side"`
+	Amount      float64             `json:"amount"`
+	TimeInForce string              `json:"timeInForce,omitempty" bson:"timeInForce"`
+	Type   		string              `json:"type" bson:"type"`
+	Price       float64             `json:"price,omitempty" bson:"price"`
+	Params      OrderParams         `json:"orderParams" bson:"orderParams"`
 }
 
 type CreateOrderRequest struct {
-	KeyId     string
-	KeyParams Order
+	KeyId     *primitive.ObjectID `json:"keyId"`
+	KeyParams Order `json:"keyParams"`
 }
 
 type CancelOrderRequest struct {
-	KeyId     string
+	KeyId   string
 	OrderId string
 }
 
-func CreateOrder(order CreateOrderRequest) interface{} {
-	return Request("createOrder", order)
+func (t *Trading) CreateOrder(order CreateOrderRequest) OrderResponse {
+	order.KeyParams.Params.MaxIfNotEnough = 1
+	if order.KeyParams.MarketType == 1 && order.KeyParams.Type == "limit" {
+		order.KeyParams.TimeInForce = "GTC"
+	}
+	if order.KeyParams.Type == "market" {
+		order.KeyParams.Price = 0.0
+	}
+	rawResponse := Request("createOrder", order)
+	var response OrderResponse
+	_ = mapstructure.Decode(rawResponse, &response)
+	response.Data.Id = fmt.Sprintf("%d", response.Data.OrderId)
+	return response
 }
 
-func CancelOrder(cancelRequest CancelOrderRequest) interface{} {
+type UpdateLeverageParams struct {
+	Leverage float64 `json:"leverage"`
+	KeyId string `json:"keyId"`
+}
+func (t *Trading) UpdateLeverage(keyId string, leverage float64) interface{} {
+	request := UpdateLeverageParams{
+		KeyId: keyId,
+		Leverage:leverage,
+	}
+	return Request("updateLeverage", request)
+}
+
+func (t *Trading) CancelOrder(cancelRequest CancelOrderRequest) interface{} {
 	return Request("cancelOrder", cancelRequest)
 }
-
