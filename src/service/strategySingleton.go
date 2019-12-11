@@ -2,15 +2,25 @@ package service
 
 import (
 	"context"
+	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb"
+	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
+	"gitlab.com/crypto_project/core/strategy_service/src/sources/redis"
+	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"log"
 	"sync"
 )
 
 // StrategyService strategy service type
 type StrategyService struct {
-	strategies map[string]*Strategy
+	strategies map[string]*strategies.Strategy
+	trading trading.ITrading
+	dataFeed strategies.IDataFeed
+	stateMgmt strategies.IStateMgmt
 }
 
 var singleton *StrategyService
@@ -19,15 +29,24 @@ var once sync.Once
 // GetStrategyService to get singleton
 func GetStrategyService() *StrategyService {
 	once.Do(func() {
-		singleton = &StrategyService{}
+		df := redis.InitRedis()
+		tr := trading.InitTrading()
+		sm := mongodb.StateMgmt{}
+		singleton = &StrategyService{
+			strategies: map[string]*strategies.Strategy{},
+			dataFeed: df,
+			trading: tr,
+			stateMgmt: &sm,
+		}
 	})
 	return singleton
 }
 
-func InitSingleton(wg *sync.WaitGroup) {
+func (ss *StrategyService) Init(wg *sync.WaitGroup) {
 	ctx := context.Background()
 	var coll = mongodb.GetCollection("core_strategies")
-	cur, err := coll.Find(ctx, bson.D{})
+	testStrat, _ := primitive.ObjectIDFromHex("5deecc36ba8a424bfd363aaf")
+	cur, err := coll.Find(ctx, bson.D{{"enabled",true}, {"_id", testStrat}})
 	if err != nil {
 		wg.Done()
 		log.Fatal(err)
@@ -35,17 +54,65 @@ func InitSingleton(wg *sync.WaitGroup) {
 	defer cur.Close(ctx)
 
 	for cur.Next(ctx) {
-		strategy, err := GetStrategy(cur)
+		// create a value into which the single document can be decoded
+		strategy, err := strategies.GetStrategy(cur, ss.dataFeed, ss.trading, ss.stateMgmt)
 		println(strategy)
 		if err != nil {
 			log.Fatal(err)
 		}
-		println("objid " + strategy.model.Id.String())
-		GetStrategyService().strategies[strategy.model.Id.String()] = strategy
+		println("objid " + strategy.Model.ID.String())
+		GetStrategyService().strategies[strategy.Model.ID.String()] = strategy
 		go strategy.Start()
 	}
+	ss.WatchStrategies()
 	if err := cur.Err(); err != nil {
 		wg.Done()
 		log.Fatal(err)
 	}
+}
+
+func GetStrategy(strategy *models.MongoStrategy, df strategies.IDataFeed, tr trading.ITrading) *strategies.Strategy {
+	return &strategies.Strategy{Model:strategy, Datafeed: df, Trading: tr}
+}
+
+func (ss *StrategyService) AddStrategy(strategy * models.MongoStrategy) {
+	sig := GetStrategy(strategy, ss.dataFeed, ss.trading)
+	println("objid ", sig.Model.ID.String())
+	ss.strategies[sig.Model.ID.String()] = sig
+	go sig.Start()
+
+}
+
+const CollName = "core_strategies"
+func (ss *StrategyService) WatchStrategies() error {
+	ctx := context.Background()
+	var coll = mongodb.GetCollection(CollName)
+	cs, err := coll.Watch(ctx, mongo.Pipeline{}, options.ChangeStream().SetFullDocument(options.UpdateLookup))
+	if err != nil {
+		return err
+	}
+	//require.NoError(cs, err)
+	defer cs.Close(ctx)
+
+	for cs.Next(ctx) {
+		var event models.MongoStrategyUpdateEvent
+		err := cs.Decode(&event)
+		//	data := next.String()
+		// println(data)
+		//		err := json.Unmarshal([]byte(data), &event)
+		if err != nil {
+			println("event decode", err)
+		}
+		if ss.strategies[event.FullDocument.ID.String()] != nil {
+			ss.strategies[event.FullDocument.ID.String()].HotReload(event.FullDocument)
+			if event.FullDocument.Enabled == false {
+				delete(ss.strategies, event.FullDocument.ID.String())
+			}
+		} else {
+			if event.FullDocument.Enabled == true {
+				ss.AddStrategy(&event.FullDocument)
+			}
+		}
+	}
+	return nil
 }
