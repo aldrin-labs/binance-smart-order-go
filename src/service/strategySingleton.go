@@ -8,6 +8,7 @@ import (
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/redis"
 	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"log"
@@ -44,7 +45,8 @@ func GetStrategyService() *StrategyService {
 func (ss *StrategyService) Init(wg *sync.WaitGroup) {
 	ctx := context.Background()
 	var coll = mongodb.GetCollection("core_strategies")
-	cur, err := coll.Find(ctx, bson.D{{"enabled",true}})
+	testStrat, _ := primitive.ObjectIDFromHex("5deecc36ba8a424bfd363aaf")
+	cur, err := coll.Find(ctx, bson.D{{"enabled",true}, {"_id", testStrat}})
 	if err != nil {
 		wg.Done()
 		log.Fatal(err)
