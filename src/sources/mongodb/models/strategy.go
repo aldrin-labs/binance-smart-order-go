@@ -55,6 +55,7 @@ type MongoStrategyState struct {
 	State              string   `json:"state" bson:"state"`
 	TrailingEntryPrice float64  `json:"trailingEntryPrice" bson:"trailingEntryPrice"`
 	EntryPrice         float64  `json:"entryPrice" bson:"entryPrice"`
+	ExitPrice         float64  `json:"exitPrice" bson:"exitPrice"`
 	Amount             float64  `json:"amount" bson:"amount"`
 	Orders             []string `json:"orders" bson:"orders"`
 	ExecutedAmount     float64  `json:"executedAmount" bson:"executedAmount"`

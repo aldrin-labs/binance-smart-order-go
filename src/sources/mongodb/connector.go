@@ -47,6 +47,32 @@ func Connect(url string, connectTimeout time.Duration) (*mongo.Client, error) {
 type StateMgmt struct {
 
 }
+func (sm *StateMgmt) GetPosition(strategyId primitive.ObjectID, symbol string) {
+
+}
+
+func (sm *StateMgmt) UpdateConditions(strategyId primitive.ObjectID, state *models.MongoStrategyCondition) {
+	col := GetCollection("core_strategies")
+	var request bson.D
+	request = bson.D{
+		{"_id", strategyId},
+	}
+	var update bson.D
+	update = bson.D{
+		{
+			"$set", bson.D{
+			{
+				"conditions", state,
+			},
+		},
+		},
+	}
+	res, err := col.UpdateOne(context.TODO(), request, update)
+	if err != nil {
+		println("error in arg", err)
+	}
+	println(res)
+}
 
 func (sm *StateMgmt) UpdateState(strategyId primitive.ObjectID, state *models.MongoStrategyState) {
 	col := GetCollection("core_strategies")

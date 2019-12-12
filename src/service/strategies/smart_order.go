@@ -20,6 +20,8 @@ const (
 	InEntry       = "InEntry"
 	TakeProfit    = "TakeProfit"
 	Stoploss      = "Stoploss"
+	WaitOrderOnTimeout = "WaitOrderOnTimeout"
+	WaitOrder     = "WaitOrder"
 	End           = "End"
 	EnterNextTarget = "EnterNextTarget"
 )
@@ -45,7 +47,9 @@ type ITrading interface {
 }
 
 type IStateMgmt interface {
+	UpdateConditions(strategyId primitive.ObjectID, state *models.MongoStrategyCondition)
 	UpdateState(strategyId primitive.ObjectID, state *models.MongoStrategyState)
+	GetPosition(strategyId primitive.ObjectID, symbol string)
 }
 
 type SmartOrder struct {
@@ -57,6 +61,7 @@ type SmartOrder struct {
 	ExchangeApi  trading.ITrading
 	StateMgmt 	 IStateMgmt
 	QuantityPrecision int32
+	Lock		 bool
 }
 func round(num float64) int {
 	return int(num + math.Copysign(0.5, num))
@@ -68,10 +73,11 @@ func (sm *SmartOrder) toFixed(num float64) float64 {
 }
 
 func NewSmartOrder(strategy *Strategy, DataFeed IDataFeed, TradingAPI trading.ITrading, keyId *primitive.ObjectID, stateMgmt IStateMgmt) *SmartOrder {
-	sm := &SmartOrder{Strategy: strategy, DataFeed: DataFeed, ExchangeApi: TradingAPI, KeyId: keyId, StateMgmt: stateMgmt}
+	sm := &SmartOrder{Strategy: strategy, DataFeed: DataFeed, ExchangeApi: TradingAPI, KeyId: keyId, StateMgmt: stateMgmt, Lock: false}
 	initState := WaitForEntry
 	sm.QuantityPrecision = 3
-	if strategy.Model.State.State != "" {
+	// if state is not empty but if its in the end and open ended, then we skip state value, since want to start over
+	if strategy.Model.State.State != "" && !(strategy.Model.State.State == End && strategy.Model.Conditions.ContinueIfEnded == true) {
 		initState = strategy.Model.State.State
 	}
 	State := stateless.NewStateMachine(initState)
@@ -119,27 +125,31 @@ func (sm *SmartOrder) checkTrailingEntry(ctx context.Context, args ...interface{
 		return false
 	}
 	println(currentOHLCV.Close, edgePrice, currentOHLCV.Close/edgePrice-1)
+	deviation := sm.Strategy.Model.Conditions.EntryOrder.EntryDeviation / sm.Strategy.Model.Conditions.Leverage
 	switch sm.Strategy.Model.Conditions.EntryOrder.Side {
 	case "buy":
-		if (currentOHLCV.Close/edgePrice-1)*100 >= sm.Strategy.Model.Conditions.EntryDeviation {
+		if currentOHLCV.Close < edgePrice {
+			sm.Strategy.Model.State.TrailingEntryPrice = currentOHLCV.Close
+		}
+		if (currentOHLCV.Close/edgePrice-1)*100 >= deviation {
 			return true
 		}
 		break
 	case "sell":
-		if (edgePrice/currentOHLCV.Close-1)*100 >= sm.Strategy.Model.Conditions.EntryDeviation {
+		if currentOHLCV.Close > edgePrice {
+			sm.Strategy.Model.State.TrailingEntryPrice = currentOHLCV.Close
+		}
+		if (1-currentOHLCV.Close/edgePrice)*100 >= deviation {
 			return true
 		}
 		break
-	}
-	if currentOHLCV.Close < edgePrice {
-		sm.Strategy.Model.State.TrailingEntryPrice = currentOHLCV.Close
 	}
 	return false
 }
 
 func (sm *SmartOrder) exitWaitEntry(ctx context.Context, args ...interface{}) (stateless.State, error) {
 	println("act price", sm.Strategy.Model.Conditions.ActivationPrice)
-	if sm.Strategy.Model.Conditions.ActivationPrice > 0 {
+	if sm.Strategy.Model.Conditions.EntryOrder.ActivatePrice > 0 {
 		println("move to", TrailingEntry)
 		return TrailingEntry, nil
 	}
@@ -221,6 +231,24 @@ func (sm *SmartOrder) exit(ctx context.Context, args ...interface{}) (stateless.
 	state, _ := sm.State.State(context.TODO())
 	nextState := End
 	if sm.Strategy.Model.State.ExecutedAmount == sm.Strategy.Model.Conditions.EntryOrder.Amount { // all trades executed, nothing more to trade
+		if sm.Strategy.Model.Conditions.ContinueIfEnded {
+			oppositeSide := sm.Strategy.Model.Conditions.EntryOrder.Side
+			if oppositeSide == "buy" {
+				oppositeSide = "sell"
+			} else {
+				oppositeSide = "buy"
+			}
+			sm.Strategy.Model.Conditions.EntryOrder.Side = oppositeSide
+			sm.Strategy.Model.Conditions.EntryOrder.ActivatePrice = sm.Strategy.Model.State.ExitPrice
+			sm.StateMgmt.UpdateConditions(sm.Strategy.Model.ID, &sm.Strategy.Model.Conditions)
+
+
+			newState := models.MongoStrategyState{
+				State:              WaitForEntry,
+			}
+			sm.StateMgmt.UpdateState(sm.Strategy.Model.ID, &newState)
+			return WaitForEntry, nil
+		}
 		return End, nil
 	}
 	switch state {
@@ -256,6 +284,19 @@ func (sm *SmartOrder) exit(ctx context.Context, args ...interface{}) (stateless.
 		break
 
 	}
+	if nextState == End && sm.Strategy.Model.Conditions.ContinueIfEnded {
+		newState := models.MongoStrategyState{
+			State:              WaitForEntry,
+			TrailingEntryPrice: 0,
+			EntryPrice:         0,
+			Amount:             0,
+			Orders:             nil,
+			ExecutedAmount:     0,
+			ReachedTargetCount: 0,
+		}
+		sm.StateMgmt.UpdateState(sm.Strategy.Model.ID, &newState)
+		return WaitForEntry, nil
+	}
 	return nextState, nil
 }
 
@@ -267,7 +308,7 @@ func (sm *SmartOrder) checkProfit(ctx context.Context, args ...interface{}) bool
 		case "buy":
 			for i, level := range sm.Strategy.Model.Conditions.ExitLevels {
 				if sm.Strategy.Model.State.ReachedTargetCount < i+1 {
-					if level.Type == 1 && currentOHLCV.Close >= sm.Strategy.Model.State.EntryPrice * (1 + level.Price / 100) ||
+					if level.Type == 1 && currentOHLCV.Close >= (sm.Strategy.Model.State.EntryPrice * (100 + level.Price/sm.Strategy.Model.Conditions.Leverage) / 100) ||
 						level.Type == 0 && currentOHLCV.Close >= level.Price {
 						sm.Strategy.Model.State.ReachedTargetCount += 1
 						if level.Type == 0 {
@@ -282,7 +323,7 @@ func (sm *SmartOrder) checkProfit(ctx context.Context, args ...interface{}) bool
 		case "sell":
 			for i, level := range sm.Strategy.Model.Conditions.ExitLevels {
 				if sm.Strategy.Model.State.ReachedTargetCount < i+1 {
-					if level.Type == 1 && currentOHLCV.Close <= sm.Strategy.Model.State.EntryPrice * level.Price ||
+					if level.Type == 1 && currentOHLCV.Close <= (sm.Strategy.Model.State.EntryPrice * ((100 - level.Price/sm.Strategy.Model.Conditions.Leverage) / 100)) ||
 											level.Type == 0 && currentOHLCV.Close <= level.Price {
 						sm.Strategy.Model.State.ReachedTargetCount += 1
 						if level.Type == 0 {
@@ -360,9 +401,10 @@ func (sm *SmartOrder) checkTrailingProfit(ctx context.Context, args ...interface
 
 func (sm *SmartOrder) checkLoss(ctx context.Context, args ...interface{}) bool {
 	currentOHLCV := args[0].(OHLCV)
+	stopLoss := (sm.Strategy.Model.Conditions.StopLoss/sm.Strategy.Model.Conditions.Leverage)
 	switch sm.Strategy.Model.Conditions.EntryOrder.Side {
 	case "buy":
-		if (sm.Strategy.Model.State.EntryPrice/currentOHLCV.Close - 1)*100 >= sm.Strategy.Model.Conditions.StopLoss {
+		if (1-currentOHLCV.Close/sm.Strategy.Model.State.EntryPrice)*100 >= stopLoss {
 			if sm.Strategy.Model.State.ExecutedAmount < sm.Strategy.Model.Conditions.EntryOrder.Amount {
 				sm.Strategy.Model.State.Amount = sm.Strategy.Model.Conditions.EntryOrder.Amount - sm.Strategy.Model.State.ExecutedAmount
 			}
@@ -372,7 +414,7 @@ func (sm *SmartOrder) checkLoss(ctx context.Context, args ...interface{}) bool {
 		}
 		break
 	case "sell":
-		if (currentOHLCV.Close/sm.Strategy.Model.State.EntryPrice - 1)*100 >= sm.Strategy.Model.Conditions.StopLoss {
+		if (currentOHLCV.Close/sm.Strategy.Model.State.EntryPrice - 1)*100 >= stopLoss {
 			if sm.Strategy.Model.State.ExecutedAmount < sm.Strategy.Model.Conditions.EntryOrder.Amount {
 				sm.Strategy.Model.State.Amount = sm.Strategy.Model.Conditions.EntryOrder.Amount - sm.Strategy.Model.State.ExecutedAmount
 			}
@@ -417,6 +459,11 @@ func (sm *SmartOrder) enterTakeProfit(ctx context.Context, args ...interface{}) 
 			side = "sell"
 		}
 		baseAmount := sm.toFixed((sm.Strategy.Model.State.Amount*sm.Strategy.Model.Conditions.Leverage) / price.Close)
+
+		if sm.Lock {
+			return nil
+		}
+		sm.Lock = true
 		sm.ExchangeApi.CreateOrder(
 			trading.CreateOrderRequest{
 				KeyId: sm.KeyId,
@@ -435,15 +482,18 @@ func (sm *SmartOrder) enterTakeProfit(ctx context.Context, args ...interface{}) 
 			},
 		)
 
+		sm.Strategy.Model.State.ExitPrice = price.Close
 		sm.Strategy.Model.State.ExecutedAmount += sm.Strategy.Model.State.Amount
 		sm.StateMgmt.UpdateState(sm.Strategy.Model.ID, &sm.Strategy.Model.State)
-		if sm.Strategy.Model.State.ExecutedAmount - sm.Strategy.Model.Conditions.EntryOrder.Amount == 0 { // re-check all takeprofit conditions to exit trade ( no additional trades needed no )
-			ohlcv := args[0].(OHLCV)
-			err := sm.State.FireCtx(context.TODO(), TriggerTrade, ohlcv)
-
-			return err
-		}
+		//if sm.Strategy.Model.State.ExecutedAmount - sm.Strategy.Model.Conditions.EntryOrder.Amount == 0 { // re-check all takeprofit conditions to exit trade ( no additional trades needed no )
+		//	ohlcv := args[0].(OHLCV)
+		//	err := sm.State.FireCtx(context.TODO(), TriggerTrade, ohlcv)
+		//
+		//	sm.Lock = false
+		//	return err
+		//}
 	}
+	sm.Lock = false
 	return nil
 }
 
@@ -454,6 +504,11 @@ func (sm *SmartOrder) enterStopLoss(ctx context.Context, args ...interface{}) er
 		if sm.Strategy.Model.Conditions.EntryOrder.Side == side {
 			side = "sell"
 		}
+		if sm.Lock {
+			return nil
+		}
+		sm.Lock = true
+
 		sm.cancelOpenOrders(sm.Strategy.Model.Conditions.Pair)
 
 		baseAmount := sm.toFixed((sm.Strategy.Model.State.Amount*sm.Strategy.Model.Conditions.Leverage) / price.Close)
@@ -475,8 +530,13 @@ func (sm *SmartOrder) enterStopLoss(ctx context.Context, args ...interface{}) er
 			},
 		)
 		_ = sm.State.Fire(CheckLossTrade, args[0])
+		sm.Strategy.Model.State.ExitPrice = price.Close
+		sm.Strategy.Model.State.ExecutedAmount += sm.Strategy.Model.State.Amount
+		sm.StateMgmt.UpdateState(sm.Strategy.Model.ID, &sm.Strategy.Model.State)
 	}
 	// if timeout specified then do this sell on timeout
+	sm.Lock = false
+
 	return nil
 }
 
@@ -489,10 +549,13 @@ func (sm *SmartOrder) Start() {
 		if sm.Strategy.Model.Enabled == false {
 			return
 		}
-		sm.processEventLoop()
+		if !sm.Lock {
+			sm.processEventLoop()
+		}
 		time.Sleep(300 * time.Millisecond)
 		state, _ = sm.State.State(context.Background())
 	}
+	println("STOPPED")
 }
 
 func (sm *SmartOrder) Stop() {
