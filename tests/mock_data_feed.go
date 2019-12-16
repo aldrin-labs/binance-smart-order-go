@@ -31,3 +31,7 @@ func (df *MockDataFeed) GetPriceForPairAtExchange(pair string, exchange string, 
 func (df *MockDataFeed) SubscribeToPairUpdate() {
 
 }
+
+func (df *MockDataFeed) GetPrice(pair, exchange string, marketType int64) *strategies.OHLCV {
+	return nil
+}

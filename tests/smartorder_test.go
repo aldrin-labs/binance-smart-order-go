@@ -2,71 +2,173 @@ package testing
 
 import (
 	"context"
+	"fmt"
 	"github.com/qmuntal/stateless"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
-	"gitlab.com/crypto_project/core/strategy_service/src/trading"
+	//"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"testing"
 	"time"
 )
 
+//func GetTestSmartOrder(scenario string) models.MongoStrategy {
+//	smartOrder := models.MongoStrategy{
+//		ID:           primitive.ObjectID{},
+//		StrategyType: 1,
+//		Conditions: models.MongoStrategyCondition{
+//			ActivationPrice: 6900,
+//			TakeProfit:      3,
+//			StopLoss:        2,
+//			EntryDeviation:  1.5,
+//			Pair:            "BTC_USDT",
+//			EntryOrder:      models.MongoEntryPoint{Side: "buy"},
+//		},
+//		State:       models.MongoStrategyState{Amount: 1000},
+//		TriggerWhen: models.TriggerOptions{},
+//		Expiration:  models.ExpirationSchema{},
+//		OwnerId:     primitive.ObjectID{},
+//		Social:      models.MongoSocial{},
+//	}
+//	if scenario == "TestEntries" {
+//		smartOrder.Conditions.TakeProfit = 0
+//		smartOrder.Conditions.ExitLevels = []models.MongoEntryPoint{
+//			{
+//				ActivatePrice:           0,
+//				EntryDeviation:          0,
+//				Price:                   1,
+//				HedgeEntry:              0,
+//				HedgeActivation:         0,
+//				HedgeOppositeActivation: 0,
+//				Type:                    1,
+//			},
+//			{
+//				ActivatePrice:           0,
+//				EntryDeviation:          0,
+//				Price:                   3,
+//				HedgeEntry:              0,
+//				HedgeActivation:         0,
+//				HedgeOppositeActivation: 0,
+//				Type:                    1,
+//			},
+//			{
+//				ActivatePrice:           0,
+//				EntryDeviation:          0,
+//				Price:                   5,
+//				HedgeEntry:              0,
+//				HedgeActivation:         0,
+//				HedgeOppositeActivation: 0,
+//				Type:                    1,
+//			},
+//		}
+//	}
+//	return smartOrder
+//}
+
+// TODO: it returns strategy, not a smart order, rename this
 func GetTestSmartOrder(scenario string) models.MongoStrategy {
 	smartOrder := models.MongoStrategy{
 		ID:           primitive.ObjectID{},
 		StrategyType: 1,
 		Conditions: models.MongoStrategyCondition{
-			ActivationPrice: 6900,
-			TakeProfit:      3,
-			StopLoss:        2,
-			EntryDeviation:  1.5,
-			Pair:            "BTC_USDT",
-			EntryOrder:      trading.Order{Side: "buy"},
+			Price: 8010,
+			//ActivationPrice: 6900,
+			//TakeProfit:      3,
+			//StopLoss:        2,
+			//EntryDeviation:  1.5,
+			Pair:       "BTC_USDT",
+			EntryOrder: models.MongoEntryPoint{Side: "buy", Price: 7000},
 		},
 		State:       models.MongoStrategyState{Amount: 1000},
 		TriggerWhen: models.TriggerOptions{},
 		Expiration:  models.ExpirationSchema{},
 		OwnerId:     primitive.ObjectID{},
 		Social:      models.MongoSocial{},
-	}
-	if scenario == "TestEntries" {
-		smartOrder.Conditions.TakeProfit = 0
-		smartOrder.Conditions.ExitLevels = []models.MongoEntryPoint{
-			{
-				ActivatePrice:           0,
-				EntryDeviation:          0,
-				Price:                   1,
-				HedgeEntry:              0,
-				HedgeActivation:         0,
-				HedgeOppositeActivation: 0,
-				Type:                    1,
-			},
-			{
-				ActivatePrice:           0,
-				EntryDeviation:          0,
-				Price:                   3,
-				HedgeEntry:              0,
-				HedgeActivation:         0,
-				HedgeOppositeActivation: 0,
-				Type:                    1,
-			},
-			{
-				ActivatePrice:           0,
-				EntryDeviation:          0,
-				Price:                   5,
-				HedgeEntry:              0,
-				HedgeActivation:         0,
-				HedgeOppositeActivation: 0,
-				Type:                    1,
-			},
-		}
+		Enabled:     true,
 	}
 	return smartOrder
 }
 
+// returns conditions of smart order
+func GetTestSmartOrderStrategy(scenario string) models.MongoStrategy {
+	smartOrder := models.MongoStrategy{
+		ID:           primitive.ObjectID{},
+		StrategyType: 1,
+		Conditions:   models.MongoStrategyCondition{},
+		State:        models.MongoStrategyState{Amount: 1000},
+		TriggerWhen:  models.TriggerOptions{},
+		Expiration:   models.ExpirationSchema{},
+		OwnerId:      primitive.ObjectID{},
+		Social:       models.MongoSocial{},
+		Enabled:      true,
+	}
+
+	switch scenario {
+	case "entry":
+		smartOrder.Conditions = models.MongoStrategyCondition{
+			Price:      8010,
+			Pair:       "BTC_USDT",
+			EntryOrder: models.MongoEntryPoint{Side: "buy", Price: 7000},
+		}
+	case "trailingEntry":
+		fmt.Println("trailingEntry.")
+	}
+
+	return smartOrder
+}
+
+// smart order should transition to InEntry state if currect OHLCV close price is
+// 1) more than condition price  (if sell)
+// 2) less than condition price  (if buy)
+func TestSmartOrderGetInEntry(t *testing.T) {
+	smartOrderModel := GetTestSmartOrderStrategy("entry")
+	fakeDataStream := []strategies.OHLCV{{
+		Open:   7100,
+		High:   7101,
+		Low:    7000,
+		Close:  7005,
+		Volume: 30,
+	}, { // Activation price
+		Open:   7005,
+		High:   7005,
+		Low:    6900,
+		Close:  6900,
+		Volume: 30,
+	}, { // Hit entry
+		Open:   7305,
+		High:   7305,
+		Low:    7300,
+		Close:  7300,
+		Volume: 30,
+	}}
+	df := NewMockedDataFeed(fakeDataStream)
+	tradingApi := NewMockedTradingAPI()
+	strategy := strategies.Strategy{
+		Model: &smartOrderModel,
+	}
+	keyId := primitive.NewObjectID()
+	//sm := mongodb.StateMgmt{}
+	sm := MockStateMgmt{}
+	smartOrder := strategies.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
+	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
+		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
+	})
+	go smartOrder.Start()
+	time.Sleep(800 * time.Millisecond)
+	isInState, _ := smartOrder.State.IsInState(strategies.InEntry)
+	if !isInState {
+		state, _ := smartOrder.State.State(context.Background())
+		stateStr := fmt.Sprintf("%v", state)
+		t.Error("SmartOrder state is not InEntry(State: " + stateStr + ")")
+	}
+}
+
+// smart order should transition to TrailingEntry state if ActivatePrice > 0 AND currect OHLCV close price is
+// 1) more than condition price  (if sell)
+// 2) less than condition price  (if buy)
 func TestSmartOrderGetInTrailingEntry(t *testing.T) {
-	smartOrderModel := GetTestSmartOrder("TestEntry")
+	smartOrderModel := GetTestSmartOrder("trailingEntry")
 	fakeDataStream := []strategies.OHLCV{{
 		Open:   7100,
 		High:   7101,
@@ -93,52 +195,15 @@ func TestSmartOrderGetInTrailingEntry(t *testing.T) {
 	}
 	keyId := primitive.NewObjectID()
 	sm := mongodb.StateMgmt{}
+
 	smartOrder := strategies.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm) //TODO
 	go smartOrder.Start()
 	time.Sleep(800 * time.Millisecond)
 	isInState, _ := smartOrder.State.IsInState(strategies.TrailingEntry)
 	if !isInState {
-		t.Error("SmartOrder state is not TrailingEntry")
-	}
-}
-
-func TestSmartOrderGetInEntry(t *testing.T) {
-	smartOrderModel := GetTestSmartOrder("TestEntry")
-	fakeDataStream := []strategies.OHLCV{{
-		Open:   7100,
-		High:   7101,
-		Low:    7000,
-		Close:  7005,
-		Volume: 30,
-	}, { // Activation price
-		Open:   7005,
-		High:   7005,
-		Low:    6900,
-		Close:  6900,
-		Volume: 30,
-	}, { // Hit entry
-		Open:   7305,
-		High:   7305,
-		Low:    7300,
-		Close:  7300,
-		Volume: 30,
-	}}
-	df := NewMockedDataFeed(fakeDataStream)
-	tradingApi := NewMockedTradingAPI()
-	strategy := strategies.Strategy{
-		Model: &smartOrderModel,
-	}
-	keyId := primitive.NewObjectID()
-	sm := mongodb.StateMgmt{}
-	smartOrder := strategies.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm) //TODO
-	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
-		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
-	})
-	go smartOrder.Start()
-	time.Sleep(800 * time.Millisecond)
-	isInState, _ := smartOrder.State.IsInState(strategies.InEntry)
-	if !isInState {
-		t.Error("SmartOrder state is not InEntry")
+		state, _ := smartOrder.State.State(context.Background())
+		stateStr := fmt.Sprintf("%v", state)
+		t.Error("SmartOrder state is not TrailingEntry (State: " + stateStr + ")")
 	}
 }
 

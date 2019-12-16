@@ -31,19 +31,20 @@ type MongoSocial struct {
 }
 
 type MongoStrategy struct {
-	ID          primitive.ObjectID     `json:"_id" bson:"_id"`
-	Type        int64                  `json:"type" bson:"type"`
-	Enabled     bool                   `bson:"enabled"`
-	Conditions  MongoStrategyCondition `bson:"conditions"`
-	State       MongoStrategyState     `bson:"state"`
-	TriggerWhen TriggerOptions         `bson:"triggerWhen"`
-	Expiration  ExpirationSchema
-	OpenEnded   bool
-	LastUpdate  int64
-	SignalIds   []primitive.ObjectID
-	OrderIds    []primitive.ObjectID `bson:"orderIds"`
-	OwnerId     primitive.ObjectID
-	Social      MongoSocial `bson:"social"` // {sharedWith: [RBAC]}
+	ID           primitive.ObjectID `json:"_id" bson:"_id"`
+	StrategyType int
+	Type         int64                  `json:"type" bson:"type"`
+	Enabled      bool                   `bson:"enabled"`
+	Conditions   MongoStrategyCondition `bson:"conditions"`
+	State        MongoStrategyState     `bson:"state"`
+	TriggerWhen  TriggerOptions         `bson:"triggerWhen"`
+	Expiration   ExpirationSchema
+	OpenEnded    bool
+	LastUpdate   int64
+	SignalIds    []primitive.ObjectID
+	OrderIds     []primitive.ObjectID `bson:"orderIds"`
+	OwnerId      primitive.ObjectID
+	Social       MongoSocial `bson:"social"` // {sharedWith: [RBAC]}
 }
 
 type MongoStrategyType struct {
@@ -55,7 +56,7 @@ type MongoStrategyState struct {
 	State              string   `json:"state" bson:"state"`
 	TrailingEntryPrice float64  `json:"trailingEntryPrice" bson:"trailingEntryPrice"`
 	EntryPrice         float64  `json:"entryPrice" bson:"entryPrice"`
-	ExitPrice         float64  `json:"exitPrice" bson:"exitPrice"`
+	ExitPrice          float64  `json:"exitPrice" bson:"exitPrice"`
 	Amount             float64  `json:"amount" bson:"amount"`
 	Orders             []string `json:"orders" bson:"orders"`
 	ExecutedAmount     float64  `json:"executedAmount" bson:"executedAmount"`
@@ -63,7 +64,7 @@ type MongoStrategyState struct {
 }
 
 type MongoEntryPoint struct {
-	ActivatePrice         	float64 `json:"activatePrice" bson:"activatePrice"`
+	ActivatePrice           float64 `json:"activatePrice" bson:"activatePrice"`
 	EntryDeviation          float64 `json:"entryDeviation" bson:"entryDeviation"`
 	Price                   float64 `json:"price" bson:"price"`
 	Side                    string  `json:"side" bson:"side"`
@@ -84,7 +85,7 @@ type MongoStrategyCondition struct {
 	PortfolioId         primitive.ObjectID `json:"portfolioId" bson:"portfolioId"`
 	PercentChange       float64            `json:"percentChange" bson:"percentChange"`
 	Price               float64            `json:"price" bson:"price"`
-	ActivationPrice     float64           `json:"activationPrice" bson:"activationPrice"`
+	ActivationPrice     float64            `json:"activationPrice" bson:"activationPrice"`
 	EntryDeviation      float64            `json:"entryDeviation" bson:"entryDeviation"`
 	ExchangeId          primitive.ObjectID `json:"exchangeId" bson:"exchangeId"`
 	ExchangeIds         []primitive.ObjectID
@@ -95,8 +96,11 @@ type MongoStrategyCondition struct {
 	TimeoutWhenProfit float64 `json:"timeoutWhenProfit" bson:"timeoutWhenProfit"` // if position became profitable at takeProfit,
 	// then dont exit but wait N seconds and exit, so you may catch pump
 
-	ContinueIfEnded bool `json:"continueIfEnded" bson:"continueIfEnded"` // open opposite position, or place buy if sold, or sell if bought // , if entrypoints specified, trading will be within entrypoints, if not exit on takeProfit or timeout or stoploss
-	TimeoutBeforeOpenPosition float64           `json:"timeoutBeforeOpenPosition" bson:"timeoutBeforeOpenPosition"` // wait after closing position before opening new one
+	// open opposite position, or place buy if sold, or sell if bought
+	// if entrypoints specified, trading will be within entrypoints, if not exit on takeProfit or timeout or stoploss
+	ContinueIfEnded bool `json:"continueIfEnded" bson:"continueIfEnded"`
+	// wait after closing position before opening new one
+	TimeoutBeforeOpenPosition float64           `json:"timeoutBeforeOpenPosition" bson:"timeoutBeforeOpenPosition"`
 	ChangeTrendIfLoss         bool              `json:"changeTrendIfLoss" bson:"changeTrendIfLoss"`
 	ChangeTrendIfProfit       bool              `json:"changeTrendIfProfit" bson:"changeTrendIfProfit"`
 	StopLoss                  float64           `json:"stopLoss" bson:"stopLoss"`
@@ -107,4 +111,5 @@ type MongoStrategyCondition struct {
 	ExitLevels                []MongoEntryPoint `json:"exitLevels" bson:"exitLevels"`
 	TrailingEntries           bool              `json:"trailingEntries" bson:"trailingEntries"`
 	TrailingExit              bool              `json:"trailingExit" bson:"trailingExit"`
+	Enabled                   bool
 }

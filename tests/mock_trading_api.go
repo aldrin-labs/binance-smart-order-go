@@ -10,6 +10,10 @@ type MockTrading struct {
 	AmountSum map[string]float64
 }
 
+func (mt MockTrading) UpdateLeverage(keyId string, leverage float64) interface{} {
+	panic("implement me")
+}
+
 func NewMockedTradingAPI() *MockTrading {
 	mockTrading := MockTrading{
 		CallCount: map[string]int{},
@@ -37,7 +41,7 @@ func (mt MockTrading) CreateOrder(r trading.CreateOrderRequest) trading.OrderRes
 	mt.CallCount[r.KeyParams.Symbol]++
 	//mt.AmountSum[exchange+pair+side+fmt.Sprintf("%f", price)] += amount
 	mt.AmountSum[r.KeyParams.Symbol+r.KeyParams.Side+fmt.Sprintf("%f", r.KeyParams.Price)] += r.KeyParams.Amount
-	return trading.OrderResponse{}
+	return trading.OrderResponse{Status: "OK"}
 }
 
 func (mt MockTrading) CancelOrder(r trading.CancelOrderRequest) interface{} {
