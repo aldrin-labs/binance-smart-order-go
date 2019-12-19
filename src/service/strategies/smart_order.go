@@ -95,6 +95,15 @@ func NewSmartOrder(strategy *Strategy, DataFeed IDataFeed, TradingAPI trading.IT
 	State.SetTriggerParameters(TriggerTrade, reflect.TypeOf(OHLCV{}))
 	State.SetTriggerParameters(CheckExistingOrders, reflect.TypeOf(""), reflect.TypeOf(""))
 
+	/*
+	Smart Order life cycle:
+		1) first need to go into entry, so we wait for entry and put orders before if possible
+		2) we may go into waiting for trailing entry if activate price was specified ( and placing stop orders to catch entry )
+		3) ok we are in entry and now wait for profit or loss ( also we can try to place all orders )
+		4) we may go to exit on timeout if profit/loss
+		5) so we'll wait for any target or trailing target
+		6) or stop-loss
+	 */
 	State.Configure(WaitForEntry).PermitDynamic(TriggerTrade, sm.exitWaitEntry,
 		sm.checkWaitEntry).PermitDynamic(CheckExistingOrders, sm.exitWaitEntry,
 		sm.checkExistingOrders).OnEntry(sm.enterWaitingEntry)
@@ -277,13 +286,15 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 			if orderType != "market" {
 				sm.StatusByOrderId.Store(response.Data.Id, step)
 				if saveOrder {
-					switch step {
-					case TakeProfit:
-
-						sm.Strategy.Model.State.ExecutedOrders = append(sm.Strategy.Model.State.ExecutedOrders, response.Data.Id)
-						break
-					case
+					// cancel existing order if there is such
+					if len(sm.Strategy.Model.State.ExecutedOrders) > 0 {
+						existingOrderId := sm.Strategy.Model.State.ExecutedOrders[0]
+						sm.ExchangeApi.CancelOrder(trading.CancelOrderRequest{
+							KeyId: sm.KeyId,
+							OrderId: existingOrderId,
+						})
 					}
+					sm.Strategy.Model.State.ExecutedOrders = append(sm.Strategy.Model.State.ExecutedOrders, response.Data.Id)
 				}
 				go sm.waitForOrder(response.Data.Id)
 			}
@@ -400,7 +411,8 @@ func (sm *SmartOrder) checkWaitEntry(ctx context.Context, args ...interface{}) b
 	if sm.Strategy.Model.Conditions.EntryOrder.ActivatePrice == 0 && sm.Strategy.Model.Conditions.EntryOrder.OrderType == "market" {
 		return true
 	}
-	if sm.Strategy.Model.Conditions.EntryOrder.ActivatePrice > 0 {
+	isTrailing := sm.Strategy.Model.Conditions.EntryOrder.ActivatePrice > 0
+	if isTrailing {
 		conditionPrice = sm.Strategy.Model.Conditions.EntryOrder.ActivatePrice
 	}
 	switch sm.Strategy.Model.Conditions.EntryOrder.Side {
@@ -693,8 +705,9 @@ func (sm *SmartOrder) checkTrailingProfit(ctx context.Context, args ...interface
 
 func (sm *SmartOrder) checkLoss(ctx context.Context, args ...interface{}) bool {
 	currentOHLCV := args[0].(OHLCV)
-	stopLoss := (sm.Strategy.Model.Conditions.StopLoss / sm.Strategy.Model.Conditions.Leverage)
+	stopLoss := sm.Strategy.Model.Conditions.StopLoss / sm.Strategy.Model.Conditions.Leverage
 
+	// try exit on timeout
 	if sm.Strategy.Model.Conditions.TimeoutWhenLoss > 0 {
 		isLoss := (sm.Strategy.Model.Conditions.EntryOrder.Side == "buy" && sm.Strategy.Model.Conditions.EntryOrder.Price > currentOHLCV.Close) || (sm.Strategy.Model.Conditions.EntryOrder.Side == "sell" && sm.Strategy.Model.Conditions.EntryOrder.Price < currentOHLCV.Close)
 		if isLoss && sm.Strategy.Model.State.LossableAt == 0 {
@@ -703,14 +716,13 @@ func (sm *SmartOrder) checkLoss(ctx context.Context, args ...interface{}) bool {
 				time.Sleep(time.Duration(sm.Strategy.Model.Conditions.TimeoutWhenLoss) * time.Second)
 				stillTimeout := lossAt == sm.Strategy.Model.State.LossableAt
 				if stillTimeout {
-					sm.placeOrder(-1, TakeProfit)
+					sm.placeOrder(-1, Stoploss)
 				}
 			}(sm.Strategy.Model.State.LossableAt)
 		} else if !isLoss {
 			sm.Strategy.Model.State.LossableAt = 0
 		}
 	}
-
 	switch sm.Strategy.Model.Conditions.EntryOrder.Side {
 	case "buy":
 		if (1-currentOHLCV.Close/sm.Strategy.Model.State.EntryPrice)*100 >= stopLoss {

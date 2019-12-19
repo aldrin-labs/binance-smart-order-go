@@ -117,7 +117,7 @@ type CreateOrderRequest struct {
 }
 
 type CancelOrderRequest struct {
-	KeyId   string
+	KeyId   *primitive.ObjectID
 	OrderId string
 }
 
