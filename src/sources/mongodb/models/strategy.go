@@ -44,7 +44,7 @@ type MongoOrder struct {
 type MongoStrategy struct {
 	ID              primitive.ObjectID     `json:"_id" bson:"_id"`
 	Type            int64                  `json:"type" bson:"type"`
-	Enabled         bool                   `bson:"enabled"`
+	Enabled         bool                   `json:"enabled" bson:"enabled"`
 	Conditions      MongoStrategyCondition `bson:"conditions"`
 	State           MongoStrategyState     `bson:"state"`
 	TriggerWhen     TriggerOptions         `bson:"triggerWhen"`
@@ -53,7 +53,7 @@ type MongoStrategy struct {
 	LastUpdate      int64
 	SignalIds       []primitive.ObjectID
 	OrderIds        []primitive.ObjectID `bson:"orderIds"`
-	WaitForOrderIds []primitive.ObjectID `bson:"orderIds"`
+	WaitForOrderIds []primitive.ObjectID `bson:"waitForOrderIds"`
 	OwnerId         primitive.ObjectID
 	Social          MongoSocial `bson:"social"` // {sharedWith: [RBAC]}
 }
