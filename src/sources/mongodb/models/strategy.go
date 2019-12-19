@@ -65,11 +65,12 @@ type MongoStrategyType struct {
 
 type MongoStrategyState struct {
 	State              string   `json:"state" bson:"state"`
-	EntryOrderId              string   `json:"entryOrderId" bson:"entryOrderId"`
-	TakeProfitOrderIds        string   `json:"takeProfitOrderIds" bson:"takeProfitOrderIds"`
-	StopLossOrderIds        string   `json:"StopLossOrderIds" bson:"StopLossOrderIds"`
-	StopLoss        string   `json:"takeProfitOrderIds" bson:"takeProfitOrderIds"`
+	EntryOrderId       string   `json:"entryOrderId" bson:"entryOrderId"`
+	TakeProfitOrderIds string   `json:"takeProfitOrderIds" bson:"takeProfitOrderIds"`
+	StopLossOrderIds   string   `json:"StopLossOrderIds" bson:"StopLossOrderIds"`
+	StopLoss           string   `json:"takeProfitOrderIds" bson:"takeProfitOrderIds"`
 	TrailingEntryPrice float64  `json:"trailingEntryPrice" bson:"trailingEntryPrice"`
+	TrailingExitPrices []float64  `json:"trailingExitPrices" bson:"trailingExitPrices"`
 	EntryPrice         float64  `json:"entryPrice" bson:"entryPrice"`
 	ExitPrice          float64  `json:"exitPrice" bson:"exitPrice"`
 	Amount             float64  `json:"amount" bson:"amount"`
@@ -77,6 +78,11 @@ type MongoStrategyState struct {
 	ExecutedOrders     []string `json:"orders" bson:"orders"`
 	ExecutedAmount     float64  `json:"executedAmount" bson:"executedAmount"`
 	ReachedTargetCount int      `json:"reachedTargetCount" bson:"reachedTargetCount"`
+
+	StopLossAt   int64 `json:"stopLossAt" bson:"stopLossAt"`
+	LossableAt   int64 `json:"lossableAt" bson:"lossableAt"`
+	ProfitableAt int64 `json:"profitableAt" bson:"profitableAt"`
+	ProfitAt     int64 `json:"profitAt" bson:"profitAt"`
 }
 
 type MongoEntryPoint struct {
@@ -116,6 +122,7 @@ type MongoStrategyCondition struct {
 	TimeoutBeforeOpenPosition float64           `json:"timeoutBeforeOpenPosition" bson:"timeoutBeforeOpenPosition"` // wait after closing position before opening new one
 	ChangeTrendIfLoss         bool              `json:"changeTrendIfLoss" bson:"changeTrendIfLoss"`
 	ChangeTrendIfProfit       bool              `json:"changeTrendIfProfit" bson:"changeTrendIfProfit"`
+	TimeoutWhenLoss               float64           `json:"timeoutWhenLoss" bson:"timeoutWhenLoss"`
 	StopLoss                  float64           `json:"stopLoss" bson:"stopLoss"`
 	TimeoutLoss               float64           `json:"timeoutLoss" bson:"timeoutLoss"`
 	ForcedLoss                float64           `json:"forcedLoss" bson:"forcedLoss"`
