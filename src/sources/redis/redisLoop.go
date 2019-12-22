@@ -48,14 +48,14 @@ func (rl *RedisLoop) SubscribeToPairs() {
 	}, func(channel string, data []byte) error {
 		go rl.UpdateOHLCV(channel, data)
 		return nil
-	}, "*:*:60")
+	}, "*:60")
 }
 
 func (rl *RedisLoop) UpdateOHLCV(channel string, data []byte) {
 	var ohlcvOB OrderbookOHLCV
 	_ = json.Unmarshal(data, &ohlcvOB)
 	pair := ohlcvOB.Quote+"_"+ohlcvOB.Base
-	exchange := ohlcvOB.Exchange
+	exchange := "binance"
 	ohlcv := strategies.OHLCV{
 		Open:   ohlcvOB.Open,
 		High:   ohlcvOB.High,

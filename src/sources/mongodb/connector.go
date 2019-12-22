@@ -47,8 +47,51 @@ func Connect(url string, connectTimeout time.Duration) (*mongo.Client, error) {
 type StateMgmt struct {
 
 }
+
+// TODO: refactor so it will be one global subscribtion to orders collection instead of one per order
+func (sm *StateMgmt) SubscribeToOrder(orderId string, onOrderStatusUpdate func(orderId string, orderStatus string)) error {
+	CollName := "core_orders"
+	ctx := context.Background()
+	var coll = GetCollection(CollName)
+	cs, err := coll.Watch(ctx, mongo.Pipeline{bson.D{{"orderId", orderId}}}, options.ChangeStream().SetFullDocument(options.UpdateLookup))
+	if err != nil {
+		return err
+	}
+	//require.NoError(cs, err)
+	defer cs.Close(ctx)
+
+	for cs.Next(ctx) {
+		var event models.MongoOrderUpdateEvent
+		err := cs.Decode(&event)
+		//	data := next.String()
+		// println(data)
+		//		err := json.Unmarshal([]byte(data), &event)
+		if err != nil {
+			println("event decode", err)
+		}
+		onOrderStatusUpdate(orderId, event.FullDocument.Status)
+	}
+	return nil
+}
 func (sm *StateMgmt) GetPosition(strategyId primitive.ObjectID, symbol string) {
 
+}
+
+func (sm *StateMgmt) GetOrder(orderId string) *models.MongoOrder {
+	CollName := "core_orders"
+	ctx := context.Background()
+	var request bson.D
+	request = bson.D{
+		{"id", orderId},
+	}
+	var coll = GetCollection(CollName)
+
+	var order *models.MongoOrder
+	err := coll.FindOne(ctx, request).Decode(&order)
+	if err != nil {
+		println(err)
+	}
+	return order
 }
 
 func (sm *StateMgmt) UpdateConditions(strategyId primitive.ObjectID, state *models.MongoStrategyCondition) {
