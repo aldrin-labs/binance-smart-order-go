@@ -5,92 +5,25 @@ import (
 	"fmt"
 	"github.com/qmuntal/stateless"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies"
-	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
-	//"gitlab.com/crypto_project/core/strategy_service/src/trading"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"testing"
 	"time"
+
+	//"gitlab.com/crypto_project/core/strategy_service/src/trading"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-//func GetTestSmartOrder(scenario string) models.MongoStrategy {
-//	smartOrder := models.MongoStrategy{
-//		ID:           primitive.ObjectID{},
-//		StrategyType: 1,
-//		Conditions: models.MongoStrategyCondition{
-//			ActivationPrice: 6900,
-//			TakeProfit:      3,
-//			StopLoss:        2,
-//			EntryDeviation:  1.5,
-//			Pair:            "BTC_USDT",
-//			EntryOrder:      models.MongoEntryPoint{Side: "buy"},
-//		},
-//		State:       models.MongoStrategyState{Amount: 1000},
-//		TriggerWhen: models.TriggerOptions{},
-//		Expiration:  models.ExpirationSchema{},
-//		OwnerId:     primitive.ObjectID{},
-//		Social:      models.MongoSocial{},
-//	}
-//	if scenario == "TestEntries" {
-//		smartOrder.Conditions.TakeProfit = 0
-//		smartOrder.Conditions.ExitLevels = []models.MongoEntryPoint{
-//			{
-//				ActivatePrice:           0,
-//				EntryDeviation:          0,
-//				Price:                   1,
-//				HedgeEntry:              0,
-//				HedgeActivation:         0,
-//				HedgeOppositeActivation: 0,
-//				Type:                    1,
-//			},
-//			{
-//				ActivatePrice:           0,
-//				EntryDeviation:          0,
-//				Price:                   3,
-//				HedgeEntry:              0,
-//				HedgeActivation:         0,
-//				HedgeOppositeActivation: 0,
-//				Type:                    1,
-//			},
-//			{
-//				ActivatePrice:           0,
-//				EntryDeviation:          0,
-//				Price:                   5,
-//				HedgeEntry:              0,
-//				HedgeActivation:         0,
-//				HedgeOppositeActivation: 0,
-//				Type:                    1,
-//			},
-//		}
-//	}
-//	return smartOrder
-//}
+//Conditions: models.MongoStrategyCondition{
+//Price: 8010,
+//ActivationPrice: 6900,
+//TakeProfit:      3,
+//StopLoss:        2,
+//EntryDeviation:  1.5,
+//Pair:       "BTC_USDT",
+//EntryOrder: models.MongoEntryPoint{Side: "buy", Price: 7000},
+//},
 
-// TODO: it returns strategy, not a smart order, rename this
-func GetTestSmartOrder(scenario string) models.MongoStrategy {
-	smartOrder := models.MongoStrategy{
-		ID:           primitive.ObjectID{},
-		StrategyType: 1,
-		Conditions: models.MongoStrategyCondition{
-			Price: 8010,
-			//ActivationPrice: 6900,
-			//TakeProfit:      3,
-			//StopLoss:        2,
-			//EntryDeviation:  1.5,
-			Pair:       "BTC_USDT",
-			EntryOrder: models.MongoEntryPoint{Side: "buy", Price: 7000},
-		},
-		State:       models.MongoStrategyState{Amount: 1000},
-		TriggerWhen: models.TriggerOptions{},
-		Expiration:  models.ExpirationSchema{},
-		OwnerId:     primitive.ObjectID{},
-		Social:      models.MongoSocial{},
-		Enabled:     true,
-	}
-	return smartOrder
-}
-
-// returns conditions of smart order
+// returns conditions of smart order depending on the scenario
 func GetTestSmartOrderStrategy(scenario string) models.MongoStrategy {
 	smartOrder := models.MongoStrategy{
 		ID:           primitive.ObjectID{},
@@ -105,24 +38,74 @@ func GetTestSmartOrderStrategy(scenario string) models.MongoStrategy {
 	}
 
 	switch scenario {
-	case "entry":
+	case "entryLong":
 		smartOrder.Conditions = models.MongoStrategyCondition{
-			Price:      8010,
-			Pair:       "BTC_USDT",
+			Pair: "BTC_USDT",
 			EntryOrder: models.MongoEntryPoint{Side: "buy", Price: 7000},
 		}
-	case "trailingEntry":
-		fmt.Println("trailingEntry.")
+	case "entryShort":
+		smartOrder.Conditions = models.MongoStrategyCondition{
+			Pair: "BTC_USDT",
+			EntryOrder: models.MongoEntryPoint{Side: "sell", Price: 7000},
+		}
+	case "trailingEntryLong":
+		smartOrder.Conditions = models.MongoStrategyCondition{
+			Pair: "BTC_USDT",
+			EntryOrder: models.MongoEntryPoint{Side: "buy", ActivatePrice: 7000},
+		}
+	case "trailingEntryShort":
+		smartOrder.Conditions = models.MongoStrategyCondition{
+			Pair: "BTC_USDT",
+			EntryOrder: models.MongoEntryPoint{Side: "sell", ActivatePrice: 7000},
+		}
+	case "takeProfit":
+		smartOrder.Conditions = models.MongoStrategyCondition{
+			Pair: "BTC_USDT",
+			TakeProfit: 5, // percent of profit
+			EntryOrder: models.MongoEntryPoint{Side: "buy", Price: 7000, Amount: 0.05},
+		}
+	case "multiplePriceTargets":
+		smartOrder.Conditions = models.MongoStrategyCondition{
+			Pair: "BTC_USDT",
+			EntryOrder: models.MongoEntryPoint{Side: "buy", Price: 7000, Amount: 0.05},
+		}
+		smartOrder.Conditions.TakeProfit = 0
+		smartOrder.Conditions.ExitLevels = []models.MongoEntryPoint{
+			{
+				ActivatePrice:           0,
+				EntryDeviation:          0,
+				Price:                   1,
+				HedgeEntry:              0,
+				HedgeActivation:         0,
+				HedgeOppositeActivation: 0,
+				Type:                    1,
+			},
+			{
+				ActivatePrice:           0,
+				EntryDeviation:          0,
+				Price:                   3,
+				HedgeEntry:              0,
+				HedgeActivation:         0,
+				HedgeOppositeActivation: 0,
+				Type:                    1,
+			},
+			{
+				ActivatePrice:           0,
+				EntryDeviation:          0,
+				Price:                   5,
+				HedgeEntry:              0,
+				HedgeActivation:         0,
+				HedgeOppositeActivation: 0,
+				Type:                    1,
+			},
+		}
 	}
 
 	return smartOrder
 }
 
-// smart order should transition to InEntry state if currect OHLCV close price is
-// 1) more than condition price  (if sell)
-// 2) less than condition price  (if buy)
-func TestSmartOrderGetInEntry(t *testing.T) {
-	smartOrderModel := GetTestSmartOrderStrategy("entry")
+func TestSmartOrderTakeProfit(t *testing.T) {
+	smartOrderModel := GetTestSmartOrderStrategy("takeProfit")
 	fakeDataStream := []strategies.OHLCV{{
 		Open:   7100,
 		High:   7101,
@@ -140,6 +123,18 @@ func TestSmartOrderGetInEntry(t *testing.T) {
 		High:   7305,
 		Low:    7300,
 		Close:  7300,
+		Volume: 30,
+	}, { // Take profit
+		Open:   7705,
+		High:   7705,
+		Low:    7700,
+		Close:  7700,
+		Volume: 30,
+	}, { // Take profit
+		Open:   7705,
+		High:   7705,
+		Low:    7700,
+		Close:  7700,
 		Volume: 30,
 	}}
 	df := NewMockedDataFeed(fakeDataStream)
@@ -155,110 +150,18 @@ func TestSmartOrderGetInEntry(t *testing.T) {
 		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
 	})
 	go smartOrder.Start()
-	time.Sleep(800 * time.Millisecond)
-	isInState, _ := smartOrder.State.IsInState(strategies.InEntry)
-	if !isInState {
-		state, _ := smartOrder.State.State(context.Background())
-		stateStr := fmt.Sprintf("%v", state)
-		t.Error("SmartOrder state is not InEntry(State: " + stateStr + ")")
-	}
-}
-
-// smart order should transition to TrailingEntry state if ActivatePrice > 0 AND currect OHLCV close price is
-// 1) more than condition price  (if sell)
-// 2) less than condition price  (if buy)
-func TestSmartOrderGetInTrailingEntry(t *testing.T) {
-	smartOrderModel := GetTestSmartOrder("trailingEntry")
-	fakeDataStream := []strategies.OHLCV{{
-		Open:   7100,
-		High:   7101,
-		Low:    7000,
-		Close:  7005,
-		Volume: 30,
-	}, { // Activation price
-		Open:   7005,
-		High:   7005,
-		Low:    6900,
-		Close:  6900,
-		Volume: 30,
-	}, { // Dont hit entry
-		Open:   7005,
-		High:   7005,
-		Low:    6900,
-		Close:  6900,
-		Volume: 30,
-	}}
-	df := NewMockedDataFeed(fakeDataStream)
-	tradingApi := *NewMockedTradingAPI()
-	strategy := strategies.Strategy{
-		Model: &smartOrderModel,
-	}
-	keyId := primitive.NewObjectID()
-	sm := mongodb.StateMgmt{}
-
-	smartOrder := strategies.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm) //TODO
-	go smartOrder.Start()
-	time.Sleep(800 * time.Millisecond)
-	isInState, _ := smartOrder.State.IsInState(strategies.TrailingEntry)
-	if !isInState {
-		state, _ := smartOrder.State.State(context.Background())
-		stateStr := fmt.Sprintf("%v", state)
-		t.Error("SmartOrder state is not TrailingEntry (State: " + stateStr + ")")
-	}
-}
-
-func TestSmartOrderTakeProfit(t *testing.T) {
-	smartOrderModel := GetTestSmartOrder("TestEntry")
-	fakeDataStream := []strategies.OHLCV{{
-		Open:   7100,
-		High:   7101,
-		Low:    7000,
-		Close:  7005,
-		Volume: 30,
-	}, { // Activation price
-		Open:   7005,
-		High:   7005,
-		Low:    6900,
-		Close:  6900,
-		Volume: 30,
-	}, { // Hit entry
-		Open:   7305,
-		High:   7305,
-		Low:    7300,
-		Close:  7300,
-		Volume: 30,
-	}, { // Take profit
-		Open:   7705,
-		High:   7705,
-		Low:    7700,
-		Close:  7700,
-		Volume: 30,
-	}, { // Take profit
-		Open:   7705,
-		High:   7705,
-		Low:    7700,
-		Close:  7700,
-		Volume: 30,
-	}}
-	df := NewMockedDataFeed(fakeDataStream)
-	tradingApi := NewMockedTradingAPI()
-	strategy := strategies.Strategy{
-		Model: &smartOrderModel,
-	}
-	keyId := primitive.NewObjectID()
-	sm := mongodb.StateMgmt{}
-	smartOrder := strategies.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm) //TODO
-	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
-		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
-	})
-	go smartOrder.Start()
 	time.Sleep(3000 * time.Millisecond)
+	// TODO: now checking if TakeProfit is triggering, but it stops when sm.exit returns default "End" state
+	// TODO: so it should test for TakeProfit state or calls to exchange API or maybe for smart order results?
 	isInState, _ := smartOrder.State.IsInState(strategies.End)
 	if !isInState {
-		t.Error("SmartOrder state is not InEntry")
+		state, _ := smartOrder.State.State(context.Background())
+		stateStr := fmt.Sprintf("%v", state)
+		t.Error("SmartOrder state is not End (State: " + stateStr + ")")
 	}
 }
 
+// Smart order can take profit on multiple price targets, not only at one price
 func TestSmartOrderTakeProfitAllTargets(t *testing.T) {
 	fakeDataStream := []strategies.OHLCV{{
 		Open:   7100,
@@ -303,14 +206,15 @@ func TestSmartOrderTakeProfitAllTargets(t *testing.T) {
 		Close:  9900,
 		Volume: 30,
 	}}
-	smartOrderModel := GetTestSmartOrder("TestEntries")
+	smartOrderModel := GetTestSmartOrderStrategy("multiplePriceTargets")
 	df := NewMockedDataFeed(fakeDataStream)
 	tradingApi := NewMockedTradingAPI()
 	strategy := strategies.Strategy{
 		Model: &smartOrderModel,
 	}
 	keyId := primitive.NewObjectID()
-	sm := mongodb.StateMgmt{}
+	//sm := mongodb.StateMgmt{}
+	sm := MockStateMgmt{}
 	smartOrder := strategies.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm) //TODO
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
@@ -322,53 +226,53 @@ func TestSmartOrderTakeProfitAllTargets(t *testing.T) {
 	}
 }
 
-func TestSmartOrderStopLoss(t *testing.T) {
-	fakeDataStream := []strategies.OHLCV{{
-		Open:   7100,
-		High:   7101,
-		Low:    7000,
-		Close:  7005,
-		Volume: 30,
-	}, { // Activation price
-		Open:   7005,
-		High:   7005,
-		Low:    6900,
-		Close:  6900,
-		Volume: 30,
-	}, { // Hit entry
-		Open:   7305,
-		High:   7305,
-		Low:    7300,
-		Close:  7300,
-		Volume: 30,
-	}, { // Stop loss
-		Open:   6205,
-		High:   6205,
-		Low:    6200,
-		Close:  6200,
-		Volume: 30,
-	}}
-	smartOrderModel := GetTestSmartOrder("TestEntries")
-	df := NewMockedDataFeed(fakeDataStream)
-	tradingApi := NewMockedTradingAPI()
-	strategy := strategies.Strategy{
-		Model: &smartOrderModel,
-	}
-	keyId := primitive.NewObjectID()
-	sm := mongodb.StateMgmt{}
-	smartOrder := strategies.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm) //TODO
-	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
-		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
-	})
-	go smartOrder.Start()
-	time.Sleep(2 * time.Second)
+//func TestSmartOrderStopLoss(t *testing.T) {
+//	fakeDataStream := []strategies.OHLCV{{
+//		Open:   7100,
+//		High:   7101,
+//		Low:    7000,
+//		Close:  7005,
+//		Volume: 30,
+//	}, { // Activation price
+//		Open:   7005,
+//		High:   7005,
+//		Low:    6900,
+//		Close:  6900,
+//		Volume: 30,
+//	}, { // Hit entry
+//		Open:   7305,
+//		High:   7305,
+//		Low:    7300,
+//		Close:  7300,
+//		Volume: 30,
+//	}, { // Stop loss
+//		Open:   6205,
+//		High:   6205,
+//		Low:    6200,
+//		Close:  6200,
+//		Volume: 30,
+//	}}
+//	smartOrderModel := GetTestSmartOrderStrategy("TestEntries")
+//	df := NewMockedDataFeed(fakeDataStream)
+//	tradingApi := NewMockedTradingAPI()
+//	strategy := strategies.Strategy{
+//		Model: &smartOrderModel,
+//	}
+//	keyId := primitive.NewObjectID()
+//	sm := mongodb.StateMgmt{}
+//	smartOrder := strategies.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm) //TODO
+//	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
+//		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
+//	})
+//	go smartOrder.Start()
+//	time.Sleep(2 * time.Second)
+//
+//	if tradingApi.CallCount["sell"] != 1 && tradingApi.AmountSum["binanceBTC_USDTsell"] != smartOrder.Strategy.Model.Conditions.EntryOrder.Amount {
+//		t.Error("SmartOrder didn't sold everything on stop-loss", tradingApi.CallCount["sell"], tradingApi.AmountSum["binanceBTC_USDTsell"], smartOrder.Strategy.Model.Conditions.EntryOrder.Amount)
+//	}
+//}
 
-	if tradingApi.CallCount["sell"] != 1 && tradingApi.AmountSum["binanceBTC_USDTsell"] != smartOrder.Strategy.Model.Conditions.EntryOrder.Amount {
-		t.Error("SmartOrder didn't sold everything on stop-loss", tradingApi.CallCount["sell"], tradingApi.AmountSum["binanceBTC_USDTsell"], smartOrder.Strategy.Model.Conditions.EntryOrder.Amount)
-	}
-}
-
-func TestSmartOrderStopLossAfterTakeFirstProfit(t *testing.T) {
+/*func TestSmartOrderStopLossAfterTakeFirstProfit(t *testing.T) {
 	fakeDataStream := []strategies.OHLCV{{
 		Open:   7100,
 		High:   7101,
@@ -400,7 +304,7 @@ func TestSmartOrderStopLossAfterTakeFirstProfit(t *testing.T) {
 		Close:  6000,
 		Volume: 30,
 	}}
-	smartOrderModel := GetTestSmartOrder("TestEntries")
+	smartOrderModel := GetTestSmartOrderStrategy("TestEntries")
 	df := NewMockedDataFeed(fakeDataStream)
 	tradingApi := NewMockedTradingAPI()
 	strategy := strategies.Strategy{
@@ -419,4 +323,4 @@ func TestSmartOrderStopLossAfterTakeFirstProfit(t *testing.T) {
 		state, _ := smartOrder.State.State(context.TODO())
 		t.Error("SmartOrder state is not End", state)
 	}
-}
+}*/
