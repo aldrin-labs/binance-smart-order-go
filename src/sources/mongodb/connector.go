@@ -77,6 +77,23 @@ func (sm *StateMgmt) GetPosition(strategyId primitive.ObjectID, symbol string) {
 
 }
 
+func (sm *StateMgmt) GetOrder(orderId string) *models.MongoOrder {
+	CollName := "core_orders"
+	ctx := context.Background()
+	var request bson.D
+	request = bson.D{
+		{"id", orderId},
+	}
+	var coll = GetCollection(CollName)
+
+	var order *models.MongoOrder
+	err := coll.FindOne(ctx, request).Decode(&order)
+	if err != nil {
+		println(err)
+	}
+	return order
+}
+
 func (sm *StateMgmt) UpdateConditions(strategyId primitive.ObjectID, state *models.MongoStrategyCondition) {
 	col := GetCollection("core_strategies")
 	var request bson.D

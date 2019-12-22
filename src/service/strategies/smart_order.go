@@ -10,6 +10,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"math"
 	"reflect"
+	"strings"
 	"sync"
 	"time"
 )
@@ -53,6 +54,7 @@ type IStateMgmt interface {
 	UpdateConditions(strategyId primitive.ObjectID, state *models.MongoStrategyCondition)
 	UpdateState(strategyId primitive.ObjectID, state *models.MongoStrategyState)
 	GetPosition(strategyId primitive.ObjectID, symbol string)
+	GetOrder(orderId string) *models.MongoOrder
 	SubscribeToOrder(orderId string, onOrderStatusUpdate func(orderId string, orderStatus string)) error
 }
 
@@ -107,34 +109,38 @@ func NewSmartOrder(strategy *Strategy, DataFeed IDataFeed, TradingAPI trading.IT
 	State.Configure(WaitForEntry).PermitDynamic(TriggerTrade, sm.exitWaitEntry,
 		sm.checkWaitEntry).PermitDynamic(CheckExistingOrders, sm.exitWaitEntry,
 		sm.checkExistingOrders).OnEntry(sm.enterWaitingEntry)
-
 	State.Configure(TrailingEntry).Permit(TriggerTrade, InEntry,
 		sm.checkTrailingEntry).Permit(CheckExistingOrders, InEntry,
 		sm.checkExistingOrders).OnEntry(sm.enterTrailingEntry)
-
 	State.Configure(InEntry).PermitDynamic(CheckProfitTrade, sm.exit,
 		sm.checkProfit).PermitDynamic(CheckTrailingProfitTrade, sm.exit,
 		sm.checkTrailingProfit).PermitDynamic(CheckLossTrade, sm.exit,
 		sm.checkLoss).PermitDynamic(CheckExistingOrders, sm.exit,
 		sm.checkExistingOrders).OnEntry(sm.enterEntry)
-
 	State.Configure(TakeProfit).PermitDynamic(CheckProfitTrade, sm.exit,
 		sm.checkProfit).PermitDynamic(CheckTrailingProfitTrade, sm.exit,
 		sm.checkTrailingProfit).PermitDynamic(CheckLossTrade, sm.exit,
 		sm.checkLoss).PermitDynamic(CheckExistingOrders, sm.exit,
 		sm.checkExistingOrders).OnEntry(sm.enterTakeProfit)
-
 	State.Configure(Stoploss).PermitDynamic(CheckProfitTrade, sm.exit,
 		sm.checkProfit).PermitDynamic(CheckTrailingProfitTrade, sm.exit,
 		sm.checkTrailingProfit).PermitDynamic(CheckLossTrade, sm.exit,
 		sm.checkLoss).OnEntry(sm.enterStopLoss)
-
 	State.Configure(End).OnEntry(sm.enterEnd)
+
 	State.Activate()
-	sm.ExchangeName = "binance"
+
 	sm.State = State
+	sm.ExchangeName = "binance"
 	// fmt.Printf(sm.State.ToGraph())
 	// fmt.Printf("DONE\n")
+	isFirstRunSoStateisEmpty := strategy.Model.State.State == ""
+	if isFirstRunSoStateisEmpty {
+		entryIsNotTrailing := sm.Strategy.Model.Conditions.EntryOrder.ActivatePrice == 0
+		if entryIsNotTrailing { // then we must know exact price
+			sm.placeOrder(sm.Strategy.Model.Conditions.EntryOrder.Price, WaitForEntry)
+		}
+	}
 	return sm
 }
 
@@ -177,11 +183,24 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 		break
 	case WaitForEntry:
 		orderType = sm.Strategy.Model.Conditions.EntryOrder.OrderType
+		side = sm.Strategy.Model.Conditions.EntryOrder.Side
+		baseAmount = sm.toFixed((sm.Strategy.Model.Conditions.EntryOrder.Amount * sm.Strategy.Model.Conditions.Leverage) / price)
+
 		if isTrailingEntry {
 			return // do nothing because we dont know entry price, coz didnt hit activation price yet
 		}
 		break
 	case Stoploss:
+		amountPrice := price
+		if amountPrice == 0 {
+			stoploss := 1 - (sm.Strategy.Model.Conditions.StopLoss / sm.Strategy.Model.Conditions.Leverage)
+			amountPrice = sm.Strategy.Model.State.EntryPrice * stoploss
+		}
+		baseAmount = sm.toFixed((sm.Strategy.Model.State.Amount * sm.Strategy.Model.Conditions.Leverage) / amountPrice)
+		side = "buy"
+		if sm.Strategy.Model.Conditions.EntryOrder.Side == side {
+			side = "sell"
+		}
 		if sm.Strategy.Model.Conditions.TimeoutLoss == 0 {
 			if isSpot {
 				if price > 0 {
@@ -203,6 +222,7 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 					}
 				}()
 			}
+			return
 		}
 		break
 	case TakeProfit:
@@ -251,7 +271,7 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 			}
 			price = price * (1 - target.EntryDeviation/100/sm.Strategy.Model.Conditions.Leverage)
 		}
-		side := "buy"
+		side = "buy"
 		if sm.Strategy.Model.Conditions.EntryOrder.Side == side {
 			side = "sell"
 		}
@@ -264,6 +284,9 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 	}
 
 	advancedOrderType := orderType
+	if strings.Contains(orderType, "stop") {
+		orderType = "stop"
+	}
 	for {
 		response := sm.ExchangeApi.CreateOrder(
 			trading.CreateOrderRequest{
@@ -283,6 +306,17 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 			},
 		)
 		if response.Status == "OK" {
+
+			switch step  {
+			case InEntry, WaitForEntry, TrailingEntry: {
+				if orderType == "market" {
+					time.Sleep(1000 * time.Millisecond)
+					sm.Strategy.Model.State.EntryPrice = sm.StateMgmt.GetOrder(response.Data.Id).Average
+				} else {
+					sm.Strategy.Model.State.EntryPrice = response.Data.Average
+				}
+			}
+			}
 			if orderType != "market" {
 				sm.StatusByOrderId.Store(response.Data.Id, step)
 				if saveOrder {
@@ -301,6 +335,8 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 			sm.Strategy.Model.State.Orders = append(sm.Strategy.Model.State.Orders, response.Data.Id)
 			sm.StateMgmt.UpdateState(sm.Strategy.Model.ID, &sm.Strategy.Model.State)
 			break
+		} else {
+			println(response.Status)
 		}
 	}
 	if recursiveCall && sm.SelectedExitTarget+1 < len(sm.Strategy.Model.Conditions.ExitLevels) {
@@ -831,7 +867,7 @@ func (sm *SmartOrder) Start() {
 		if !sm.Lock {
 			sm.processEventLoop()
 		}
-		time.Sleep(300 * time.Millisecond)
+		time.Sleep(1000 * time.Millisecond)
 		state, _ = sm.State.State(context.Background())
 	}
 	println("STOPPED")

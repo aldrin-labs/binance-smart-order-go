@@ -39,6 +39,7 @@ type MongoOrder struct {
 	Status  string             `json:"status" bson:"status"`
 	OrderId string             `json:"id" bson:"id"`
 	Filled  float64            `json:"filled" bson:"filled"`
+	Average  float64            `json:"average" bson:"average"`
 }
 
 type MongoStrategy struct {
@@ -68,14 +69,14 @@ type MongoStrategyState struct {
 	EntryOrderId       string   `json:"entryOrderId" bson:"entryOrderId"`
 	TakeProfitOrderIds string   `json:"takeProfitOrderIds" bson:"takeProfitOrderIds"`
 	StopLossOrderIds   string   `json:"StopLossOrderIds" bson:"StopLossOrderIds"`
-	StopLoss           string   `json:"takeProfitOrderIds" bson:"takeProfitOrderIds"`
+	StopLoss           string   `json:"stopLoss" bson:"stopLoss"`
 	TrailingEntryPrice float64  `json:"trailingEntryPrice" bson:"trailingEntryPrice"`
 	TrailingExitPrices []float64  `json:"trailingExitPrices" bson:"trailingExitPrices"`
 	EntryPrice         float64  `json:"entryPrice" bson:"entryPrice"`
 	ExitPrice          float64  `json:"exitPrice" bson:"exitPrice"`
 	Amount             float64  `json:"amount" bson:"amount"`
 	Orders             []string `json:"orders" bson:"orders"`
-	ExecutedOrders     []string `json:"orders" bson:"orders"`
+	ExecutedOrders     []string `json:"executedOrders" bson:"executedOrders"`
 	ExecutedAmount     float64  `json:"executedAmount" bson:"executedAmount"`
 	ReachedTargetCount int      `json:"reachedTargetCount" bson:"reachedTargetCount"`
 
@@ -99,7 +100,7 @@ type MongoEntryPoint struct {
 }
 
 type MongoStrategyCondition struct {
-	KeyAssetId primitive.ObjectID `json:"keyAssetId" bson:"keyAssetId"`
+	KeyAssetId *primitive.ObjectID `json:"keyAssetId" bson:"keyAssetId"`
 	Pair       string             `json:"pair" bson:"pair"`
 	MarketType int64              `json:"marketType" bson:"marketType"`
 	EntryOrder MongoEntryPoint    `json:"entryOrder" bson:"entryOrder"`
