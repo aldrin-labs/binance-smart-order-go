@@ -888,7 +888,7 @@ func (sm *SmartOrder) processEventLoop() {
 				return
 			}
 		}
-		println(sm.Strategy.Model.Conditions.Pair, sm.Strategy.Model.State.TrailingEntryPrice, sm.Strategy.Model.Conditions.EntryDeviation, currentOHLCV.Close, err.Error())
+		//println(sm.Strategy.Model.Conditions.Pair, sm.Strategy.Model.State.TrailingEntryPrice, sm.Strategy.Model.Conditions.EntryDeviation, currentOHLCV.Close, err.Error())
 	}
 }
 

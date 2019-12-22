@@ -9,6 +9,16 @@ import (
 type MockStateMgmt struct {
 }
 
+func (sm *MockStateMgmt) GetOrder(orderId string) *models.MongoOrder {
+	//panic("implement me")
+	return &models.MongoOrder{}
+}
+
+func (sm *MockStateMgmt) SubscribeToOrder(orderId string, onOrderStatusUpdate func(orderId string, orderStatus string)) error {
+	//panic("implement me")
+	return nil
+}
+
 func (sm *MockStateMgmt) GetPosition(strategyId primitive.ObjectID, symbol string) {
 
 }

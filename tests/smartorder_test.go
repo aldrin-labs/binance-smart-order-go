@@ -27,7 +27,6 @@ import (
 func GetTestSmartOrderStrategy(scenario string) models.MongoStrategy {
 	smartOrder := models.MongoStrategy{
 		ID:           primitive.ObjectID{},
-		StrategyType: 1,
 		Conditions:   models.MongoStrategyCondition{},
 		State:        models.MongoStrategyState{Amount: 1000},
 		TriggerWhen:  models.TriggerOptions{},
@@ -58,47 +57,47 @@ func GetTestSmartOrderStrategy(scenario string) models.MongoStrategy {
 			Pair: "BTC_USDT",
 			EntryOrder: models.MongoEntryPoint{Side: "sell", ActivatePrice: 7000},
 		}
-	case "takeProfit":
-		smartOrder.Conditions = models.MongoStrategyCondition{
-			Pair: "BTC_USDT",
-			TakeProfit: 5, // percent of profit
-			EntryOrder: models.MongoEntryPoint{Side: "buy", Price: 7000, Amount: 0.05},
-		}
-	case "multiplePriceTargets":
-		smartOrder.Conditions = models.MongoStrategyCondition{
-			Pair: "BTC_USDT",
-			EntryOrder: models.MongoEntryPoint{Side: "buy", Price: 7000, Amount: 0.05},
-		}
-		smartOrder.Conditions.TakeProfit = 0
-		smartOrder.Conditions.ExitLevels = []models.MongoEntryPoint{
-			{
-				ActivatePrice:           0,
-				EntryDeviation:          0,
-				Price:                   1,
-				HedgeEntry:              0,
-				HedgeActivation:         0,
-				HedgeOppositeActivation: 0,
-				Type:                    1,
-			},
-			{
-				ActivatePrice:           0,
-				EntryDeviation:          0,
-				Price:                   3,
-				HedgeEntry:              0,
-				HedgeActivation:         0,
-				HedgeOppositeActivation: 0,
-				Type:                    1,
-			},
-			{
-				ActivatePrice:           0,
-				EntryDeviation:          0,
-				Price:                   5,
-				HedgeEntry:              0,
-				HedgeActivation:         0,
-				HedgeOppositeActivation: 0,
-				Type:                    1,
-			},
-		}
+	//case "takeProfit":
+	//	smartOrder.Conditions = models.MongoStrategyCondition{
+	//		Pair: "BTC_USDT",
+	//		TakeProfit: 5, // percent of profit
+	//		EntryOrder: models.MongoEntryPoint{Side: "buy", Price: 7000, Amount: 0.05},
+	//	}
+	//case "multiplePriceTargets":
+	//	smartOrder.Conditions = models.MongoStrategyCondition{
+	//		Pair: "BTC_USDT",
+	//		EntryOrder: models.MongoEntryPoint{Side: "buy", Price: 7000, Amount: 0.05},
+	//	}
+	//	smartOrder.Conditions.TakeProfit = 0
+	//	smartOrder.Conditions.ExitLevels = []models.MongoEntryPoint{
+	//		{
+	//			ActivatePrice:           0,
+	//			EntryDeviation:          0,
+	//			Price:                   1,
+	//			HedgeEntry:              0,
+	//			HedgeActivation:         0,
+	//			HedgeOppositeActivation: 0,
+	//			Type:                    1,
+	//		},
+	//		{
+	//			ActivatePrice:           0,
+	//			EntryDeviation:          0,
+	//			Price:                   3,
+	//			HedgeEntry:              0,
+	//			HedgeActivation:         0,
+	//			HedgeOppositeActivation: 0,
+	//			Type:                    1,
+	//		},
+	//		{
+	//			ActivatePrice:           0,
+	//			EntryDeviation:          0,
+	//			Price:                   5,
+	//			HedgeEntry:              0,
+	//			HedgeActivation:         0,
+	//			HedgeOppositeActivation: 0,
+	//			Type:                    1,
+	//		},
+	//	}
 	}
 
 	return smartOrder
