@@ -57,6 +57,46 @@ func GetTestSmartOrderStrategy(scenario string) models.MongoStrategy {
 			Pair: "BTC_USDT",
 			EntryOrder: models.MongoEntryPoint{Side: "sell", ActivatePrice: 7000},
 		}
+	case "stopLossMarket":
+		smartOrder.State = models.MongoStrategyState{
+			State:              "InEntry",
+			EntryOrderId:       "",
+			TakeProfitOrderIds: "",
+			StopLossOrderIds:   "",
+			StopLoss:           "",
+			TrailingEntryPrice: 0,
+			TrailingExitPrices: nil,
+			EntryPrice:         7000,
+			ExitPrice:          0,
+			Amount:             0.05,
+			Orders:             nil,
+			ExecutedOrders:     nil,
+			ExecutedAmount:     0,
+			ReachedTargetCount: 0,
+			StopLossAt:         0,
+			LossableAt:         0,
+			ProfitableAt:       0,
+			ProfitAt:           0,
+		}
+		smartOrder.Conditions = models.MongoStrategyCondition{
+			Pair: "BTC_USDT",
+			EntryOrder: models.MongoEntryPoint{Side: "buy", ActivatePrice: 7000, Amount: 0.05},
+			StopLoss: 5,
+			Leverage: 1,
+		}
+	case "stopLossMarketTimeout":
+		smartOrder.State = models.MongoStrategyState{
+			State:              "InEntry",
+			EntryPrice:         7000,
+			Amount:             0.05,
+		}
+		smartOrder.Conditions = models.MongoStrategyCondition{
+			Pair: "BTC_USDT",
+			EntryOrder: models.MongoEntryPoint{Side: "buy", ActivatePrice: 7000, Amount: 0.05},
+			TimeoutWhenLoss: 3000,
+			StopLoss: 5,
+			Leverage: 1,
+		}
 	//case "takeProfit":
 	//	smartOrder.Conditions = models.MongoStrategyCondition{
 	//		Pair: "BTC_USDT",

@@ -24,6 +24,8 @@ func NewMockedTradingAPI() *MockTrading {
 }
 
 func (mt MockTrading) CreateOrder(r trading.CreateOrderRequest) trading.OrderResponse {
+	fmt.Printf("Create Order Request: %v", r)
+	println()
 	//if mt.CallCount[exchange] {
 	//	callCount[exchange] = 0
 	//}
@@ -34,8 +36,8 @@ func (mt MockTrading) CreateOrder(r trading.CreateOrderRequest) trading.OrderRes
 	//	callCount[pair] = 0
 	//}
 	//println("create order", exchange, pair, side)
-	println("create order", r.KeyParams.Symbol, r.KeyParams.Side)
-	fmt.Printf("%f\n", r.KeyParams.Amount)
+	//println("create order", r.KeyParams.Symbol, r.KeyParams.Side)
+	//fmt.Printf("%f\n", r.KeyParams.Amount)
 	//mt.CallCount[exchange]++
 	mt.CallCount[r.KeyParams.Side]++
 	mt.CallCount[r.KeyParams.Symbol]++
