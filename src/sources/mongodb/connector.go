@@ -72,17 +72,34 @@ func (sm *StateMgmt) DisableStrategy(strategyId primitive.ObjectID) {
 }
 
 // TODO: refactor so it will be one global subscribtion to orders collection instead of one per order
-func (sm *StateMgmt) SubscribeToOrder(orderId string, onOrderStatusUpdate func(orderId string, orderStatus string)) error {
+func (sm *StateMgmt) SubscribeToOrder(orderId string, onOrderStatusUpdate func(order *models.MongoOrder)) error {
+	go func() {
+		executedOrder := sm.GetOrder(orderId)
+		for executedOrder == nil || executedOrder.Status != "closed" {
+			if executedOrder != nil {
+				onOrderStatusUpdate(executedOrder)
+			}
+			time.Sleep(2 * time.Second)
+			executedOrder = sm.GetOrder(orderId)
+		}
+	}()
+	time.Sleep(3 * time.Second)
 	CollName := "core_orders"
 	ctx := context.Background()
 	var coll = GetCollection(CollName)
-	cs, err := coll.Watch(ctx, mongo.Pipeline{bson.D{{"orderId", orderId}}}, options.ChangeStream().SetFullDocument(options.UpdateLookup))
+	pipeline := mongo.Pipeline{bson.D{
+		{"$match",
+			bson.D{
+				{"fullDocument.orderId", orderId},
+			},
+		},
+	}}
+	cs, err := coll.Watch(ctx, pipeline, options.ChangeStream().SetFullDocument(options.UpdateLookup))
 	if err != nil {
 		return err
 	}
 	//require.NoError(cs, err)
 	defer cs.Close(ctx)
-
 	for cs.Next(ctx) {
 		var event models.MongoOrderUpdateEvent
 		err := cs.Decode(&event)
@@ -92,7 +109,7 @@ func (sm *StateMgmt) SubscribeToOrder(orderId string, onOrderStatusUpdate func(o
 		if err != nil {
 			println("event decode", err)
 		}
-		onOrderStatusUpdate(orderId, event.FullDocument.Status)
+		onOrderStatusUpdate(&event.FullDocument)
 	}
 	return nil
 }
