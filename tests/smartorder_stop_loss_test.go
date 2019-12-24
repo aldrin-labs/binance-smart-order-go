@@ -95,6 +95,18 @@ func TestSmartExitOnStopMarketTimeout(t *testing.T) {
 		Low:    6500,
 		Close:  6500,
 		Volume: 30,
+	},{
+		Open:   6605,
+		High:   6600,
+		Low:    6500,
+		Close:  6500,
+		Volume: 30,
+	},{
+		Open:   6605,
+		High:   6600,
+		Low:    6500,
+		Close:  6500,
+		Volume: 30,
 	}}
 	df := NewMockedDataFeed(fakeDataStream)
 	tradingApi := NewMockedTradingAPI()
@@ -108,7 +120,7 @@ func TestSmartExitOnStopMarketTimeout(t *testing.T) {
 		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
 	})
 	go smartOrder.Start()
-	time.Sleep(4000 * time.Millisecond)
+	time.Sleep(7000 * time.Millisecond)
 
 	// check that one call with 'sell' and one with 'BTC_USDT' should be done
 	if tradingApi.CallCount["sell"] == 0 || tradingApi.CallCount["BTC_USDT"] == 0 {

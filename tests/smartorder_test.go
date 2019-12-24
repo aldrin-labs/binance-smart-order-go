@@ -92,8 +92,9 @@ func GetTestSmartOrderStrategy(scenario string) models.MongoStrategy {
 		}
 		smartOrder.Conditions = models.MongoStrategyCondition{
 			Pair: "BTC_USDT",
-			EntryOrder: models.MongoEntryPoint{Side: "buy", ActivatePrice: 7000, Amount: 0.05},
-			TimeoutWhenLoss: 3000,
+			EntryOrder: models.MongoEntryPoint{Side: "buy", ActivatePrice: 7000, Price: 6999, Amount: 0.05},
+			TimeoutWhenLoss: 100,
+			//TimeoutLoss: 100,
 			StopLoss: 5,
 			Leverage: 1,
 		}

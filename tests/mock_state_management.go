@@ -31,3 +31,7 @@ func (sm *MockStateMgmt) UpdateConditions(strategyId primitive.ObjectID, state *
 func (sm *MockStateMgmt) UpdateState(strategyId primitive.ObjectID, state *models.MongoStrategyState) {
 
 }
+
+func (sm *MockStateMgmt) DisableStrategy(strategyId primitive.ObjectID) {
+
+}
