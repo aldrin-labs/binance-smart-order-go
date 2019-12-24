@@ -14,7 +14,7 @@ func (sm *MockStateMgmt) GetOrder(orderId string) *models.MongoOrder {
 	return &models.MongoOrder{}
 }
 
-func (sm *MockStateMgmt) SubscribeToOrder(orderId string, onOrderStatusUpdate func(orderId string, orderStatus string)) error {
+func (sm *MockStateMgmt) SubscribeToOrder(orderId string, onOrderStatusUpdate func(order *models.MongoOrder)) error {
 	//panic("implement me")
 	return nil
 }
