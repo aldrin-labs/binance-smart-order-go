@@ -7,8 +7,10 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"io/ioutil"
+	"math"
 	"net/http"
 	"os"
+	"strings"
 )
 
 type OrderResponseData struct {
@@ -50,7 +52,9 @@ func Request(method string, data interface{}) interface{} {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		panic(err)
+		println(err)
+
+		return Request(method, data)
 	}
 	defer resp.Body.Close()
 
@@ -107,10 +111,12 @@ type Order struct {
 	MarketType  int64               `json:"marketType" bson:"marketType"`
 	Side        string              `json:"side"`
 	Amount      float64             `json:"amount"`
+	ReduceOnly  bool              	`json:"reduceOnly" bson:"reduceOnly"`
 	TimeInForce string              `json:"timeInForce,omitempty" bson:"timeInForce"`
 	Type   		string              `json:"type" bson:"type"`
 	Price       float64             `json:"price,omitempty" bson:"price"`
-	Params      OrderParams         `json:"orderParams" bson:"orderParams"`
+	StopPrice float64 `json:"stopPrice,omitempty" bson:"stopPrice"`
+	Params      OrderParams         `json:"params" bson:"params"`
 }
 
 type CreateOrderRequest struct {
@@ -122,14 +128,29 @@ type CancelOrderRequest struct {
 	KeyId   *primitive.ObjectID
 	OrderId string
 }
+func round(num float64) int {
+	return int(num + math.Copysign(0.5, num))
+}
+
+func toFixed(num float64, precision int) float64 {
+	output := math.Pow(10, float64(precision))
+	return float64(round(num * output)) / output
+}
 
 func (t *Trading) CreateOrder(order CreateOrderRequest) OrderResponse {
 	order.KeyParams.Params.MaxIfNotEnough = 1
 	if order.KeyParams.MarketType == 1 && order.KeyParams.Type == "limit" {
 		order.KeyParams.TimeInForce = "GTC"
 	}
-	if order.KeyParams.Type == "market" {
+	if strings.Contains(order.KeyParams.Type, "market") || strings.Contains(order.KeyParams.Params.Type, "market")  {
 		order.KeyParams.Price = 0.0
+	}
+	if strings.Contains(order.KeyParams.Symbol, "_USDT") {
+		order.KeyParams.Price = toFixed(order.KeyParams.Price, 2)
+		order.KeyParams.StopPrice = toFixed(order.KeyParams.StopPrice, 2)
+	} else {
+		order.KeyParams.Price = toFixed(order.KeyParams.Price, 8)
+		order.KeyParams.StopPrice = toFixed(order.KeyParams.StopPrice, 8)
 	}
 	rawResponse := Request("createOrder", order)
 	var response OrderResponse

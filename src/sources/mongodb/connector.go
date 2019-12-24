@@ -48,6 +48,29 @@ type StateMgmt struct {
 
 }
 
+func (sm *StateMgmt) DisableStrategy(strategyId primitive.ObjectID) {
+	col := GetCollection("core_strategies")
+	var request bson.D
+	request = bson.D{
+		{"_id", strategyId},
+	}
+	var update bson.D
+	update = bson.D{
+		{
+			"$set", bson.D{
+			{
+				"enabled", false,
+			},
+		},
+		},
+	}
+	res, err := col.UpdateOne(context.TODO(), request, update)
+	if err != nil {
+		println("error in arg", err)
+	}
+	println(res)
+}
+
 // TODO: refactor so it will be one global subscribtion to orders collection instead of one per order
 func (sm *StateMgmt) SubscribeToOrder(orderId string, onOrderStatusUpdate func(orderId string, orderStatus string)) error {
 	CollName := "core_orders"
