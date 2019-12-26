@@ -22,11 +22,14 @@ func GetCollection(colName string) *mongo.Collection {
 
 func GetMongoClientInstance() *mongo.Client {
 	if mongoClient == nil {
-		client, err := Connect(os.Getenv("MONGODB"), time.Duration(time.Duration.Seconds(3)))
-		if err != nil {
-			println("cant get mongodb client", err)
-			return nil
-		}
+		url := os.Getenv("MONGODB")
+		timeout := 10 * time.Second
+		client, _ := mongo.Connect(ctx, options.Client().SetDirect(false).
+			SetReadPreference(readpref.Primary()).
+			SetWriteConcern(writeconcern.New(writeconcern.WMajority())).
+			SetRetryWrites(true).
+			SetReplicaSet("rs0").
+			SetConnectTimeout(timeout).ApplyURI(url))
 		mongoClient = client
 	}
 	return mongoClient
