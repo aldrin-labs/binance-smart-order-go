@@ -117,3 +117,5 @@ spec:
               secretName: cloudsql-instance-credentials
           - name: cloudsql
             emptyDir:
+        # [END volumes]
+
