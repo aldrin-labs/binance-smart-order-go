@@ -19,10 +19,10 @@ application:
 service:
   name: nginx
   type: ClusterIP
-  containerPort: 5082
-  internalPort: 3000
+  containerPort: 5089
+  internalPort: 8080
   ports:
-  - http: 5082
+    - http: 5089
 
 proxyConnectTimeout: 15
 proxyReadTimeout: 600
@@ -40,9 +40,9 @@ resources: {}
   # choice for the user. This also increases chances charts run on environments with little
   # resources, such as Minikube. If you do want to specify resources, uncomment the following
   # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-   limits:
+  limits:
     cpu: 400m
-    memory: 512Mi
+    memory: 600Mi
   requests:
     cpu: 400m
-    memory: 512Mi
+    memory: 600Mi
