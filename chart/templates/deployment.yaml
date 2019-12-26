@@ -28,6 +28,11 @@ spec:
             secretKeyRef:
               name: strategy-secrets
               key: ohlcv-table-name
+        - name: MONGODBNAME
+          valueFrom:
+            secretKeyRef:
+              name: strategy-secrets
+              key: mongodbname
         - name: MONGODB
           valueFrom:
             secretKeyRef:
@@ -53,6 +58,16 @@ spec:
             secretKeyRef:
               name: strategy-secrets
               key: redis-password
+        - name: GOOGLE_AUTH
+          valueFrom:
+            secretKeyRef:
+              name: strategy-secrets
+              key: google-auth
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          valueFrom:
+            secretKeyRef:
+              name: strategy-secrets
+              key: google-application-credentials
         - name: DB_HOST
           value: 127.0.0.1
         - name: OHLCDB_NAME
