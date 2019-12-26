@@ -22,11 +22,15 @@ func GetCollection(colName string) *mongo.Collection {
 
 func GetMongoClientInstance() *mongo.Client {
 	if mongoClient == nil {
-		client, err := Connect(os.Getenv("MONGODB"), time.Duration(time.Duration.Seconds(3)))
-		if err != nil {
-			println("cant get mongodb client", err)
-			return nil
-		}
+		url := os.Getenv("MONGODB")
+		timeout := 10 * time.Second
+		ctx, _ := context.WithTimeout(context.Background(), timeout)
+		client, _ := mongo.Connect(ctx, options.Client().SetDirect(true).
+			SetReadPreference(readpref.Primary()).
+			SetWriteConcern(writeconcern.New(writeconcern.WMajority())).
+			SetRetryWrites(true).
+			SetReplicaSet("rs0").
+			SetConnectTimeout(timeout).ApplyURI(url))
 		mongoClient = client
 	}
 	return mongoClient
@@ -35,7 +39,7 @@ func GetMongoClientInstance() *mongo.Client {
 func Connect(url string, connectTimeout time.Duration) (*mongo.Client, error) {
 	ctx, _ := context.WithTimeout(context.Background(), connectTimeout)
 	timeout := 10 * time.Second
-	mongoClient, err := mongo.Connect(ctx, options.Client().SetDirect(true).
+	mongoClient, err := mongo.Connect(ctx, options.Client().SetDirect(false).
 		SetReadPreference(readpref.Primary()).
 		SetWriteConcern(writeconcern.New(writeconcern.WMajority())).
 		SetRetryWrites(true).
@@ -82,7 +86,7 @@ func (sm *StateMgmt) SubscribeToOrder(orderId string, onOrderStatusUpdate func(o
 				onOrderStatusUpdate(executedOrder)
 			}
 			time.Sleep(2 * time.Second)
-			isOrderStillOpen = executedOrder == nil || (executedOrder.Status != "filled" && executedOrder.Status != "closed" && executedOrder.Status != "expired")
+			isOrderStillOpen = executedOrder == nil || (executedOrder.Status != "filled" && executedOrder.Status != "closed" && executedOrder.Status != "cancelled" && executedOrder.Status != "expired")
 		}
 	}()
 	time.Sleep(3 * time.Second)
