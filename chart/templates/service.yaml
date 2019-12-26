@@ -9,11 +9,11 @@ metadata:
 spec:
   type: {{ .Values.service.type }}
   ports:
-  - port: {{ .Values.service.containerPort }}
-    targetPort: {{ .Values.service.internalPort }}
-    protocol: TCP
-    name: "stuff"
+    - port: {{ .Values.service.containerPort }}
+      targetPort: {{ .Values.service.internalPort }}
+      protocol: TCP
+      name: "stuff"
   selector:
     app: {{ .Chart.Name }}
     tier: "{{ .Values.application.tier }}"
-{{- end -}}
+  {{- end -}}
