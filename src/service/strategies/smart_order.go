@@ -70,7 +70,8 @@ type SmartOrder struct {
 	IsWaitingForOrder     sync.Map // TODO: this must be filled on start of SM if not first start (e.g. restore the state by checking order statuses)
 	OrdersMap             sync.Map
 	StatusByOrderId       sync.Map
-	QuantityPrecision     int32
+	QuantityAmountPrecision     int64
+	QuantityPricePrecision     int64
 	Lock                  bool
 	LastTrailingTimestamp int64
 	SelectedExitTarget    int
@@ -80,15 +81,16 @@ func round(num float64) int {
 	return int(num + math.Copysign(0.5, num))
 }
 
-func (sm *SmartOrder) toFixed(num float64) float64 {
-	output := math.Pow(10, float64(sm.QuantityPrecision))
+func (sm *SmartOrder) toFixed(num float64, precision int64) float64 {
+	output := math.Pow(10, float64(precision))
 	return float64(round(num*output)) / output
 }
 
 func NewSmartOrder(strategy *Strategy, DataFeed IDataFeed, TradingAPI trading.ITrading, keyId *primitive.ObjectID, stateMgmt IStateMgmt) *SmartOrder {
 	sm := &SmartOrder{Strategy: strategy, DataFeed: DataFeed, ExchangeApi: TradingAPI, KeyId: keyId, StateMgmt: stateMgmt, Lock: false, SelectedExitTarget: 0}
 	initState := WaitForEntry
-	sm.QuantityPrecision = 3
+	sm.QuantityPricePrecision = 2
+	sm.QuantityAmountPrecision = 3
 	// if state is not empty but if its in the end and open ended, then we skip state value, since want to start over
 	if strategy.Model.State.State != "" && !(strategy.Model.State.State == End && strategy.Model.Conditions.ContinueIfEnded == true) {
 		initState = strategy.Model.State.State
@@ -110,7 +112,7 @@ func NewSmartOrder(strategy *Strategy, DataFeed IDataFeed, TradingAPI trading.IT
 	*/
 	State.Configure(WaitForEntry).PermitDynamic(TriggerTrade, sm.exitWaitEntry,
 		sm.checkWaitEntry).PermitDynamic(CheckExistingOrders, sm.exitWaitEntry,
-		sm.checkExistingOrders).OnEntry(sm.enterWaitingEntry)
+		sm.checkExistingOrders)
 	State.Configure(TrailingEntry).Permit(TriggerTrade, InEntry,
 		sm.checkTrailingEntry).Permit(CheckExistingOrders, InEntry,
 		sm.checkExistingOrders).OnEntry(sm.enterTrailingEntry)
@@ -151,6 +153,7 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 	orderType := "market"
 	stopPrice := 0.0
 	side := ""
+	orderPrice := price
 
 	recursiveCall := false
 	reduceOnly := false
@@ -213,9 +216,9 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 				orderType = "stop-market" // ok we are in futures and can place order before it happened
 				stopLoss := sm.Strategy.Model.Conditions.StopLoss
 				if side == "sell" {
-					price = sm.Strategy.Model.State.EntryPrice * (1 - stopLoss/100/sm.Strategy.Model.Conditions.Leverage)
+					orderPrice = sm.Strategy.Model.State.EntryPrice * (1 - stopLoss/100/sm.Strategy.Model.Conditions.Leverage)
 				} else {
-					price = sm.Strategy.Model.State.EntryPrice * (1 + stopLoss/100/sm.Strategy.Model.Conditions.Leverage)
+					orderPrice = sm.Strategy.Model.State.EntryPrice * (1 + stopLoss/100/sm.Strategy.Model.Conditions.Leverage)
 				}
 			}
 		} else {
@@ -269,13 +272,13 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 			}
 			switch target.Type {
 			case 0:
-				price = target.Price
+				orderPrice = target.Price
 				break
 			case 1:
 				if side == "sell" {
-					price = sm.Strategy.Model.State.EntryPrice * (1 + target.Price/100/sm.Strategy.Model.Conditions.Leverage)
+					orderPrice = sm.Strategy.Model.State.EntryPrice * (1 + target.Price/100/sm.Strategy.Model.Conditions.Leverage)
 				} else {
-					price = sm.Strategy.Model.State.EntryPrice * (1 - target.Price/100/sm.Strategy.Model.Conditions.Leverage)
+					orderPrice = sm.Strategy.Model.State.EntryPrice * (1 - target.Price/100/sm.Strategy.Model.Conditions.Leverage)
 				}
 				break
 			}
@@ -292,7 +295,7 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 			} else {
 				recursiveCall = true
 			}
-			price = sm.Strategy.Model.State.TrailingEntryPrice * (1 - target.EntryDeviation/100/sm.Strategy.Model.Conditions.Leverage)
+			orderPrice = sm.Strategy.Model.State.TrailingEntryPrice * (1 - target.EntryDeviation/100/sm.Strategy.Model.Conditions.Leverage)
 		}
 
 		baseAmount = target.Amount
@@ -316,13 +319,17 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 			side = oppositeSide
 			reduceOnly = true
 			baseAmount = sm.Strategy.Model.Conditions.EntryOrder.Amount
+			break
 		}
 	}
+
+	baseAmount = sm.toFixed(baseAmount, sm.QuantityAmountPrecision)
+	orderPrice = sm.toFixed(orderPrice, sm.QuantityPricePrecision)
 
 	advancedOrderType := orderType
 	if strings.Contains(orderType, "stop") || strings.Contains(orderType, "take-profit") {
 		orderType = "stop"
-		stopPrice = price
+		stopPrice = orderPrice
 	}
 	for {
 		request := trading.CreateOrderRequest{
@@ -333,7 +340,7 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 				Type:       orderType,
 				Side:       side,
 				Amount:     baseAmount,
-				Price:      price,
+				Price:      orderPrice,
 				ReduceOnly: reduceOnly,
 				StopPrice:  stopPrice,
 				Params: trading.OrderParams{
@@ -349,7 +356,8 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 					if orderType == "market" {
 						time.Sleep(4000 * time.Millisecond)
 						executedOrder := sm.StateMgmt.GetOrder(response.Data.Id)
-						for executedOrder.Status == "open" {
+						for executedOrder == nil || executedOrder.Status == "open" {
+							time.Sleep(500 * time.Millisecond)
 							executedOrder = sm.StateMgmt.GetOrder(response.Data.Id)
 						}
 						sm.Strategy.Model.State.EntryPrice = executedOrder.Average
@@ -367,6 +375,8 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 						sm.ExchangeApi.CancelOrder(trading.CancelOrderRequest{
 							KeyId:   sm.KeyId,
 							OrderId: existingOrderId,
+							MarketType: sm.Strategy.Model.Conditions.MarketType,
+							Pair: sm.Strategy.Model.Conditions.Pair,
 						})
 					}
 					sm.Strategy.Model.State.ExecutedOrders = append(sm.Strategy.Model.State.ExecutedOrders, response.Data.Id)
@@ -390,13 +400,6 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 	}
 }
 
-func (sm *SmartOrder) enterWaitingEntry(ctx context.Context, args ...interface{}) error {
-	entryIsNotTrailing := sm.Strategy.Model.Conditions.EntryOrder.ActivatePrice == 0
-	if entryIsNotTrailing { // then we must know exact price
-		sm.placeOrder(sm.Strategy.Model.Conditions.EntryOrder.Price, WaitForEntry)
-	}
-	return nil
-}
 
 func (sm *SmartOrder) enterTrailingEntry(ctx context.Context, args ...interface{}) error {
 	if currentOHLCV, ok := args[0].(OHLCV); ok {
@@ -903,13 +906,14 @@ func (sm *SmartOrder) tryCancelAllOrders() {
 				KeyId:      sm.KeyId,
 				OrderId:    orderId,
 				MarketType: sm.Strategy.Model.Conditions.MarketType,
+				Pair: sm.Strategy.Model.Conditions.Pair,
 			})
 		}
 	}
 }
 func (sm *SmartOrder) Start() {
 	state, _ := sm.State.State(context.Background())
-	for state != End {
+	for state != End && state != Canceled {
 		if sm.Strategy.Model.Enabled == false {
 			state = Canceled
 			break
