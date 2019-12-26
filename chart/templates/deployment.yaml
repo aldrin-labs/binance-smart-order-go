@@ -111,11 +111,10 @@ spec:
             - name: cloudsql-instance-credentials
               mountPath: /secrets/cloudsql
               readOnly: true
-        volumes:
-          - name: cloudsql-instance-credentials
-            secret:
-              secretName: cloudsql-instance-credentials
-          - name: cloudsql
-            emptyDir:
-        # [END volumes]
+          volumes:
+            - name: cloudsql-instance-credentials
+              secret:
+                secretName: cloudsql-instance-credentials
+            - name: cloudsql
+              emptyDir:
 
