@@ -25,7 +25,7 @@ func GetMongoClientInstance() *mongo.Client {
 		url := os.Getenv("MONGODB")
 		timeout := 10 * time.Second
 		ctx, _ := context.WithTimeout(context.Background(), timeout)
-		client, _ := mongo.Connect(ctx, options.Client().SetDirect(false).
+		client, _ := mongo.Connect(ctx, options.Client().SetDirect(true).
 			SetReadPreference(readpref.Primary()).
 			SetWriteConcern(writeconcern.New(writeconcern.WMajority())).
 			SetRetryWrites(true).
@@ -86,7 +86,7 @@ func (sm *StateMgmt) SubscribeToOrder(orderId string, onOrderStatusUpdate func(o
 				onOrderStatusUpdate(executedOrder)
 			}
 			time.Sleep(2 * time.Second)
-			isOrderStillOpen = executedOrder == nil || (executedOrder.Status != "filled" && executedOrder.Status != "closed" && executedOrder.Status != "expired")
+			isOrderStillOpen = executedOrder == nil || (executedOrder.Status != "filled" && executedOrder.Status != "closed" && executedOrder.Status != "cancelled" && executedOrder.Status != "expired")
 		}
 	}()
 	time.Sleep(3 * time.Second)
