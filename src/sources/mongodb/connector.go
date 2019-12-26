@@ -24,6 +24,7 @@ func GetMongoClientInstance() *mongo.Client {
 	if mongoClient == nil {
 		url := os.Getenv("MONGODB")
 		timeout := 10 * time.Second
+		ctx, _ := context.WithTimeout(context.Background(), timeout)
 		client, _ := mongo.Connect(ctx, options.Client().SetDirect(false).
 			SetReadPreference(readpref.Primary()).
 			SetWriteConcern(writeconcern.New(writeconcern.WMajority())).
