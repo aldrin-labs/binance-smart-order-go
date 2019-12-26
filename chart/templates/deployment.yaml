@@ -20,101 +20,129 @@ spec:
       imagePullSecrets:
         - name: gitlab-registry
       containers:
-        - name: {{ .Chart.Name }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          env:
-            - name: POD_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
-            - name: REDIS_HOST
-              valueFrom:
-                secretKeyRef:
-                  name: strategy-secrets
-                  key: redis-host
-            - name: REDIS_PORT
-              valueFrom:
-                secretKeyRef:
-                  name: strategy-secrets
-                  key: redis-port
-            - name: REDIS_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: strategy-secrets
-                  key: redis-password
-            - name: NATS
-              valueFrom:
-                secretKeyRef:
-                  name: strategy-secrets
-                  key: nats
-            - name: MONGODB
-              valueFrom:
-                secretKeyRef:
-                  name: strategy-secrets
-                  key: mongodb
-            - name: GOOGLE_AUTH
-              valueFrom:
-                secretKeyRef:
-                  name: strategy-secrets
-                  key: google-auth
-            - name: GOOGLE_APPLICATION_CREDENTIALS
-              valueFrom:
-                secretKeyRef:
-                  name: strategy-secrets
-                  key: google-application-credentials
-            - name: DB_HOST
-              value: 127.0.0.1
-            - name: OHLCDB_NAME
-              valueFrom:
-                secretKeyRef:
-                  name: strategy-secrets
-                  key: ohlcvdb-name
-            - name: OHLCV_TABLE_NAME
-              valueFrom:
-                secretKeyRef:
-                  name: strategy-secrets
-                  key: ohlcvdb-table-name
-            - name: DB_USER
-              valueFrom:
-                secretKeyRef:
-                  name: cloudsql-db-credentials
-                  key: username
-            - name: DB_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: cloudsql-db-credentials
-                  key: password
-          ports:
-            - name: "{{ .Values.service.name }}"
-              containerPort: {{ .Values.service.internalPort }}
-          livenessProbe:
-            exec:
-              command:
-                - pwd
-            initialDelaySeconds: 1
-            periodSeconds: 1
-          readinessProbe:
-            exec:
-              command:
-                - pwd
-            initialDelaySeconds: 1
-            periodSeconds: 1
-          resources:
+      - name: {{ .Chart.Name }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        env:
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: NOTIFICATIONSERVICE
+          valueFrom:
+            secretKeyRef:
+              name: strategy-secrets
+              key: notificationservice
+        - name: MONGODBNAME
+          valueFrom:
+            secretKeyRef:
+              name: strategy-secrets
+              key: mongodbname
+        - name: PROXYLIST
+          valueFrom:
+            secretKeyRef:
+              name: strategy-secrets
+              key: proxylist
+        - name: NATS
+          valueFrom:
+            secretKeyRef:
+              name: strategy-secrets
+              key: nats
+        - name: DNSTRAIL
+          valueFrom:
+            secretKeyRef:
+              name: strategy-secrets
+              key: dnstrail
+        - name: REDIS_HOST
+          valueFrom:
+            secretKeyRef:
+              name: strategy-secrets
+              key: redis-host
+        - name: REDIS_PORT
+          valueFrom:
+            secretKeyRef:
+              name: strategy-secrets
+              key: redis-port
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: strategy-secrets
+              key: redis-password
+        - name: MONGODB
+          valueFrom:
+            secretKeyRef:
+              name: strategy-secrets
+              key: mongodb
+        - name: QUEUE_NAME
+          valueFrom:
+            secretKeyRef:
+              name: strategy-secrets
+              key: queue-name
+        - name: GOOGLE_AUTH
+          valueFrom:
+            secretKeyRef:
+              name: strategy-secrets
+              key: google-auth
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          valueFrom:
+            secretKeyRef:
+              name: strategy-secrets
+              key: google-application-credentials
+        - name: DB_HOST
+          value: 127.0.0.1
+        - name: OHLCDB_NAME
+          valueFrom:
+            secretKeyRef:
+              name: strategy-secrets
+              key: ohlcvdb-name
+        - name: OHLCV_TABLE_NAME
+          valueFrom:
+            secretKeyRef:
+              name: strategy-secrets
+              key: ohlcvdb-table-name
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: cloudsql-db-credentials
+              key: username
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: cloudsql-db-credentials
+              key: password
+        ports:
+        - name: "{{ .Values.service.name }}"
+          containerPort: {{ .Values.service.internalPort }}
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 1
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 1
+          periodSeconds: 10
+        resources:
 {{ toYaml .Values.resources | indent 12 }}
-        - name: cloudsql-proxy
-          image: gcr.io/cloudsql-docker/gce-proxy:1.11
-          command: ["/cloud_sql_proxy",
-              "-instances=crypto-currencies-ai:us-central1:ohlcdata=tcp:3306",
-              "-credential_file=/secrets/cloudsql/credentials.json"]
-          volumeMounts:
-            - name: cloudsql-instance-credentials
-              mountPath: /secrets/cloudsql
-              readOnly: true
-          volumes:
-            - name: cloudsql-instance-credentials
-              secret:
-                secretName: cloudsql-instance-credentials
-            - name: cloudsql
-              emptyDir:
+      - name: cloudsql-proxy
+        image: gcr.io/cloudsql-docker/gce-proxy:1.11
+        command: ["/cloud_sql_proxy",
+                  "-instances=crypto-currencies-ai:us-central1:ohlcdata=tcp:3306",
+                  "-credential_file=/secrets/cloudsql/credentials.json"]
+        volumeMounts:
+          - name: cloudsql-instance-credentials
+            mountPath: /secrets/cloudsql
+            readOnly: true
+        # [END proxy_container]
+      # [START volumes]
+      volumes:
+        - name: cloudsql-instance-credentials
+          secret:
+            secretName: cloudsql-instance-credentials
+        - name: cloudsql
+          emptyDir:
+      # [END volumes]
 
