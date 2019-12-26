@@ -44,10 +44,10 @@ spec:
               name: strategy-secrets
               key: redis-password
         - name: NATS
-            valueFrom:
-              secretKeyRef:
-                name: strategy-secrets
-                key: nats
+          valueFrom:
+            secretKeyRef:
+              name: strategy-secrets
+              key: nats
         - name: MONGODB
           valueFrom:
             secretKeyRef:
