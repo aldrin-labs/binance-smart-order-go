@@ -125,8 +125,9 @@ type CreateOrderRequest struct {
 }
 
 type CancelOrderRequest struct {
-	KeyId   *primitive.ObjectID
-	OrderId string
+	KeyId   *primitive.ObjectID `json:"keyId"`
+	OrderId string `json:"id"`
+	MarketType int64 `json:"marketType"`
 }
 func round(num float64) int {
 	return int(num + math.Copysign(0.5, num))

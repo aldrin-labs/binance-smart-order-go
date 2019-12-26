@@ -75,12 +75,14 @@ func (sm *StateMgmt) DisableStrategy(strategyId primitive.ObjectID) {
 func (sm *StateMgmt) SubscribeToOrder(orderId string, onOrderStatusUpdate func(order *models.MongoOrder)) error {
 	go func() {
 		executedOrder := sm.GetOrder(orderId)
-		for executedOrder == nil || executedOrder.Status != "closed" {
+		isOrderStillOpen := true
+		for isOrderStillOpen {
+			executedOrder = sm.GetOrder(orderId)
 			if executedOrder != nil {
 				onOrderStatusUpdate(executedOrder)
 			}
 			time.Sleep(2 * time.Second)
-			executedOrder = sm.GetOrder(orderId)
+			isOrderStillOpen = executedOrder == nil || (executedOrder.Status != "filled" && executedOrder.Status != "closed" && executedOrder.Status != "expired")
 		}
 	}()
 	time.Sleep(3 * time.Second)
