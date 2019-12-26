@@ -136,7 +136,7 @@ build:
 develop_manual:
   stage: develop
   script:
-    - sed -i -e "s%signal-service%signal-service-dev%g" "chart/Chart.yaml"
+    - sed -i -e "s%strategy-service%strategy-service-dev%g" "chart/Chart.yaml"
     - KUBE_NAMESPACE=${KUBE_NAMESPACE}-${CI_ENVIRONMENT_NAME}
     - install_dependencies
     - download_chart
@@ -159,7 +159,7 @@ develop_manual:
 develop:
   stage: develop
   script:
-    - sed -i -e "s%signal-service%signal-service-dev%g" "chart/Chart.yaml"
+    - sed -i -e "s%strategy-service%strategy-service-dev%g" "chart/Chart.yaml"
     - KUBE_NAMESPACE=${KUBE_NAMESPACE}-${CI_ENVIRONMENT_NAME}
     - install_dependencies
     - download_chart
