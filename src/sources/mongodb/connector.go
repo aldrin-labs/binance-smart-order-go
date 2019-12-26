@@ -39,7 +39,7 @@ func GetMongoClientInstance() *mongo.Client {
 func Connect(url string, connectTimeout time.Duration) (*mongo.Client, error) {
 	ctx, _ := context.WithTimeout(context.Background(), connectTimeout)
 	timeout := 10 * time.Second
-	mongoClient, err := mongo.Connect(ctx, options.Client().SetDirect(true).
+	mongoClient, err := mongo.Connect(ctx, options.Client().SetDirect(false).
 		SetReadPreference(readpref.Primary()).
 		SetWriteConcern(writeconcern.New(writeconcern.WMajority())).
 		SetRetryWrites(true).
