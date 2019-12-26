@@ -73,19 +73,6 @@ test:
   stage: test
   image: gliderlabs/herokuish:latest
   script:
-    - setup_test_db
-    - eval $(ssh-agent -s)
-    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null
-    - mkdir -p ~/.ssh
-    - chmod 700 ~/.ssh
-    - touch  ~/.ssh/known_hosts
-    - ssh-keygen -f ~/.ssh/known_hosts -R gitlab.com
-    - echo "StrictHostKeyChecking no" > ~/.ssh/config
-    - echo -e "machine gitlab.com\nlogin gitlab-ci-token\npassword ${CI_JOB_TOKEN}" > ~/.netrc
-    - sed -i -e "s%git+ssh:\/\/git@gitlab.com%https:\/\/gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com%g" "package.json"
-    - sed -i -e "s%git+ssh:\/\/git@gitlab.com%https:\/\/gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com%g" "yarn.lock"
-    - cat package.json
-    - cp -R . /tmp/app
     - /bin/herokuish buildpack test
   only:
     - branches
@@ -157,7 +144,7 @@ test:
 develop_manual:
   stage: develop
   script:
-    - sed -i -e "s%portfolio-service%portfolio-service-dev%g" "chart/Chart.yaml"
+    - sed -i -e "s%strategy-service%strategy-service-dev%g" "chart/Chart.yaml"
     - KUBE_NAMESPACE=${KUBE_NAMESPACE}-${CI_ENVIRONMENT_NAME}
     - install_dependencies
     - download_chart
@@ -180,7 +167,7 @@ develop_manual:
 develop:
   stage: develop
   script:
-    - sed -i -e "s%portfolio-service%portfolio-service-dev%g" "chart/Chart.yaml"
+    - sed -i -e "s%strategy-service%strategy-service-dev%g" "chart/Chart.yaml"
     - KUBE_NAMESPACE=${KUBE_NAMESPACE}-${CI_ENVIRONMENT_NAME}
     - install_dependencies
     - download_chart
