@@ -61,6 +61,7 @@ func Request(method string, data interface{}) interface{} {
 	fmt.Println("response Status:", resp.Status)
 	fmt.Println("response Headers:", resp.Header)
 	body, _ := ioutil.ReadAll(resp.Body)
+	fmt.Println("request Body:", jsonStr)
 	fmt.Println("response Body:", string(body))
 	var response interface{}
 	_ = json.Unmarshal(body, &response)
@@ -125,8 +126,10 @@ type CreateOrderRequest struct {
 }
 
 type CancelOrderRequest struct {
-	KeyId   *primitive.ObjectID
-	OrderId string
+	KeyId   *primitive.ObjectID `json:"keyId"`
+	OrderId string `json:"id"`
+	Pair string `json:"pair"`
+	MarketType int64 `json:"marketType"`
 }
 func round(num float64) int {
 	return int(num + math.Copysign(0.5, num))
@@ -138,7 +141,6 @@ func toFixed(num float64, precision int) float64 {
 }
 
 func (t *Trading) CreateOrder(order CreateOrderRequest) OrderResponse {
-	order.KeyParams.Params.MaxIfNotEnough = 1
 	if order.KeyParams.MarketType == 1 && order.KeyParams.Type == "limit" {
 		order.KeyParams.TimeInForce = "GTC"
 	}

@@ -16,7 +16,6 @@ spec:
         track: "{{ .Values.application.track }}"
         tier: "{{ .Values.application.tier }}"
     spec:
-      hostname: {{ .Chart.Name }}
       imagePullSecrets:
         - name: gitlab-registry
       containers:
@@ -24,10 +23,31 @@ spec:
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         env:
-        - name: POD_NAMESPACE
+        - name: OHLCV_TABLE_NAME
           valueFrom:
-            fieldRef:
-              fieldPath: metadata.namespace
+            secretKeyRef:
+              name: strategy-secrets
+              key: ohlcv-table-name
+        - name: EXCHANGESERVICE
+          valueFrom:
+            secretKeyRef:
+              name: strategy-secrets
+              key: exchange-service
+        - name: MONGODBNAME
+          valueFrom:
+            secretKeyRef:
+              name: strategy-secrets
+              key: mongodbname
+        - name: MONGODB
+          valueFrom:
+            secretKeyRef:
+              name: strategy-secrets
+              key: mongodb
+        - name: NATS
+          valueFrom:
+            secretKeyRef:
+              name: strategy-secrets
+              key: nats
         - name: REDIS_HOST
           valueFrom:
             secretKeyRef:
@@ -43,16 +63,6 @@ spec:
             secretKeyRef:
               name: strategy-secrets
               key: redis-password
-        - name: NATS
-            valueFrom:
-              secretKeyRef:
-                name: strategy-secrets
-                key: nats
-        - name: MONGODB
-          valueFrom:
-            secretKeyRef:
-              name: strategy-secrets
-              key: mongodb
         - name: GOOGLE_AUTH
           valueFrom:
             secretKeyRef:
@@ -70,11 +80,6 @@ spec:
             secretKeyRef:
               name: strategy-secrets
               key: ohlcvdb-name
-        - name: OHLCV_TABLE_NAME
-          valueFrom:
-            secretKeyRef:
-              name: strategy-secrets
-              key: ohlcvdb-table-name
         - name: DB_USER
           valueFrom:
             secretKeyRef:
@@ -84,22 +89,27 @@ spec:
           valueFrom:
             secretKeyRef:
               name: cloudsql-db-credentials
-              key: password
+              key: password 
+        - name: OHLCV_TABLE_NAME
+          valueFrom:
+            secretKeyRef:
+              name: strategy-secrets
+              key: ohlcvdb-table-name
         ports:
         - name: "{{ .Values.service.name }}"
           containerPort: {{ .Values.service.internalPort }}
         livenessProbe:
-          exec:
-            command:
-            - pwd
-          initialDelaySeconds: 1
-          periodSeconds: 1
+          httpGet:
+            path: /healthz
+            port: {{ .Values.service.internalPort }}
+          initialDelaySeconds: 60
+          timeoutSeconds: 30
         readinessProbe:
-          exec:
-            command:
-            - pwd
-          initialDelaySeconds: 1
-          periodSeconds: 1
+          httpGet:
+            path: /healthz
+            port: {{ .Values.service.internalPort }}
+          initialDelaySeconds: 60
+          timeoutSeconds: 30
         resources:
 {{ toYaml .Values.resources | indent 12 }}
       - name: cloudsql-proxy
@@ -120,4 +130,3 @@ spec:
         - name: cloudsql
           emptyDir:
       # [END volumes]
-
