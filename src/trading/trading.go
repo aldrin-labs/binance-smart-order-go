@@ -170,6 +170,10 @@ type UpdateLeverageParams struct {
 	KeyId string `json:"keyId"`
 }
 func (t *Trading) UpdateLeverage(keyId string, leverage float64) interface{} {
+	if leverage < 1 {
+		leverage = 1
+	}
+
 	request := UpdateLeverageParams{
 		KeyId: keyId,
 		Leverage:leverage,
