@@ -61,7 +61,7 @@ func Request(method string, data interface{}) interface{} {
 	fmt.Println("response Status:", resp.Status)
 	fmt.Println("response Headers:", resp.Header)
 	body, _ := ioutil.ReadAll(resp.Body)
-	fmt.Println("request Body:", jsonStr)
+	fmt.Println("request Body:", string(jsonStr))
 	fmt.Println("response Body:", string(body))
 	var response interface{}
 	_ = json.Unmarshal(body, &response)
@@ -125,11 +125,15 @@ type CreateOrderRequest struct {
 	KeyParams Order `json:"keyParams"`
 }
 
-type CancelOrderRequest struct {
-	KeyId   *primitive.ObjectID `json:"keyId"`
+type CancelOrderRequestParams struct {
 	OrderId string `json:"id"`
 	Pair string `json:"pair"`
 	MarketType int64 `json:"marketType"`
+}
+
+type CancelOrderRequest struct {
+	KeyId   *primitive.ObjectID `json:"keyId"`
+	KeyParams CancelOrderRequestParams `json:"keyParams"`
 }
 func round(num float64) int {
 	return int(num + math.Copysign(0.5, num))

@@ -79,6 +79,7 @@ type MongoStrategyState struct {
 	ExecutedAmount     float64   `json:"executedAmount" bson:"executedAmount"`
 	ReachedTargetCount int       `json:"reachedTargetCount" bson:"reachedTargetCount"`
 
+	TrailingCheckAt   int64 `json:"trailingCheckAt" bson:"trailingCheckAt"`
 	StopLossAt   int64 `json:"stopLossAt" bson:"stopLossAt"`
 	LossableAt   int64 `json:"lossableAt" bson:"lossableAt"`
 	ProfitableAt int64 `json:"profitableAt" bson:"profitableAt"`
