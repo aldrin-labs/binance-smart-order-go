@@ -1,4 +1,4 @@
-package testing
+package tests
 
 import (
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
