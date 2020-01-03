@@ -324,7 +324,7 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 			if baseAmount == 0 {
 				baseAmount = 100
 			}
-			baseAmount = sm.Strategy.Model.Conditions.EntryOrder.Amount * (100 / baseAmount)
+			baseAmount = sm.Strategy.Model.Conditions.EntryOrder.Amount * (baseAmount / 100)
 		}
 		sm.Strategy.Model.State.ExitPrice = orderPrice
 		// sm.Strategy.Model.State.ExecutedAmount += amount
@@ -374,7 +374,7 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 			switch step {
 			case InEntry, WaitForEntry, TrailingEntry:
 				{
-					if orderType == "market" {
+					if orderType == "market" && response.Data.Average == 0 {
 						time.Sleep(4000 * time.Millisecond)
 						executedOrder := sm.StateMgmt.GetOrder(response.Data.Id)
 						for executedOrder == nil || executedOrder.Status == "open" {
@@ -384,6 +384,21 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 						sm.Strategy.Model.State.EntryPrice = executedOrder.Average
 					} else {
 						sm.Strategy.Model.State.EntryPrice = response.Data.Average
+					}
+				}
+			case TakeProfit, Stoploss:
+				{
+					if response.Data.Filled > 0 {
+						sm.Strategy.Model.State.ExecutedAmount += response.Data.Filled
+					} else {
+						executedOrder := sm.StateMgmt.GetOrder(response.Data.Id)
+						for executedOrder == nil || executedOrder.Status == "open" {
+							time.Sleep(500 * time.Millisecond)
+							executedOrder = sm.StateMgmt.GetOrder(response.Data.Id) // TODO: cover it with tests
+						}
+						if executedOrder.Filled > 0 {
+							sm.Strategy.Model.State.ExecutedAmount += executedOrder.Filled
+						}
 					}
 				}
 			}
@@ -460,10 +475,16 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			sm.Strategy.Model.State.State = InEntry
 			return true
 		case TakeProfit:
+			if order.Filled > 0 {
+				sm.Strategy.Model.State.ExecutedAmount += order.Filled
+			}
 			sm.Strategy.Model.State.ExitPrice = order.Average
 			sm.Strategy.Model.State.State = End
 			return true
 		case Stoploss:
+			if order.Filled > 0 {
+				sm.Strategy.Model.State.ExecutedAmount += order.Filled
+			}
 			sm.Strategy.Model.State.State = End
 			return true
 		}
@@ -570,15 +591,6 @@ func (sm *SmartOrder) enterEntry(ctx context.Context, args ...interface{}) error
 	sm.placeOrder(sm.Strategy.Model.State.EntryPrice, InEntry)
 	sm.placeOrder(0, TakeProfit)
 	sm.placeOrder(0, Stoploss)
-	return nil
-}
-
-func (sm *SmartOrder) WaitForOrder(orderId string) error {
-	// implement here calling to mongodb.SubscribeToOrderStatus(orderId, status)
-
-	// that will wait for order to be executed by using mongo change streams
-	// and every 5 sec do direct call to mongodb to make sure you have latest state
-	//
 	return nil
 }
 

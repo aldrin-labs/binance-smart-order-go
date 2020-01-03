@@ -1,4 +1,4 @@
-package testing
+package tests
 
 import (
 	"fmt"
@@ -43,7 +43,14 @@ func (mt MockTrading) CreateOrder(r trading.CreateOrderRequest) trading.OrderRes
 	mt.CallCount[r.KeyParams.Symbol]++
 	//mt.AmountSum[exchange+pair+side+fmt.Sprintf("%f", price)] += amount
 	mt.AmountSum[r.KeyParams.Symbol+r.KeyParams.Side+fmt.Sprintf("%f", r.KeyParams.Price)] += r.KeyParams.Amount
-	return trading.OrderResponse{Status: "OK"}
+	return trading.OrderResponse{Status: "OK", Data: trading.OrderResponseData{
+		Id: string(mt.CallCount[r.KeyParams.Symbol]),
+		OrderId: 0,
+		Status:  "closed",
+		Price:   r.KeyParams.Price,
+		Average: r.KeyParams.Price,
+		Filled: r.KeyParams.Amount,
+	}}
 }
 
 func (mt MockTrading) CancelOrder(r trading.CancelOrderRequest) interface{} {

@@ -1,4 +1,4 @@
-package testing
+package smart_order
 
 /*
 	This file contains test cases stop-loss part of smart orders
@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/qmuntal/stateless"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies"
+	"gitlab.com/crypto_project/core/strategy_service/tests"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"strconv"
 	"testing"
@@ -38,13 +39,13 @@ func TestSmartExitOnStopMarket(t *testing.T) {
 		Close:  6600,
 		Volume: 30,
 	}}
-	df := NewMockedDataFeed(fakeDataStream)
-	tradingApi := NewMockedTradingAPI()
+	df := tests.NewMockedDataFeed(fakeDataStream)
+	tradingApi := tests.NewMockedTradingAPI()
 	strategy := strategies.Strategy{
 		Model: &smartOrderModel,
 	}
 	keyId := primitive.NewObjectID()
-	sm := MockStateMgmt{}
+	sm := tests.MockStateMgmt{}
 	smartOrder := strategies.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
@@ -108,13 +109,13 @@ func TestSmartExitOnStopMarketTimeout(t *testing.T) {
 		Close:  6500,
 		Volume: 30,
 	}}
-	df := NewMockedDataFeed(fakeDataStream)
-	tradingApi := NewMockedTradingAPI()
+	df := tests.NewMockedDataFeed(fakeDataStream)
+	tradingApi := tests.NewMockedTradingAPI()
 	strategy := strategies.Strategy{
 		Model: &smartOrderModel,
 	}
 	keyId := primitive.NewObjectID()
-	sm := MockStateMgmt{}
+	sm := tests.MockStateMgmt{}
 	smartOrder := strategies.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())

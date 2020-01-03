@@ -1,4 +1,4 @@
-package testing
+package smart_order
 
 /*
 	This file contains test cases for entry in smart order
@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"github.com/qmuntal/stateless"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies"
+	"gitlab.com/crypto_project/core/strategy_service/tests"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"strconv"
 	"testing"
@@ -39,13 +40,13 @@ func TestSmartOrderGetInEntryLong(t *testing.T) {
 		Close:  7300,
 		Volume: 30,
 	}}
-	df := NewMockedDataFeed(fakeDataStream)
-	tradingApi := NewMockedTradingAPI()
+	df := tests.NewMockedDataFeed(fakeDataStream)
+	tradingApi := tests.NewMockedTradingAPI()
 	strategy := strategies.Strategy{
 		Model: &smartOrderModel,
 	}
 	keyId := primitive.NewObjectID()
-	sm := MockStateMgmt{}
+	sm := tests.MockStateMgmt{}
 	smartOrder := strategies.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
@@ -83,13 +84,13 @@ func TestSmartOrderGetInEntryShort(t *testing.T) {
 		Close:  7010,
 		Volume: 30,
 	}}
-	df := NewMockedDataFeed(fakeDataStream)
-	tradingApi := NewMockedTradingAPI()
+	df := tests.NewMockedDataFeed(fakeDataStream)
+	tradingApi := tests.NewMockedTradingAPI()
 	strategy := strategies.Strategy{
 		Model: &smartOrderModel,
 	}
 	keyId := primitive.NewObjectID()
-	sm := MockStateMgmt{}
+	sm := tests.MockStateMgmt{}
 	smartOrder := strategies.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
@@ -127,14 +128,14 @@ func TestSmartOrderGetInTrailingEntryLong(t *testing.T) {
 		Close:  7100,
 		Volume: 30,
 	}}
-	df := NewMockedDataFeed(fakeDataStream)
-	tradingApi := *NewMockedTradingAPI()
+	df := tests.NewMockedDataFeed(fakeDataStream)
+	tradingApi := *tests.NewMockedTradingAPI()
 	strategy := strategies.Strategy{
 		Model: &smartOrderModel,
 	}
 	keyId := primitive.NewObjectID()
 	//sm := mongodb.StateMgmt{}
-	sm := MockStateMgmt{}
+	sm := tests.MockStateMgmt{}
 	smartOrder := strategies.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
 	go smartOrder.Start()
 	time.Sleep(800 * time.Millisecond)
@@ -147,7 +148,7 @@ func TestSmartOrderGetInTrailingEntryLong(t *testing.T) {
 }
 
 // smart order should wait for entry if price condition is not met
-/*func TestSmartOrderShouldWaitForTrailingEntryLong(t *testing.T) {
+/*func TestSmartOrderShouldWaitForTrailingEntryLong(t *tests.T) {
 	smartOrderModel := GetTestSmartOrderStrategy("trailingEntryLong")
 	// price falls
 	fakeDataStream := []strategies.OHLCV{{
@@ -211,13 +212,13 @@ func TestSmartOrderGetInTrailingEntryShort(t *testing.T) {
 		Close:  6800,
 		Volume: 30,
 	}}
-	df := NewMockedDataFeed(fakeDataStream)
-	tradingApi := *NewMockedTradingAPI()
+	df := tests.NewMockedDataFeed(fakeDataStream)
+	tradingApi := *tests.NewMockedTradingAPI()
 	strategy := strategies.Strategy{
 		Model: &smartOrderModel,
 	}
 	keyId := primitive.NewObjectID()
-	sm := MockStateMgmt{}
+	sm := tests.MockStateMgmt{}
 	smartOrder := strategies.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
 	go smartOrder.Start()
 	time.Sleep(800 * time.Millisecond)
@@ -230,7 +231,7 @@ func TestSmartOrderGetInTrailingEntryShort(t *testing.T) {
 }
 
 // smart order should wait for entry if price condition is not met
-/*func TestSmartOrderShouldWaitForTrailingEntryShort(t *testing.T) {
+/*func TestSmartOrderShouldWaitForTrailingEntryShort(t *tests.T) {
 	smartOrderModel := GetTestSmartOrderStrategy("trailingEntryShort")
 	// price rises
 	fakeDataStream := []strategies.OHLCV{{
