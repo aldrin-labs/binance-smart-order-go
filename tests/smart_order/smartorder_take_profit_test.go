@@ -28,18 +28,6 @@ func TestSmartTakeProfit(t *testing.T) {
 		Low:    6900,
 		Close:  7150,
 		Volume: 30,
-	}, {
-		Open:   6905,
-		High:   7005,
-		Low:    6600,
-		Close:  7200,
-		Volume: 30,
-	}, {
-		Open:   6905,
-		High:   7005,
-		Low:    6600,
-		Close:  7250,
-		Volume: 30,
 	}}
 	df := tests.NewMockedDataFeed(fakeDataStream)
 	tradingApi := tests.NewMockedTradingAPI()
@@ -53,7 +41,7 @@ func TestSmartTakeProfit(t *testing.T) {
 		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
 	})
 	go smartOrder.Start()
-	time.Sleep(3000 * time.Millisecond)
+	time.Sleep(450 * time.Millisecond)
 
 	// check that one call with 'sell' and one with 'BTC_USDT' should be done
 	if tradingApi.CallCount["sell"] == 0 || tradingApi.CallCount["BTC_USDT"] == 0 {
@@ -71,8 +59,8 @@ func TestSmartTakeProfit(t *testing.T) {
 }
 
 func TestSmartOrderTakeProfit(t *testing.T) {
-	smartOrderModel := GetTestSmartOrderStrategy("takeProfit")
-	fakeDataStream := []strategies.OHLCV{{
+	fakeDataStream := []strategies.OHLCV{
+		{
 		Open:   7100,
 		High:   7101,
 		Low:    7000,
@@ -109,6 +97,7 @@ func TestSmartOrderTakeProfit(t *testing.T) {
 		Close:  7700,
 		Volume: 30,
 	}}
+	smartOrderModel := GetTestSmartOrderStrategy("takeProfit")
 	df := tests.NewMockedDataFeed(fakeDataStream)
 	tradingApi := tests.NewMockedTradingAPI()
 	strategy := strategies.Strategy{
@@ -122,7 +111,7 @@ func TestSmartOrderTakeProfit(t *testing.T) {
 		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
 	})
 	go smartOrder.Start()
-	time.Sleep(5 * time.Second)
+	time.Sleep(6 * time.Second)
 	// TODO: now checking if TakeProfit is triggering, but it stops when sm.exit returns default "End" state
 	// TODO: so it should test for TakeProfit state or calls to exchange API or maybe for smart order results?
 	isInState, _ := smartOrder.State.IsInState(strategies.End)

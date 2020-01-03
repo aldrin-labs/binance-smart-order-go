@@ -978,7 +978,7 @@ func (sm *SmartOrder) Start() {
 		if !sm.Lock {
 			sm.processEventLoop()
 		}
-		time.Sleep(1000 * time.Millisecond)
+		time.Sleep(200 * time.Millisecond)
 		state, _ = sm.State.State(context.Background())
 	}
 	if state == Canceled {

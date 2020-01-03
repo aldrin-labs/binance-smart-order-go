@@ -72,7 +72,8 @@ func TestSmartExitOnStopMarket(t *testing.T) {
 func TestSmartExitOnStopMarketTimeout(t *testing.T) {
 	smartOrderModel := GetTestSmartOrderStrategy("stopLossMarketTimeout")
 	// price drops
-	fakeDataStream := []strategies.OHLCV{{
+	fakeDataStream := []strategies.OHLCV{
+		{
 		Open:   7100,
 		High:   7101,
 		Low:    7000,

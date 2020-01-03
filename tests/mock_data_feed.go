@@ -2,6 +2,7 @@ package tests
 
 import (
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies"
+	"time"
 )
 
 type MockDataFeed struct {
@@ -22,7 +23,7 @@ func (df *MockDataFeed) GetPriceForPairAtExchange(pair string, exchange string, 
 	df.currentTick += 1
 	len := len(df.tickerData)
 	if df.currentTick >= len {
-		// time.Sleep(60 * time.Second)
+		time.Sleep(5 * time.Second)
 		df.currentTick = len - 1 // ok we wont stop everything, just keep returning last price
 	}
 
