@@ -674,7 +674,8 @@ func (sm *SmartOrder) checkProfit(ctx context.Context, args ...interface{}) bool
 	currentOHLCV := args[0].(OHLCV)
 
 	if sm.Strategy.Model.Conditions.TimeoutIfProfitable > 0 {
-		isProfitable := (sm.Strategy.Model.Conditions.EntryOrder.Side == "buy" && sm.Strategy.Model.Conditions.EntryOrder.Price < currentOHLCV.Close) || (sm.Strategy.Model.Conditions.EntryOrder.Side == "sell" && sm.Strategy.Model.Conditions.EntryOrder.Price > currentOHLCV.Close)
+		isProfitable := (sm.Strategy.Model.Conditions.EntryOrder.Side == "buy" && sm.Strategy.Model.State.EntryPrice < currentOHLCV.Close) ||
+			(sm.Strategy.Model.Conditions.EntryOrder.Side == "sell" && sm.Strategy.Model.State.EntryPrice > currentOHLCV.Close)
 		if isProfitable && sm.Strategy.Model.State.ProfitableAt == 0 {
 			sm.Strategy.Model.State.ProfitableAt = time.Now().Unix()
 			go func(profitableAt int64) {
@@ -694,7 +695,7 @@ func (sm *SmartOrder) checkProfit(ctx context.Context, args ...interface{}) bool
 		switch sm.Strategy.Model.Conditions.EntryOrder.Side {
 		case "buy":
 			for i, level := range sm.Strategy.Model.Conditions.ExitLevels {
-				if sm.Strategy.Model.State.ReachedTargetCount < i+1 {
+				if sm.Strategy.Model.State.ReachedTargetCount < i+1 && level.ActivatePrice == 0 {
 					if level.Type == 1 && currentOHLCV.Close >= (sm.Strategy.Model.State.EntryPrice*(100+level.Price/sm.Strategy.Model.Conditions.Leverage)/100) ||
 						level.Type == 0 && currentOHLCV.Close >= level.Price {
 						sm.Strategy.Model.State.ReachedTargetCount += 1
@@ -709,7 +710,7 @@ func (sm *SmartOrder) checkProfit(ctx context.Context, args ...interface{}) bool
 			break
 		case "sell":
 			for i, level := range sm.Strategy.Model.Conditions.ExitLevels {
-				if sm.Strategy.Model.State.ReachedTargetCount < i+1 {
+				if sm.Strategy.Model.State.ReachedTargetCount < i+1 && level.ActivatePrice == 0 {
 					if level.Type == 1 && currentOHLCV.Close <= (sm.Strategy.Model.State.EntryPrice*((100-level.Price/sm.Strategy.Model.Conditions.Leverage)/100)) ||
 						level.Type == 0 && currentOHLCV.Close <= level.Price {
 						sm.Strategy.Model.State.ReachedTargetCount += 1
@@ -772,7 +773,7 @@ func (sm *SmartOrder) checkTrailingProfit(ctx context.Context, args ...interface
 
 				if !isActivated && didCrossActivatePrice {
 					sm.Strategy.Model.State.TrailingExitPrices = append(sm.Strategy.Model.State.TrailingExitPrices, currentOHLCV.Close)
-					return true
+					return false
 				} else if !isActivated && !didCrossActivatePrice {
 					return false
 				}
@@ -804,7 +805,7 @@ func (sm *SmartOrder) checkTrailingProfit(ctx context.Context, args ...interface
 		for i, target := range sm.Strategy.Model.Conditions.ExitLevels {
 			isTrailingTarget := target.ActivatePrice > 0
 			if isTrailingTarget {
-				isActivated := len(sm.Strategy.Model.State.TrailingExitPrices) > i
+				isActivated := i < len(sm.Strategy.Model.State.TrailingExitPrices)
 				deviation := target.EntryDeviation / sm.Strategy.Model.Conditions.Leverage
 				activateDeviation := target.ActivatePrice / sm.Strategy.Model.Conditions.Leverage
 
@@ -820,6 +821,7 @@ func (sm *SmartOrder) checkTrailingProfit(ctx context.Context, args ...interface
 				} else if !isActivated && !didCrossActivatePrice {
 					return false
 				}
+				// isActivated
 				edgePrice := sm.Strategy.Model.State.TrailingExitPrices[i]
 
 				if currentOHLCV.Close < edgePrice {

@@ -123,6 +123,25 @@ func GetTestSmartOrderStrategy(scenario string) models.MongoStrategy {
 				Amount: 100,
 			}},
 		}
+	case "trailingEntryExitLeverage":
+		smartOrder.Conditions = models.MongoStrategyCondition{
+			Pair: "BTC_USDT",
+			Leverage: 100,
+			EntryOrder: models.MongoEntryPoint{
+				Side: "buy",
+				ActivatePrice: 6950,
+				Amount: 0.05,
+				EntryDeviation: 3,
+				OrderType: "market",
+			},
+			ExitLevels: []models.MongoEntryPoint{{
+				OrderType: "market",
+				Type: 1,
+				ActivatePrice: 5,
+				EntryDeviation: 3,
+				Amount: 100,
+			}},
+		}
 	//case "multiplePriceTargets":
 	//	smartOrder.Conditions = models.MongoStrategyCondition{
 	//		Pair: "BTC_USDT",
