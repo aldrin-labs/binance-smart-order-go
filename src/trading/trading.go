@@ -19,6 +19,7 @@ type OrderResponseData struct {
 	Status string `json:"status"`
 	Price float64 `json:"price"`
 	Average float64 `json:"average"`
+	Filled float64 `json:"filled"`
 }
 
 type OrderResponse struct {

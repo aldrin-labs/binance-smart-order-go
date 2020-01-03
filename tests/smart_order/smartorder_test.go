@@ -1,14 +1,7 @@
-package testing
+package smart_order
 
 import (
-	"context"
-	"fmt"
-	"github.com/qmuntal/stateless"
-	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
-	"testing"
-	"time"
-
 	//"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -106,18 +99,49 @@ func GetTestSmartOrderStrategy(scenario string) models.MongoStrategy {
 		}
 		smartOrder.Conditions = models.MongoStrategyCondition{
 			Pair: "BTC_USDT",
-			EntryOrder: models.MongoEntryPoint{Side: "buy", ActivatePrice: 7000, Price: 6999, Amount: 0.05},
+			EntryOrder: models.MongoEntryPoint{Side: "buy", Price: 6999, Amount: 0.05},
 			ExitLevels: []models.MongoEntryPoint{
 				{Price: 7050, Amount: 0.05, Type: 0, OrderType: "market"},
 			},
 			Leverage: 1,
 		}
-	//case "takeProfit":
-	//	smartOrder.Conditions = models.MongoStrategyCondition{
-	//		Pair: "BTC_USDT",
-	//		TakeProfit: 5, // percent of profit
-	//		EntryOrder: models.MongoEntryPoint{Side: "buy", Price: 7000, Amount: 0.05},
-	//	}
+	case "takeProfit":
+		smartOrder.Conditions = models.MongoStrategyCondition{
+			Pair: "BTC_USDT",
+			Leverage: 100,
+			EntryOrder: models.MongoEntryPoint{
+				Side: "buy",
+				ActivatePrice: 6950,
+				Amount: 0.05,
+				EntryDeviation: 3,
+				OrderType: "market",
+			},
+			ExitLevels: []models.MongoEntryPoint{{
+				OrderType: "market",
+				Type: 1,
+				Price: 5,
+				Amount: 100,
+			}},
+		}
+	case "trailingEntryExitLeverage":
+		smartOrder.Conditions = models.MongoStrategyCondition{
+			Pair: "BTC_USDT",
+			Leverage: 100,
+			EntryOrder: models.MongoEntryPoint{
+				Side: "buy",
+				ActivatePrice: 6950,
+				Amount: 0.05,
+				EntryDeviation: 3,
+				OrderType: "market",
+			},
+			ExitLevels: []models.MongoEntryPoint{{
+				OrderType: "market",
+				Type: 1,
+				ActivatePrice: 5,
+				EntryDeviation: 3,
+				Amount: 100,
+			}},
+		}
 	//case "multiplePriceTargets":
 	//	smartOrder.Conditions = models.MongoStrategyCondition{
 	//		Pair: "BTC_USDT",
@@ -156,128 +180,6 @@ func GetTestSmartOrderStrategy(scenario string) models.MongoStrategy {
 	}
 
 	return smartOrder
-}
-
-func TestSmartOrderTakeProfit(t *testing.T) {
-	smartOrderModel := GetTestSmartOrderStrategy("takeProfit")
-	fakeDataStream := []strategies.OHLCV{{
-		Open:   7100,
-		High:   7101,
-		Low:    7000,
-		Close:  7005,
-		Volume: 30,
-	}, { // Activation price
-		Open:   7005,
-		High:   7005,
-		Low:    6900,
-		Close:  6900,
-		Volume: 30,
-	}, { // Hit entry
-		Open:   7305,
-		High:   7305,
-		Low:    7300,
-		Close:  7300,
-		Volume: 30,
-	}, { // Take profit
-		Open:   7705,
-		High:   7705,
-		Low:    7700,
-		Close:  7700,
-		Volume: 30,
-	}, { // Take profit
-		Open:   7705,
-		High:   7705,
-		Low:    7700,
-		Close:  7700,
-		Volume: 30,
-	}}
-	df := NewMockedDataFeed(fakeDataStream)
-	tradingApi := NewMockedTradingAPI()
-	strategy := strategies.Strategy{
-		Model: &smartOrderModel,
-	}
-	keyId := primitive.NewObjectID()
-	//sm := mongodb.StateMgmt{}
-	sm := MockStateMgmt{}
-	smartOrder := strategies.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
-	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
-		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
-	})
-	go smartOrder.Start()
-	time.Sleep(3000 * time.Millisecond)
-	// TODO: now checking if TakeProfit is triggering, but it stops when sm.exit returns default "End" state
-	// TODO: so it should test for TakeProfit state or calls to exchange API or maybe for smart order results?
-	isInState, _ := smartOrder.State.IsInState(strategies.End)
-	if !isInState {
-		state, _ := smartOrder.State.State(context.Background())
-		stateStr := fmt.Sprintf("%v", state)
-		t.Error("SmartOrder state is not End (State: " + stateStr + ")")
-	}
-}
-
-// Smart order can take profit on multiple price targets, not only at one price
-func TestSmartOrderTakeProfitAllTargets(t *testing.T) {
-	fakeDataStream := []strategies.OHLCV{{
-		Open:   7100,
-		High:   7101,
-		Low:    7000,
-		Close:  7005,
-		Volume: 30,
-	}, { // Activation price
-		Open:   7005,
-		High:   7005,
-		Low:    6900,
-		Close:  6900,
-		Volume: 30,
-	}, { // Hit entry
-		Open:   7305,
-		High:   7305,
-		Low:    7300,
-		Close:  7300,
-		Volume: 30,
-	}, { // Take profit 1 target
-		Open:   7505,
-		High:   7505,
-		Low:    7500,
-		Close:  7500,
-		Volume: 30,
-	}, { // Take profit 2 target
-		Open:   7705,
-		High:   7705,
-		Low:    7700,
-		Close:  7700,
-		Volume: 30,
-	}, { // Take profit 3 target
-		Open:   7705,
-		High:   7705,
-		Low:    7700,
-		Close:  7700,
-		Volume: 30,
-	}, { // Take profit 3 target
-		Open:   9905,
-		High:   9905,
-		Low:    9900,
-		Close:  9900,
-		Volume: 30,
-	}}
-	smartOrderModel := GetTestSmartOrderStrategy("multiplePriceTargets")
-	df := NewMockedDataFeed(fakeDataStream)
-	tradingApi := NewMockedTradingAPI()
-	strategy := strategies.Strategy{
-		Model: &smartOrderModel,
-	}
-	keyId := primitive.NewObjectID()
-	//sm := mongodb.StateMgmt{}
-	sm := MockStateMgmt{}
-	smartOrder := strategies.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm) //TODO
-	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
-		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
-	})
-	go smartOrder.Start()
-	time.Sleep(2 * time.Second)
-	if tradingApi.CallCount["sell"] != 3 && tradingApi.AmountSum["binanceBTC_USDTsell"] != smartOrder.Strategy.Model.Conditions.EntryOrder.Amount {
-		t.Error("SmartOrder didn't reach all 3 targets, but reached", tradingApi.CallCount["sell"], tradingApi.AmountSum["binanceBTC_USDTsell"], smartOrder.Strategy.Model.Conditions.EntryOrder.Amount)
-	}
 }
 
 //func TestSmartOrderStopLoss(t *testing.T) {
