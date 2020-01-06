@@ -35,7 +35,7 @@ func TestSmartTakeProfit(t *testing.T) {
 		Model: &smartOrderModel,
 	}
 	keyId := primitive.NewObjectID()
-	sm := tests.MockStateMgmt{}
+	sm := tests.NewMockedStateMgmt(tradingApi)
 	smartOrder := strategies.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
@@ -105,7 +105,7 @@ func TestSmartOrderTakeProfit(t *testing.T) {
 	}
 	keyId := primitive.NewObjectID()
 	//sm := mongodb.StateMgmt{}
-	sm := tests.MockStateMgmt{}
+	sm := tests.NewMockedStateMgmt(tradingApi)
 	smartOrder := strategies.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
@@ -175,7 +175,7 @@ func TestSmartOrderTakeProfitAllTargets(t *testing.T) {
 	}
 	keyId := primitive.NewObjectID()
 	//sm := mongodb.StateMgmt{}
-	sm := tests.MockStateMgmt{}
+	sm := tests.NewMockedStateMgmt(tradingApi)
 	smartOrder := strategies.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm) //TODO
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())

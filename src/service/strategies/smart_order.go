@@ -370,7 +370,7 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 			},
 		}
 		response := sm.ExchangeApi.CreateOrder(request)
-		if response.Status == "OK" {
+		if response.Status == "OK" && response.Data.Id != "0" {
 			switch step {
 			case InEntry, WaitForEntry, TrailingEntry:
 				{
@@ -392,7 +392,7 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 						sm.Strategy.Model.State.ExecutedAmount += response.Data.Filled
 					} else {
 						executedOrder := sm.StateMgmt.GetOrder(response.Data.Id)
-						for executedOrder == nil || executedOrder.Status == "open" {
+						for executedOrder == nil ||  orderType == "market" && executedOrder.Status == "open" {
 							time.Sleep(500 * time.Millisecond)
 							executedOrder = sm.StateMgmt.GetOrder(response.Data.Id) // TODO: cover it with tests
 						}
@@ -430,6 +430,9 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 			break
 		} else {
 			println(response.Status)
+			if response.Status == "OK" {
+				break
+			}
 		}
 	}
 	if recursiveCall && sm.SelectedExitTarget+1 < len(sm.Strategy.Model.Conditions.ExitLevels) {
@@ -806,8 +809,8 @@ func (sm *SmartOrder) checkTrailingProfit(ctx context.Context, args ...interface
 			isTrailingTarget := target.ActivatePrice > 0
 			if isTrailingTarget {
 				isActivated := i < len(sm.Strategy.Model.State.TrailingExitPrices)
-				deviation := target.EntryDeviation / sm.Strategy.Model.Conditions.Leverage
-				activateDeviation := target.ActivatePrice / sm.Strategy.Model.Conditions.Leverage
+				deviation := target.EntryDeviation / sm.Strategy.Model.Conditions.Leverage / 100
+				activateDeviation := target.ActivatePrice / sm.Strategy.Model.Conditions.Leverage / 100
 
 				activatePrice := target.ActivatePrice
 				if target.Type == 1 {
@@ -817,7 +820,7 @@ func (sm *SmartOrder) checkTrailingProfit(ctx context.Context, args ...interface
 
 				if !isActivated && didCrossActivatePrice {
 					sm.Strategy.Model.State.TrailingExitPrices = append(sm.Strategy.Model.State.TrailingExitPrices, currentOHLCV.Close)
-					return true
+					return false
 				} else if !isActivated && !didCrossActivatePrice {
 					return false
 				}
@@ -836,7 +839,7 @@ func (sm *SmartOrder) checkTrailingProfit(ctx context.Context, args ...interface
 							if sm.Lock == false {
 								sm.Lock = true
 								sm.placeOrder(-1, TrailingEntry)
-								time.Sleep(600 * time.Millisecond)
+								time.Sleep(3000 * time.Millisecond) // why I wait here again?, oh I'm locking so it will give some time for order execution, to avoid double send of orders
 								sm.Lock = false
 							}
 						}

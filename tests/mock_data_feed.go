@@ -10,7 +10,7 @@ type MockDataFeed struct {
 	currentTick int
 }
 
-func NewMockedDataFeed(mockedStream []strategies.OHLCV) strategies.IDataFeed {
+func NewMockedDataFeed(mockedStream []strategies.OHLCV) *MockDataFeed {
 	dataFeed := MockDataFeed{
 		tickerData:  mockedStream,
 		currentTick: -1,
