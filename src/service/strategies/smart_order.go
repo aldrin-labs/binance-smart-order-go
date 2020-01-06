@@ -783,18 +783,27 @@ func (sm *SmartOrder) checkTrailingProfit(ctx context.Context, args ...interface
 				edgePrice := sm.Strategy.Model.State.TrailingExitPrices[i]
 
 				if currentOHLCV.Close > edgePrice {
-					sm.Strategy.Model.State.TrailingEntryPrice = currentOHLCV.Close
-					edgePrice = sm.Strategy.Model.State.TrailingEntryPrice
+					sm.Strategy.Model.State.TrailingExitPrices[i] = currentOHLCV.Close
+					edgePrice = sm.Strategy.Model.State.TrailingExitPrices[i]
 
-					go func(trailingPrice float64, trailingCheckAt int64) {
+					go func(trailingPrice float64, trailingCheckAt int64, i int) {
 						sm.Strategy.Model.State.TrailingCheckAt = trailingCheckAt
 						time.Sleep(2 * time.Second)
+						edgePrice = sm.Strategy.Model.State.TrailingExitPrices[i]
+
 						trailingDidnChange := trailingCheckAt == sm.Strategy.Model.State.TrailingCheckAt
-						trailingChangedALot := 2 < (sm.Strategy.Model.State.TrailingEntryPrice/trailingPrice-1)*100*sm.Strategy.Model.Conditions.Leverage
+						newTrailingIncreaseProfits := trailingPrice > edgePrice
+						trailingChangedALot := newTrailingIncreaseProfits && (2 < (edgePrice/trailingPrice-1)*100*sm.Strategy.Model.Conditions.Leverage)
+
 						if trailingDidnChange || trailingChangedALot {
-							sm.placeOrder(-1, TakeProfit)
+							if sm.Lock == false {
+								sm.Lock = true
+								sm.placeOrder(-1, TakeProfit)
+								time.Sleep(3000 * time.Millisecond) // why I wait here again?, oh I'm locking so it will give some time for order execution, to avoid double send of orders
+								sm.Lock = false
+							}
 						}
-					}(sm.Strategy.Model.State.TrailingEntryPrice, time.Now().UnixNano())
+					}(edgePrice, time.Now().UnixNano(), i)
 				}
 
 				deviationFromEdge := (edgePrice/currentOHLCV.Close - 1) * 100
@@ -828,22 +837,27 @@ func (sm *SmartOrder) checkTrailingProfit(ctx context.Context, args ...interface
 				edgePrice := sm.Strategy.Model.State.TrailingExitPrices[i]
 
 				if currentOHLCV.Close < edgePrice {
-					sm.Strategy.Model.State.TrailingEntryPrice = currentOHLCV.Close
-					edgePrice = sm.Strategy.Model.State.TrailingEntryPrice
+					sm.Strategy.Model.State.TrailingExitPrices[i] = currentOHLCV.Close
+					edgePrice = sm.Strategy.Model.State.TrailingExitPrices[i]
 
-					go func(trailingPrice float64) {
+					go func(trailingPrice float64, trailingCheckAt int64, i int) {
+						sm.Strategy.Model.State.TrailingCheckAt = trailingCheckAt
 						time.Sleep(2 * time.Second)
-						trailingDidnChange := trailingPrice == sm.Strategy.Model.State.TrailingEntryPrice
-						trailingChangedALot := 2 < (trailingPrice/sm.Strategy.Model.State.TrailingEntryPrice-1)*100*sm.Strategy.Model.Conditions.Leverage
+						edgePrice = sm.Strategy.Model.State.TrailingExitPrices[i]
+
+						trailingDidnChange := trailingCheckAt == sm.Strategy.Model.State.TrailingCheckAt
+						newTrailingIncreaseProfits := trailingPrice < edgePrice
+						trailingChangedALot := newTrailingIncreaseProfits && (2 < (trailingPrice/edgePrice-1)*100*sm.Strategy.Model.Conditions.Leverage)
+
 						if trailingDidnChange || trailingChangedALot {
 							if sm.Lock == false {
 								sm.Lock = true
-								sm.placeOrder(-1, TrailingEntry)
+								sm.placeOrder(-1, TakeProfit)
 								time.Sleep(3000 * time.Millisecond) // why I wait here again?, oh I'm locking so it will give some time for order execution, to avoid double send of orders
 								sm.Lock = false
 							}
 						}
-					}(sm.Strategy.Model.State.TrailingEntryPrice)
+					}(sm.Strategy.Model.State.TrailingEntryPrice, time.Now().UnixNano(), i) // TODO union it with function above in "buy"
 				}
 
 				deviationFromEdge := (currentOHLCV.Close/edgePrice - 1) * 100
