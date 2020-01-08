@@ -162,7 +162,8 @@ func (t *Trading) CreateOrder(order CreateOrderRequest) OrderResponse {
 	rawResponse := Request("createOrder", order)
 	var response OrderResponse
 	_ = mapstructure.Decode(rawResponse, &response)
-	response.Data.Id = fmt.Sprintf("%d", response.Data.OrderId)
+
+	response.Data.Id = string(response.Data.OrderId)
 	return response
 }
 

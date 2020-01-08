@@ -193,11 +193,10 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 			}
 			side = sm.Strategy.Model.Conditions.EntryOrder.Side
 			if side == "sell" {
-				orderPrice = sm.Strategy.Model.State.TrailingEntryPrice * (1 + sm.Strategy.Model.Conditions.EntryOrder.EntryDeviation/100/sm.Strategy.Model.Conditions.Leverage)
-			} else {
 				orderPrice = sm.Strategy.Model.State.TrailingEntryPrice * (1 - sm.Strategy.Model.Conditions.EntryOrder.EntryDeviation/100/sm.Strategy.Model.Conditions.Leverage)
+			} else {
+				orderPrice = sm.Strategy.Model.State.TrailingEntryPrice * (1 + sm.Strategy.Model.Conditions.EntryOrder.EntryDeviation/100/sm.Strategy.Model.Conditions.Leverage)
 			}
-			orderPrice = sm.Strategy.Model.State.TrailingEntryPrice * (1 - sm.Strategy.Model.Conditions.EntryOrder.EntryDeviation/100/sm.Strategy.Model.Conditions.Leverage)
 		}
 		break
 	case InEntry:
@@ -370,7 +369,7 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 			},
 		}
 		response := sm.ExchangeApi.CreateOrder(request)
-		if response.Status == "OK" && response.Data.Id != "0" {
+		if response.Status == "OK" && response.Data.Id != "0" && response.Data.Id != "" {
 			switch step {
 			case InEntry, WaitForEntry, TrailingEntry:
 				{
@@ -591,9 +590,9 @@ func (sm *SmartOrder) enterEntry(ctx context.Context, args ...interface{}) error
 	sm.Strategy.Model.State.TrailingEntryPrice = 0
 	sm.StateMgmt.UpdateState(sm.Strategy.Model.ID, &sm.Strategy.Model.State)
 
-	sm.placeOrder(sm.Strategy.Model.State.EntryPrice, InEntry)
-	sm.placeOrder(0, TakeProfit)
-	sm.placeOrder(0, Stoploss)
+	go sm.placeOrder(sm.Strategy.Model.State.EntryPrice, InEntry)
+	go sm.placeOrder(0, TakeProfit)
+	go sm.placeOrder(0, Stoploss)
 	return nil
 }
 
