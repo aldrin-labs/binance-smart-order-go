@@ -49,7 +49,7 @@ func TestSmartTakeProfit(t *testing.T) {
 	}
 
 	// check if we are in right state
-	isInState, _ := smartOrder.State.IsInState(strategies.TakeProfit)
+	isInState, _ := smartOrder.State.IsInState(strategies.End)
 	if !isInState {
 		state, _ := smartOrder.State.State(context.Background())
 		stateStr := fmt.Sprintf("%v", state)

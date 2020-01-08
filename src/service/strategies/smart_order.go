@@ -518,7 +518,7 @@ func (sm *SmartOrder) checkTrailingEntry(ctx context.Context, args ...interface{
 		sm.Strategy.Model.State.TrailingEntryPrice = currentOHLCV.Open
 		return false
 	}
-	println(currentOHLCV.Close, edgePrice, currentOHLCV.Close/edgePrice-1)
+	// println(currentOHLCV.Close, edgePrice, currentOHLCV.Close/edgePrice-1)
 	deviation := sm.Strategy.Model.Conditions.EntryOrder.EntryDeviation / sm.Strategy.Model.Conditions.Leverage
 	switch sm.Strategy.Model.Conditions.EntryOrder.Side {
 	case "buy":
@@ -747,15 +747,15 @@ func (sm *SmartOrder) checkProfit(ctx context.Context, args ...interface{}) bool
 	return false
 }
 func (sm *SmartOrder) checkTrailingProfit(ctx context.Context, args ...interface{}) bool {
-	isWaitingForOrder, ok := sm.IsWaitingForOrder.Load(TakeProfit)
-	if ok && isWaitingForOrder.(bool) {
-		return false
-	}
+	//isWaitingForOrder, ok := sm.IsWaitingForOrder.Load(TakeProfit)
+	//if ok && isWaitingForOrder.(bool) {
+	//	return false
+	//}
 	currentOHLCV := args[0].(OHLCV)
 
 	edgePrice := sm.Strategy.Model.State.TrailingEntryPrice
 	if edgePrice == 0 {
-		println("edgePrice=0")
+		// println("edgePrice=0")
 		sm.Strategy.Model.State.TrailingEntryPrice = currentOHLCV.Open
 		return false
 	}
@@ -796,6 +796,7 @@ func (sm *SmartOrder) checkTrailingProfit(ctx context.Context, args ...interface
 						trailingChangedALot := newTrailingIncreaseProfits && (2 < (edgePrice/trailingPrice-1)*100*sm.Strategy.Model.Conditions.Leverage)
 
 						if trailingDidnChange || trailingChangedALot {
+							sm.Strategy.Model.State.TrailingExitPrices[i] = trailingPrice
 							if sm.Lock == false {
 								sm.Lock = true
 								sm.placeOrder(-1, TakeProfit)
@@ -1016,7 +1017,7 @@ func (sm *SmartOrder) processEventLoop() {
 	currentOHLCVp := sm.DataFeed.GetPriceForPairAtExchange(sm.Strategy.Model.Conditions.Pair, sm.ExchangeName, sm.Strategy.Model.Conditions.MarketType)
 	if currentOHLCVp != nil {
 		currentOHLCV := *currentOHLCVp
-		println("new trade", currentOHLCV.Close)
+		// println("new trade", currentOHLCV.Close)
 		state, err := sm.State.State(context.TODO())
 		err = sm.State.FireCtx(context.TODO(), TriggerTrade, currentOHLCV)
 		if err == nil {
@@ -1040,7 +1041,7 @@ func (sm *SmartOrder) processEventLoop() {
 				return
 			}
 		}
-		println(sm.Strategy.Model.Conditions.Pair, sm.Strategy.Model.State.TrailingEntryPrice, currentOHLCV.Close, err.Error())
+		// println(sm.Strategy.Model.Conditions.Pair, sm.Strategy.Model.State.TrailingEntryPrice, currentOHLCV.Close, err.Error())
 	}
 }
 

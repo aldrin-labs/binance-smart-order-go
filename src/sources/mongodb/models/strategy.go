@@ -35,11 +35,16 @@ type MongoSocial struct {
 }
 
 type MongoOrder struct {
-	ID      primitive.ObjectID `json:"_id" bson:"_id"`
-	Status  string             `json:"status" bson:"status"`
-	OrderId string             `json:"id" bson:"id"`
-	Filled  float64            `json:"filled" bson:"filled"`
-	Average float64            `json:"average" bson:"average"`
+	ID         primitive.ObjectID `json:"_id" bson:"_id"`
+	Status     string             `json:"status" bson:"status"`
+	OrderId    string             `json:"id" bson:"id"`
+	Filled     float64            `json:"filled" bson:"filled"`
+	Average    float64            `json:"average" bson:"average"`
+	Side       string             `json:"side" bson:"side"`
+	Type       string             `json:"type" bson:"type"`
+	Symbol     string             `json:"symbol" bson:"symbol"`
+	ReduceOnly bool               `json:"reduceOnly" bson:"reduceOnly"`
+	StopPrice  float64            `json:"stopPrice" bson:"stopPrice"`
 }
 
 type MongoStrategy struct {
@@ -79,11 +84,11 @@ type MongoStrategyState struct {
 	ExecutedAmount     float64   `json:"executedAmount" bson:"executedAmount"`
 	ReachedTargetCount int       `json:"reachedTargetCount" bson:"reachedTargetCount"`
 
-	TrailingCheckAt   int64 `json:"trailingCheckAt" bson:"trailingCheckAt"`
-	StopLossAt   int64 `json:"stopLossAt" bson:"stopLossAt"`
-	LossableAt   int64 `json:"lossableAt" bson:"lossableAt"`
-	ProfitableAt int64 `json:"profitableAt" bson:"profitableAt"`
-	ProfitAt     int64 `json:"profitAt" bson:"profitAt"`
+	TrailingCheckAt int64 `json:"trailingCheckAt" bson:"trailingCheckAt"`
+	StopLossAt      int64 `json:"stopLossAt" bson:"stopLossAt"`
+	LossableAt      int64 `json:"lossableAt" bson:"lossableAt"`
+	ProfitableAt    int64 `json:"profitableAt" bson:"profitableAt"`
+	ProfitAt        int64 `json:"profitAt" bson:"profitAt"`
 }
 
 type MongoEntryPoint struct {

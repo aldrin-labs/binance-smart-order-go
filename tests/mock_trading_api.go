@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"container/list"
 	"fmt"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
 	"gitlab.com/crypto_project/core/strategy_service/src/trading"
@@ -10,6 +11,8 @@ import (
 
 type MockTrading struct {
 	OrdersMap sync.Map
+	CreatedOrders *list.List
+	CanceledOrders *list.List
 	CallCount map[string]int
 	AmountSum map[string]float64
 	Feed *MockDataFeed
@@ -23,6 +26,8 @@ func NewMockedTradingAPI() *MockTrading {
 	mockTrading := MockTrading{
 		CallCount: map[string]int{},
 		AmountSum: map[string]float64{},
+		CreatedOrders: list.New(),
+		CanceledOrders: list.New(),
 	}
 
 	return &mockTrading
@@ -33,6 +38,8 @@ func NewMockedTradingAPIWithMarketAccess(feed *MockDataFeed) *MockTrading {
 		CallCount: map[string]int{},
 		AmountSum: map[string]float64{},
 		Feed: feed,
+		CreatedOrders: list.New(),
+		CanceledOrders: list.New(),
 	}
 
 	return &mockTrading
@@ -64,16 +71,25 @@ func (mt MockTrading) CreateOrder(req trading.CreateOrderRequest) trading.OrderR
 		OrderId: orderId,
 		Average: req.KeyParams.Price,
 		Filled:  req.KeyParams.Amount,
+		Type: req.KeyParams.Type,
+		Side: req.KeyParams.Side,
+		Symbol: req.KeyParams.Symbol,
+		StopPrice: req.KeyParams.StopPrice,
+		ReduceOnly: req.KeyParams.ReduceOnly,
 	}
 	mt.OrdersMap.Store(orderId, order)
-
+	mt.CreatedOrders.PushBack(order)
+	filled := req.KeyParams.Amount
+	if req.KeyParams.Type != "market" {
+		filled = 0
+	}
 	return trading.OrderResponse{Status: "OK", Data: trading.OrderResponseData{
 		Id:      orderId,
 		OrderId: orderId,
 		Status:  "open",
 		Price:   req.KeyParams.Price,
 		Average: req.KeyParams.Price,
-		Filled:  req.KeyParams.Amount,
+		Filled:  filled,
 	}}
 }
 

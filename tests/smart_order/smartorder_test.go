@@ -126,6 +126,7 @@ func GetTestSmartOrderStrategy(scenario string) models.MongoStrategy {
 	case "trailingEntryExitLeverage":
 		smartOrder.Conditions = models.MongoStrategyCondition{
 			Pair: "BTC_USDT",
+			MarketType: 1,
 			Leverage: 100,
 			EntryOrder: models.MongoEntryPoint{
 				Side: "buy",

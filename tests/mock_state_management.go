@@ -4,6 +4,7 @@ import (
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"sync"
+	"time"
 )
 
 // should implement IStateMgmt
@@ -33,6 +34,9 @@ func (sm *MockStateMgmt) SubscribeToOrder(orderId string, onOrderStatusUpdate fu
 			orderRaw, ok := sm.Trading.OrdersMap.Load(orderId)
 			if ok {
 				order := orderRaw.(models.MongoOrder)
+				if order.Type == "stop" || order.Type == "limit" {
+					time.Sleep(16 * time.Second)
+				}
 				onOrderStatusUpdate(&order)
 				break
 			}

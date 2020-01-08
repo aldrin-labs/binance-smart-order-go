@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/qmuntal/stateless"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies"
+	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
 	"gitlab.com/crypto_project/core/strategy_service/tests"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"testing"
@@ -53,7 +54,7 @@ func TestSmartOrderTrailingEntryAndThenActivateTrailingWithHighLeverage(t *testi
 	}
 	keyId := primitive.NewObjectID()
 	//sm := mongodb.StateMgmt{}
-	sm := tests.MockStateMgmt{}
+	sm := tests.NewMockedStateMgmt(tradingApi)
 	smartOrder := strategies.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
@@ -115,7 +116,7 @@ func TestSmartOrderTrailingEntryAndTrailingExitWithHighLeverage(t *testing.T) {
 	}
 	keyId := primitive.NewObjectID()
 	//sm := mongodb.StateMgmt{}
-	sm := tests.MockStateMgmt{}
+	sm := tests.NewMockedStateMgmt(tradingApi)
 	smartOrder := strategies.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
@@ -176,7 +177,9 @@ func TestSmartOrderTrailingEntryAndFollowTrailingMaximumsWithoutEarlyExitWithHig
 			Volume: 30,
 		},
 	}
+
 	smartOrderModel := GetTestSmartOrderStrategy("trailingEntryExitLeverage")
+	// inputs:
 	df := tests.NewMockedDataFeed(fakeDataStream)
 	tradingApi := tests.NewMockedTradingAPI()
 	strategy := strategies.Strategy{
@@ -189,8 +192,10 @@ func TestSmartOrderTrailingEntryAndFollowTrailingMaximumsWithoutEarlyExitWithHig
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
 	})
+
 	go smartOrder.Start()
-	time.Sleep(6 * time.Second)
+	time.Sleep(3 * time.Second)
+	// Check if we got in entry, and follow trailing maximum
 	isInState, _ := smartOrder.State.IsInState(strategies.InEntry)
 	if !isInState {
 		state, _ := smartOrder.State.State(context.Background())
@@ -203,8 +208,52 @@ func TestSmartOrderTrailingEntryAndFollowTrailingMaximumsWithoutEarlyExitWithHig
 	if entryPrice != expectedEntryPrice {
 		t.Error("SmartOrder entryPrice != " + fmt.Sprintf("%f", entryPrice) + "")
 	}
-
+	if len(smartOrder.Strategy.Model.State.TrailingExitPrices) == 0 {
+		t.Error("No trailing exit price")
+		return
+	}
 	trailingExitPrice := smartOrder.Strategy.Model.State.TrailingExitPrices[0]
+	if trailingExitPrice != expectedTrailingExitPrice {
+		t.Error("SmartOrder trailingExitPrice " + fmt.Sprintf("%f", trailingExitPrice) + " != " + fmt.Sprintf("%f", expectedTrailingExitPrice) + "")
+	}
+
+	// check if trailing exit order was placed
+
+	lastCreatedOrder := tradingApi.CreatedOrders.Back().Value.(models.MongoOrder)
+	if lastCreatedOrder.Side != "sell" {
+		t.Error("Last order is not sell")
+	}
+
+	// Check if update trailings and cancel previous orders
+	fakeDataStream2 := []strategies.OHLCV{
+		{ // It goes up..
+			Open:   7180,
+			High:   7180,
+			Low:    7180,
+			Close:  7180,
+			Volume: 30,
+		},
+		{ // It goes up..
+			Open:   7270,
+			High:   7270,
+			Low:    7270,
+			Close:  7270,
+			Volume: 30,
+		},
+		{ // It goes up..
+			Open:   7370,
+			High:   7370,
+			Low:    7370,
+			Close:  7370,
+			Volume: 30,
+		},
+	}
+
+	df.AddToFeed(fakeDataStream2)
+	time.Sleep(3 * time.Second)
+	// test 2
+	expectedTrailingExitPrice = 7370.0
+	trailingExitPrice = smartOrder.Strategy.Model.State.TrailingExitPrices[0]
 	if trailingExitPrice != expectedTrailingExitPrice {
 		t.Error("SmartOrder trailingExitPrice " + fmt.Sprintf("%f", trailingExitPrice) + " != " + fmt.Sprintf("%f", expectedTrailingExitPrice) + "")
 	}
