@@ -86,7 +86,7 @@ func (sm *StateMgmt) SubscribeToOrder(orderId string, onOrderStatusUpdate func(o
 				onOrderStatusUpdate(executedOrder)
 			}
 			time.Sleep(2 * time.Second)
-			isOrderStillOpen = executedOrder == nil || (executedOrder.Status != "filled" && executedOrder.Status != "closed" && executedOrder.Status != "canceled" && executedOrder.Status != "expired")
+			isOrderStillOpen = executedOrder == nil || (executedOrder.Status != "filled" && executedOrder.Status != "closed" && executedOrder.Status != "canceled")
 		}
 	}()
 	time.Sleep(3 * time.Second)

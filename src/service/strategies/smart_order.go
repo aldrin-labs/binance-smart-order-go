@@ -371,7 +371,8 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 			}
 		}
 		if step == TrailingEntry && orderType != "market" && ifShouldCancelPreviousOrder && len(sm.Strategy.Model.State.ExecutedOrders) > 0 {
-			existingOrderId := sm.Strategy.Model.State.ExecutedOrders[0]
+			count := len(sm.Strategy.Model.State.ExecutedOrders)
+			existingOrderId := sm.Strategy.Model.State.ExecutedOrders[count - 1]
 			response := sm.ExchangeApi.CancelOrder(trading.CancelOrderRequest{
 				KeyId: sm.KeyId,
 				KeyParams: trading.CancelOrderRequestParams{
@@ -422,7 +423,8 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 				if ifShouldCancelPreviousOrder {
 					// cancel existing order if there is such ( and its not TrailingEntry )
 					if len(sm.Strategy.Model.State.ExecutedOrders) > 0 && step != TrailingEntry {
-						existingOrderId := sm.Strategy.Model.State.ExecutedOrders[0]
+						count := len(sm.Strategy.Model.State.ExecutedOrders)
+						existingOrderId := sm.Strategy.Model.State.ExecutedOrders[count - 1]
 						sm.ExchangeApi.CancelOrder(trading.CancelOrderRequest{
 							KeyId: sm.KeyId,
 							KeyParams: trading.CancelOrderRequestParams{
@@ -537,9 +539,12 @@ func (sm *SmartOrder) checkTrailingEntry(ctx context.Context, args ...interface{
 	switch sm.Strategy.Model.Conditions.EntryOrder.Side {
 	case "buy":
 		if currentOHLCV.Close < edgePrice {
-			sm.Strategy.Model.State.TrailingEntryPrice = currentOHLCV.Close
 			edgePrice = sm.Strategy.Model.State.TrailingEntryPrice
-			sm.placeOrder(-1, TrailingEntry)
+			trailingChangedALot := 0.5 < (edgePrice/currentOHLCV.Close-1)*100*sm.Strategy.Model.Conditions.Leverage
+			if trailingChangedALot {
+				sm.Strategy.Model.State.TrailingEntryPrice = currentOHLCV.Close
+				sm.placeOrder(-1, TrailingEntry)
+			}
 		}
 		if (currentOHLCV.Close/edgePrice-1)*100 >= deviation {
 			return true
@@ -547,9 +552,12 @@ func (sm *SmartOrder) checkTrailingEntry(ctx context.Context, args ...interface{
 		break
 	case "sell":
 		if currentOHLCV.Close > edgePrice {
-			sm.Strategy.Model.State.TrailingEntryPrice = currentOHLCV.Close
 			edgePrice = sm.Strategy.Model.State.TrailingEntryPrice
-			sm.placeOrder(-1, TrailingEntry)
+			trailingChangedALot := 0.5 < (currentOHLCV.Close/edgePrice-1)*100*sm.Strategy.Model.Conditions.Leverage
+			if trailingChangedALot {
+				sm.Strategy.Model.State.TrailingEntryPrice = currentOHLCV.Close
+				sm.placeOrder(-1, TrailingEntry)
+			}
 		}
 		if (1-currentOHLCV.Close/edgePrice)*100 >= deviation {
 			return true
