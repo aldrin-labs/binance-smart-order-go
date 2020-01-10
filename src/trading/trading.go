@@ -29,7 +29,7 @@ type OrderResponse struct {
 
 type ITrading interface {
 	CreateOrder(order CreateOrderRequest) OrderResponse
-	CancelOrder(params CancelOrderRequest) interface{}
+	CancelOrder(params CancelOrderRequest) OrderResponse
 	UpdateLeverage(keyId string, leverage float64) interface{}
 }
 
@@ -118,7 +118,7 @@ type Order struct {
 	Type   		string              `json:"type" bson:"type"`
 	Price       float64             `json:"price,omitempty" bson:"price"`
 	StopPrice float64 `json:"stopPrice,omitempty" bson:"stopPrice"`
-	Params      OrderParams         `json:"params" bson:"params"`
+	Params      OrderParams         `json:"params,omitempty" bson:"params"`
 }
 
 type CreateOrderRequest struct {
@@ -183,6 +183,9 @@ func (t *Trading) UpdateLeverage(keyId string, leverage float64) interface{} {
 	return Request("updateLeverage", request)
 }
 
-func (t *Trading) CancelOrder(cancelRequest CancelOrderRequest) interface{} {
-	return Request("cancelOrder", cancelRequest)
+func (t *Trading) CancelOrder(cancelRequest CancelOrderRequest) OrderResponse {
+	rawResponse := Request("cancelOrder", cancelRequest)
+	var response OrderResponse
+	_ = mapstructure.Decode(rawResponse, &response)
+	return response
 }

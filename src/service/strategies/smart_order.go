@@ -60,21 +60,21 @@ type IStateMgmt interface {
 }
 
 type SmartOrder struct {
-	Strategy              *Strategy
-	State                 *stateless.StateMachine
-	ExchangeName          string
-	KeyId                 *primitive.ObjectID
-	DataFeed              IDataFeed
-	ExchangeApi           trading.ITrading
-	StateMgmt             IStateMgmt
-	IsWaitingForOrder     sync.Map // TODO: this must be filled on start of SM if not first start (e.g. restore the state by checking order statuses)
-	OrdersMap             sync.Map
-	StatusByOrderId       sync.Map
-	QuantityAmountPrecision     int64
-	QuantityPricePrecision     int64
-	Lock                  bool
-	LastTrailingTimestamp int64
-	SelectedExitTarget    int
+	Strategy                *Strategy
+	State                   *stateless.StateMachine
+	ExchangeName            string
+	KeyId                   *primitive.ObjectID
+	DataFeed                IDataFeed
+	ExchangeApi             trading.ITrading
+	StateMgmt               IStateMgmt
+	IsWaitingForOrder       sync.Map // TODO: this must be filled on start of SM if not first start (e.g. restore the state by checking order statuses)
+	OrdersMap               sync.Map
+	StatusByOrderId         sync.Map
+	QuantityAmountPrecision int64
+	QuantityPricePrecision  int64
+	Lock                    bool
+	LastTrailingTimestamp   int64
+	SelectedExitTarget      int
 }
 
 func round(num float64) int {
@@ -166,7 +166,7 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 	isFutures := sm.Strategy.Model.Conditions.MarketType == 1
 	isSpot := sm.Strategy.Model.Conditions.MarketType == 0
 	isTrailingEntry := sm.Strategy.Model.Conditions.EntryOrder.ActivatePrice > 0
-	saveOrder := false
+	ifShouldCancelPreviousOrder := false
 	switch step {
 	case TrailingEntry:
 		orderType = sm.Strategy.Model.Conditions.EntryOrder.OrderType // TODO find out to remove duplicate lines with 154 & 164
@@ -181,7 +181,7 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 		isNewTrailingMaximum := price == -1
 		isTrailingTarget := sm.Strategy.Model.Conditions.EntryOrder.ActivatePrice > 0
 		if isNewTrailingMaximum && isTrailingTarget {
-			saveOrder = true
+			ifShouldCancelPreviousOrder = true
 			if sm.Strategy.Model.Conditions.EntryOrder.OrderType == "market" {
 				if isFutures {
 					orderType = prefix + sm.Strategy.Model.Conditions.EntryOrder.OrderType
@@ -305,7 +305,7 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 		}
 		isNewTrailingMaximum := price == -1
 		if isNewTrailingMaximum && isTrailingTarget {
-			saveOrder = true
+			ifShouldCancelPreviousOrder = true
 			if target.OrderType == "market" {
 				if isFutures {
 					orderType = prefix + target.OrderType
@@ -363,10 +363,26 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 				Price:      orderPrice,
 				ReduceOnly: reduceOnly,
 				StopPrice:  stopPrice,
-				Params: trading.OrderParams{
-					Type: advancedOrderType,
-				},
 			},
+		}
+		if request.KeyParams.Type == "stop" {
+			request.KeyParams.Params = trading.OrderParams{
+				Type: advancedOrderType,
+			}
+		}
+		if step == TrailingEntry && orderType != "market" && ifShouldCancelPreviousOrder && len(sm.Strategy.Model.State.ExecutedOrders) > 0 {
+			existingOrderId := sm.Strategy.Model.State.ExecutedOrders[0]
+			response := sm.ExchangeApi.CancelOrder(trading.CancelOrderRequest{
+				KeyId: sm.KeyId,
+				KeyParams: trading.CancelOrderRequestParams{
+					OrderId:    existingOrderId,
+					MarketType: sm.Strategy.Model.Conditions.MarketType,
+					Pair:       sm.Strategy.Model.Conditions.Pair,
+				},
+			})
+			if response.Status == "ERR" { // looks like order was already executed or canceled in other thread
+				return
+			}
 		}
 		response := sm.ExchangeApi.CreateOrder(request)
 		if response.Status == "OK" && response.Data.Id != "0" && response.Data.Id != "" {
@@ -391,7 +407,7 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 						sm.Strategy.Model.State.ExecutedAmount += response.Data.Filled
 					} else {
 						executedOrder := sm.StateMgmt.GetOrder(response.Data.Id)
-						for executedOrder == nil ||  orderType == "market" && executedOrder.Status == "open" {
+						for executedOrder == nil || orderType == "market" && executedOrder.Status == "open" {
 							time.Sleep(500 * time.Millisecond)
 							executedOrder = sm.StateMgmt.GetOrder(response.Data.Id) // TODO: cover it with tests
 						}
@@ -403,16 +419,16 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 			}
 			if orderType != "market" {
 				sm.IsWaitingForOrder.Store(step, true)
-				if saveOrder {
-					// cancel existing order if there is such
-					if len(sm.Strategy.Model.State.ExecutedOrders) > 0 {
+				if ifShouldCancelPreviousOrder {
+					// cancel existing order if there is such ( and its not TrailingEntry )
+					if len(sm.Strategy.Model.State.ExecutedOrders) > 0 && step != TrailingEntry {
 						existingOrderId := sm.Strategy.Model.State.ExecutedOrders[0]
 						sm.ExchangeApi.CancelOrder(trading.CancelOrderRequest{
-							KeyId:   sm.KeyId,
+							KeyId: sm.KeyId,
 							KeyParams: trading.CancelOrderRequestParams{
-								OrderId: existingOrderId,
+								OrderId:    existingOrderId,
 								MarketType: sm.Strategy.Model.Conditions.MarketType,
-								Pair: sm.Strategy.Model.Conditions.Pair,
+								Pair:       sm.Strategy.Model.Conditions.Pair,
 							},
 						})
 					}
@@ -439,7 +455,6 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 		sm.placeOrder(price, step)
 	}
 }
-
 
 func (sm *SmartOrder) enterTrailingEntry(ctx context.Context, args ...interface{}) error {
 	if currentOHLCV, ok := args[0].(OHLCV); ok {
@@ -879,7 +894,7 @@ func (sm *SmartOrder) checkLoss(ctx context.Context, args ...interface{}) bool {
 	}
 	currentOHLCV := args[0].(OHLCV)
 	stopLoss := sm.Strategy.Model.Conditions.StopLoss / sm.Strategy.Model.Conditions.Leverage
-	
+
 	// try exit on timeout
 	if sm.Strategy.Model.Conditions.TimeoutWhenLoss > 0 {
 		isLoss := (sm.Strategy.Model.Conditions.EntryOrder.Side == "buy" && sm.Strategy.Model.Conditions.EntryOrder.Price > currentOHLCV.Close) || (sm.Strategy.Model.Conditions.EntryOrder.Side == "sell" && sm.Strategy.Model.Conditions.EntryOrder.Price < currentOHLCV.Close)
@@ -977,11 +992,11 @@ func (sm *SmartOrder) tryCancelAllOrders() {
 	for _, orderId := range orderIds {
 		if orderId != "0" {
 			sm.ExchangeApi.CancelOrder(trading.CancelOrderRequest{
-				KeyId:      sm.KeyId,
+				KeyId: sm.KeyId,
 				KeyParams: trading.CancelOrderRequestParams{
-					OrderId: orderId,
+					OrderId:    orderId,
 					MarketType: sm.Strategy.Model.Conditions.MarketType,
-					Pair: sm.Strategy.Model.Conditions.Pair,
+					Pair:       sm.Strategy.Model.Conditions.Pair,
 				},
 			})
 		}
