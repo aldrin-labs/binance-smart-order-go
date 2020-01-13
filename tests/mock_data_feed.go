@@ -1,33 +1,44 @@
-package testing
+package tests
 
 import (
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies"
-	"time"
 )
 
 type MockDataFeed struct {
-	tickerData [] strategies.OHLCV
+	tickerData  []strategies.OHLCV
 	currentTick int
 }
 
-func NewMockedDataFeed(mockedStream [] strategies.OHLCV) strategies.IDataFeed {
+func NewMockedDataFeed(mockedStream []strategies.OHLCV) *MockDataFeed {
 	dataFeed := MockDataFeed{
-		tickerData: mockedStream,
+		tickerData:  mockedStream,
 		currentTick: -1,
 	}
 
 	return &dataFeed
 }
 
-func (df *MockDataFeed) GetPriceForPairAtExchange(pair string, exchange string) strategies.OHLCV {
+func (df *MockDataFeed) GetPriceForPairAtExchange(pair string, exchange string, marketType int64) *strategies.OHLCV {
 	df.currentTick += 1
-	if df.currentTick >= len(df.tickerData) {
-		time.Sleep(60 * time.Second)
+	len := len(df.tickerData)
+	// println(len, df.currentTick)
+	if df.currentTick >= len {
+		df.currentTick = len - 1
+		return &df.tickerData[df.currentTick]
+		// df.currentTick = len - 1 // ok we wont stop everything, just keep returning last price
 	}
 
-	return df.tickerData[df.currentTick]
+	return &df.tickerData[df.currentTick]
 }
 
 func (df *MockDataFeed) SubscribeToPairUpdate() {
 
+}
+
+func (df *MockDataFeed) GetPrice(pair, exchange string, marketType int64) *strategies.OHLCV {
+	return nil
+}
+
+func (df *MockDataFeed) AddToFeed(mockedStream []strategies.OHLCV) {
+	df.tickerData = append(df.tickerData, mockedStream...)
 }
