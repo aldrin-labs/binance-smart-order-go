@@ -372,7 +372,7 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 		}
 		if step == TrailingEntry && orderType != "market" && ifShouldCancelPreviousOrder && len(sm.Strategy.Model.State.ExecutedOrders) > 0 {
 			count := len(sm.Strategy.Model.State.ExecutedOrders)
-			existingOrderId := sm.Strategy.Model.State.ExecutedOrders[count - 1]
+			existingOrderId := sm.Strategy.Model.State.ExecutedOrders[count-1]
 			response := sm.ExchangeApi.CancelOrder(trading.CancelOrderRequest{
 				KeyId: sm.KeyId,
 				KeyParams: trading.CancelOrderRequestParams{
@@ -422,7 +422,7 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 					// cancel existing order if there is such ( and its not TrailingEntry )
 					if len(sm.Strategy.Model.State.ExecutedOrders) > 0 && step != TrailingEntry {
 						count := len(sm.Strategy.Model.State.ExecutedOrders)
-						existingOrderId := sm.Strategy.Model.State.ExecutedOrders[count - 1]
+						existingOrderId := sm.Strategy.Model.State.ExecutedOrders[count-1]
 						sm.ExchangeApi.CancelOrder(trading.CancelOrderRequest{
 							KeyId: sm.KeyId,
 							KeyParams: trading.CancelOrderRequestParams{
@@ -545,17 +545,17 @@ func (sm *SmartOrder) checkTrailingEntry(ctx context.Context, args ...interface{
 		isStopOrdersSupport := isFutures || orderType == "limit"
 
 		if isStopOrdersSupport { // we can place stop order, lets place it
-		go func() {
 			if sm.Lock == false {
 				sm.Lock = true
 				if sm.Strategy.Model.State.TrailingEntryPrice == 0 {
 					sm.Strategy.Model.State.TrailingEntryPrice = currentOHLCV.Close
 				}
-				sm.placeOrder(-1, TrailingEntry)
-				time.Sleep(3000 * time.Millisecond) // it will give some time for order execution, to avoid double send of orders
-				sm.Lock = false
+				go func() {
+					sm.placeOrder(-1, TrailingEntry)
+					time.Sleep(3000 * time.Millisecond)
+					sm.Lock = false
+				}() // it will give some time for order execution, to avoid double send of orders
 			}
-		}()
 			return false
 		}
 	}
