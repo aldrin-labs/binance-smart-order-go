@@ -398,8 +398,6 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 							executedOrder = sm.StateMgmt.GetOrder(response.Data.Id)
 						}
 						sm.Strategy.Model.State.EntryPrice = executedOrder.Average
-					} else {
-						sm.Strategy.Model.State.EntryPrice = response.Data.Average
 					}
 				}
 			case TakeProfit, Stoploss:
@@ -461,7 +459,6 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 func (sm *SmartOrder) enterTrailingEntry(ctx context.Context, args ...interface{}) error {
 	if currentOHLCV, ok := args[0].(OHLCV); ok {
 		sm.Strategy.Model.State.State = TrailingEntry
-		sm.Strategy.Model.State.EntryPrice = currentOHLCV.Close
 		sm.Strategy.Model.State.TrailingEntryPrice = currentOHLCV.Close
 		sm.StateMgmt.UpdateState(sm.Strategy.Model.ID, &sm.Strategy.Model.State)
 	} else {
@@ -475,9 +472,13 @@ func (sm *SmartOrder) waitForOrder(orderId string, orderStatus string) {
 	_ = sm.StateMgmt.SubscribeToOrder(orderId, sm.orderCallback)
 }
 func (sm *SmartOrder) orderCallback(order *models.MongoOrder) {
-	_ = sm.State.Fire(CheckExistingOrders, *order)
+	sm.State.FireCtx(context.TODO(), CheckExistingOrders, *order)
 }
+
 func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface{}) bool {
+	if args == nil {
+		return true
+	}
 	order := args[0].(models.MongoOrder)
 	orderId := order.OrderId
 	orderStatus := order.Status
@@ -539,13 +540,24 @@ func (sm *SmartOrder) checkTrailingEntry(ctx context.Context, args ...interface{
 	currentOHLCV := args[0].(OHLCV)
 	edgePrice := sm.Strategy.Model.State.TrailingEntryPrice
 	if len(sm.Strategy.Model.State.ExecutedOrders) == 0 {
-		if sm.Lock == false {
-			sm.Lock = true
-			sm.placeOrder(-1, TrailingEntry)
-			time.Sleep(3000 * time.Millisecond) // it will give some time for order execution, to avoid double send of orders
-			sm.Lock = false
+		isFutures := sm.Strategy.Model.Conditions.MarketType == 1
+		orderType := sm.Strategy.Model.Conditions.EntryOrder.OrderType
+		isStopOrdersSupport := isFutures || orderType == "limit"
+
+		if isStopOrdersSupport { // we can place stop order, lets place it
+		go func() {
+			if sm.Lock == false {
+				sm.Lock = true
+				if sm.Strategy.Model.State.TrailingEntryPrice == 0 {
+					sm.Strategy.Model.State.TrailingEntryPrice = currentOHLCV.Close
+				}
+				sm.placeOrder(-1, TrailingEntry)
+				time.Sleep(3000 * time.Millisecond) // it will give some time for order execution, to avoid double send of orders
+				sm.Lock = false
+			}
+		}()
+			return false
 		}
-		return false
 	}
 
 	if edgePrice == 0 {
@@ -559,19 +571,19 @@ func (sm *SmartOrder) checkTrailingEntry(ctx context.Context, args ...interface{
 	isSpotMarketEntry := sm.Strategy.Model.Conditions.MarketType == 0 && sm.Strategy.Model.Conditions.EntryOrder.OrderType == "market"
 	switch side {
 	case "buy":
-		if currentOHLCV.Close < edgePrice {
+		if !isSpotMarketEntry && currentOHLCV.Close < edgePrice {
 			edgePrice = sm.Strategy.Model.State.TrailingEntryPrice
 			go sm.placeTrailingOrder(currentOHLCV.Close, time.Now().UnixNano(), 0, side, true, TrailingEntry)
 		}
-		if (currentOHLCV.Close/edgePrice-1)*100 >= deviation && isSpotMarketEntry {
+		if isSpotMarketEntry && (currentOHLCV.Close/edgePrice-1)*100 >= deviation {
 			return true
 		}
 		break
 	case "sell":
-		if currentOHLCV.Close > edgePrice {
+		if !isSpotMarketEntry && currentOHLCV.Close > edgePrice {
 			go sm.placeTrailingOrder(currentOHLCV.Close, time.Now().UnixNano(), 0, side, true, TrailingEntry)
 		}
-		if (1-currentOHLCV.Close/edgePrice)*100 >= deviation && isSpotMarketEntry {
+		if isSpotMarketEntry && (1-currentOHLCV.Close/edgePrice)*100 >= deviation {
 			return true
 		}
 		break
@@ -623,6 +635,7 @@ func (sm *SmartOrder) enterEntry(ctx context.Context, args ...interface{}) error
 	}
 	sm.Strategy.Model.State.State = InEntry
 	sm.Strategy.Model.State.TrailingEntryPrice = 0
+	sm.Strategy.Model.State.ExecutedOrders = []string{}
 	sm.StateMgmt.UpdateState(sm.Strategy.Model.ID, &sm.Strategy.Model.State)
 
 	go sm.placeOrder(sm.Strategy.Model.State.EntryPrice, InEntry)
@@ -821,7 +834,8 @@ func (sm *SmartOrder) checkTrailingProfit(ctx context.Context, args ...interface
 				}
 
 				deviationFromEdge := (edgePrice/currentOHLCV.Close - 1) * 100
-				if deviationFromEdge >= deviation {
+				if deviationFromEdge > deviation {
+					sm.Strategy.Model.State.State = TakeProfit
 					return true
 				}
 			}
@@ -858,7 +872,8 @@ func (sm *SmartOrder) checkTrailingProfit(ctx context.Context, args ...interface
 				}
 
 				deviationFromEdge := (currentOHLCV.Close/edgePrice - 1) * 100
-				if deviationFromEdge >= deviation {
+				if deviationFromEdge > deviation {
+					sm.Strategy.Model.State.State = TakeProfit
 					return true
 				}
 			}

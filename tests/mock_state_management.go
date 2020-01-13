@@ -35,8 +35,13 @@ func (sm *MockStateMgmt) SubscribeToOrder(orderId string, onOrderStatusUpdate fu
 			if ok {
 				order := orderRaw.(models.MongoOrder)
 				if order.Type == "stop" || order.Type == "limit" {
-					time.Sleep(16 * time.Second)
+					delay := sm.Trading.BuyDelay
+					if order.Side == "sell" {
+						delay = sm.Trading.SellDelay
+					}
+					time.Sleep(time.Duration(delay) * time.Millisecond)
 				}
+				order.Status = "filled"
 				onOrderStatusUpdate(&order)
 				break
 			}

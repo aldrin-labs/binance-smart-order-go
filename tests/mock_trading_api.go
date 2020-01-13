@@ -10,12 +10,14 @@ import (
 )
 
 type MockTrading struct {
-	OrdersMap sync.Map
+	OrdersMap *sync.Map
 	CreatedOrders *list.List
 	CanceledOrders *list.List
 	CallCount map[string]int
 	AmountSum map[string]float64
 	Feed *MockDataFeed
+	BuyDelay int
+	SellDelay int
 }
 
 func (mt MockTrading) UpdateLeverage(keyId string, leverage float64) interface{} {
@@ -28,6 +30,9 @@ func NewMockedTradingAPI() *MockTrading {
 		AmountSum: map[string]float64{},
 		CreatedOrders: list.New(),
 		CanceledOrders: list.New(),
+		OrdersMap: &sync.Map{},
+		BuyDelay: 3000, // default 3 sec wait before orders got filled
+		SellDelay: 3000, // default 3 sec wait before orders got filled
 	}
 
 	return &mockTrading
@@ -40,6 +45,7 @@ func NewMockedTradingAPIWithMarketAccess(feed *MockDataFeed) *MockTrading {
 		Feed: feed,
 		CreatedOrders: list.New(),
 		CanceledOrders: list.New(),
+		OrdersMap: &sync.Map{},
 	}
 
 	return &mockTrading
@@ -67,7 +73,7 @@ func (mt MockTrading) CreateOrder(req trading.CreateOrderRequest) trading.OrderR
 	mt.AmountSum[req.KeyParams.Symbol+req.KeyParams.Side+fmt.Sprintf("%f", req.KeyParams.Price)] += req.KeyParams.Amount
 	orderId := req.KeyParams.Symbol + strconv.Itoa(mt.CallCount[req.KeyParams.Symbol])
 	order := models.MongoOrder{
-		Status:  "open",
+		Status:  "filled",
 		OrderId: orderId,
 		Average: req.KeyParams.Price,
 		Filled:  req.KeyParams.Amount,
@@ -79,21 +85,21 @@ func (mt MockTrading) CreateOrder(req trading.CreateOrderRequest) trading.OrderR
 	}
 	mt.OrdersMap.Store(orderId, order)
 	mt.CreatedOrders.PushBack(order)
-	filled := req.KeyParams.Amount
-	if req.KeyParams.Type != "market" {
-		filled = 0
-	}
+	// filled := req.KeyParams.Amount
+	//if req.KeyParams.Type != "market" {
+	//	filled = 0
+	//}
 	return trading.OrderResponse{Status: "OK", Data: trading.OrderResponseData{
 		Id:      orderId,
 		OrderId: orderId,
 		Status:  "open",
-		Price:   req.KeyParams.Price,
-		Average: req.KeyParams.Price,
-		Filled:  filled,
+		Price:   0,
+		Average: 0,
+		Filled:  0,
 	}}
 }
 
-func (mt MockTrading) CancelOrder(req trading.CancelOrderRequest) interface{} {
+func (mt MockTrading) CancelOrder(req trading.CancelOrderRequest) trading.OrderResponse {
 	orderId := string(mt.CallCount[req.KeyParams.Pair]) + strconv.Itoa(mt.CallCount[req.KeyParams.Pair])
 
 	orderRaw, ok := mt.OrdersMap.Load(orderId)
@@ -109,5 +115,8 @@ func (mt MockTrading) CancelOrder(req trading.CancelOrderRequest) interface{} {
 		order.Status = "canceled"
 	}
 	mt.OrdersMap.Store(orderId, order)
-	return order
+	response := trading.OrderResponse{
+		Status: "OK",
+	}
+	return response
 }

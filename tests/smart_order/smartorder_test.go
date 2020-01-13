@@ -128,6 +128,7 @@ func GetTestSmartOrderStrategy(scenario string) models.MongoStrategy {
 			Pair: "BTC_USDT",
 			MarketType: 1,
 			Leverage: 100,
+			StopLoss: 10,
 			EntryOrder: models.MongoEntryPoint{
 				Side: "buy",
 				ActivatePrice: 6950,
