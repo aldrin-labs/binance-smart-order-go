@@ -105,6 +105,7 @@ type OrderParams struct {
 	StopPrice float64 `json:"stopPrice,omitempty" bson:"stopPrice"`
 	Type      string  `json:"type,omitempty" bson:"type"`
 	MaxIfNotEnough int `json:"maxIfNotEnough,omitempty"`
+	Update bool `json:"update,omitempty"`
 }
 
 type Order struct {
@@ -146,6 +147,7 @@ func toFixed(num float64, precision int) float64 {
 }
 
 func (t *Trading) CreateOrder(order CreateOrderRequest) OrderResponse {
+	order.KeyParams.Params.Update = true
 	if order.KeyParams.MarketType == 1 && order.KeyParams.Type == "limit" {
 		order.KeyParams.TimeInForce = "GTC"
 	}
