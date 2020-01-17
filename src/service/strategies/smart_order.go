@@ -226,20 +226,22 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 			side = "sell"
 		}
 		if sm.Strategy.Model.Conditions.TimeoutLoss == 0 {
+			orderType = sm.Strategy.Model.Conditions.StopLossType
+			isStopOrdersSupport := isFutures || orderType == "limit"
 			if isSpot {
 				if price > 0 {
 					break // keep market order
-				} else {
+				} else if !isStopOrdersSupport {
 					return // it is attempt to place an order but we are on spot market without stop-market orders here
 				}
+			}
+			orderType = prefix + orderType // ok we are in futures and can place order before it happened
+
+			stopLoss := sm.Strategy.Model.Conditions.StopLoss
+			if side == "sell" {
+				orderPrice = sm.Strategy.Model.State.EntryPrice * (1 - stopLoss/100/sm.Strategy.Model.Conditions.Leverage)
 			} else {
-				orderType = "stop-market" // ok we are in futures and can place order before it happened
-				stopLoss := sm.Strategy.Model.Conditions.StopLoss
-				if side == "sell" {
-					orderPrice = sm.Strategy.Model.State.EntryPrice * (1 - stopLoss/100/sm.Strategy.Model.Conditions.Leverage)
-				} else {
-					orderPrice = sm.Strategy.Model.State.EntryPrice * (1 + stopLoss/100/sm.Strategy.Model.Conditions.Leverage)
-				}
+				orderPrice = sm.Strategy.Model.State.EntryPrice * (1 + stopLoss/100/sm.Strategy.Model.Conditions.Leverage)
 			}
 		} else {
 			if price > 0 && sm.Strategy.Model.State.StopLossAt == 0 {
