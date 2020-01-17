@@ -121,6 +121,7 @@ type MongoStrategyCondition struct {
 	ChangeTrendIfProfit       bool              `json:"changeTrendIfProfit" bson:"changeTrendIfProfit"`
 	TimeoutWhenLoss           float64           `json:"timeoutWhenLoss" bson:"timeoutWhenLoss"`
 	StopLoss                  float64           `json:"stopLoss" bson:"stopLoss"`
+	StopLossType              string           	`json:"stopLossType" bson:"stopLossType"`
 	TimeoutLoss               float64           `json:"timeoutLoss" bson:"timeoutLoss"`
 	ForcedLoss                float64           `json:"forcedLoss" bson:"forcedLoss"`
 	Leverage                  float64           `json:"leverage" bson:"leverage"`
