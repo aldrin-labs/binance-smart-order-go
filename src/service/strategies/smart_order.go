@@ -516,6 +516,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			if order.Filled > 0 {
 				sm.Strategy.Model.State.ExecutedAmount += order.Filled
 			}
+			sm.Strategy.Model.State.ExitPrice = order.Average
 			sm.Strategy.Model.State.State = End
 			return true
 		}
