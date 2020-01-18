@@ -56,7 +56,6 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup) {
 	for cur.Next(ctx) {
 		// create a value into which the single document can be decoded
 		strategy, err := strategies.GetStrategy(cur, ss.dataFeed, ss.trading, ss.stateMgmt)
-		println(strategy)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -101,7 +100,7 @@ func (ss *StrategyService) WatchStrategies() error {
 		// println(data)
 		//		err := json.Unmarshal([]byte(data), &event)
 		if err != nil {
-			println("event decode", err)
+			println("event decode", err.Error())
 		}
 		if ss.strategies[event.FullDocument.ID.String()] != nil {
 			ss.strategies[event.FullDocument.ID.String()].HotReload(event.FullDocument)

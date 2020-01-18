@@ -31,16 +31,16 @@ func GetRedisClientInstance(pubsub bool, master bool, newClient bool) redis.Conn
 				Dial: func() (redis.Conn, error) {
 					c, err := redis.Dial("tcp", os.Getenv("REDIS_HOST")+":"+os.Getenv("REDIS_PORT"))
 					if err != nil {
-						println("pubsub dial1 error", err)
+						println("pubsub dial1 error", err.Error())
 						return nil, err
 					}
 					if _, err := c.Do("AUTH", os.Getenv("REDIS_PASSWORD")); err != nil {
-						println("pubsub dial2 error", err)
+						println("pubsub dial2 error", err.Error())
 						c.Close()
 						return nil, err
 					}
 					if _, err := c.Do("SELECT", 0); err != nil {
-						println("pubsub dial3 error", err)
+						println("pubsub dial3 error", err.Error())
 						c.Close()
 						return nil, err
 					}
@@ -62,16 +62,16 @@ func GetRedisClientInstance(pubsub bool, master bool, newClient bool) redis.Conn
 			Dial: func() (redis.Conn, error) {
 				c, err := redis.Dial("tcp", os.Getenv("REDIS_HOST")+":"+os.Getenv("REDIS_PORT"))
 				if err != nil {
-					println("dial1 error", err)
+					println("dial1 error", err.Error())
 					return nil, err
 				}
 				if _, err := c.Do("AUTH", os.Getenv("REDIS_PASSWORD")); err != nil {
-					println("dial2 error", err)
+					println("dial2 error", err.Error())
 					c.Close()
 					return nil, err
 				}
 				if _, err := c.Do("SELECT", 0); err != nil {
-					println("dial3 error", err)
+					println("dial3 error", err.Error())
 					c.Close()
 					return nil, err
 				}

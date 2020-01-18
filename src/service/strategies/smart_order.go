@@ -1101,7 +1101,7 @@ func RunSmartOrder(strategy *Strategy, df IDataFeed, td trading.ITrading, keyId 
 		var keyAsset KeyAsset
 		err := KeyAssets.FindOne(ctx, request).Decode(&keyAsset)
 		if err != nil {
-			println("keyAssetsCursor", err)
+			println("keyAssetsCursor", err.Error())
 		}
 		keyId = &keyAsset.KeyId
 	}
