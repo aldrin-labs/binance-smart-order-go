@@ -68,7 +68,7 @@ func (sm *StateMgmt) DisableStrategy(strategyId primitive.ObjectID) {
 		},
 		},
 	}
-	res, err := col.UpdateOne(context.TODO(), request, update)
+	_, err := col.UpdateOne(context.TODO(), request, update)
 	if err != nil {
 		println("error in arg", err.Error())
 	}
@@ -155,7 +155,7 @@ func (sm *StateMgmt) UpdateConditions(strategyId primitive.ObjectID, state *mode
 		},
 		},
 	}
-	res, err := col.UpdateOne(context.TODO(), request, update)
+	_, err := col.UpdateOne(context.TODO(), request, update)
 	if err != nil {
 		println("error in arg", err.Error())
 	}
@@ -178,7 +178,7 @@ func (sm *StateMgmt) UpdateState(strategyId primitive.ObjectID, state *models.Mo
 			},
 		},
 	}
-	res, err := col.UpdateOne(context.TODO(), request, update)
+	_, err := col.UpdateOne(context.TODO(), request, update)
 	if err != nil {
 		println("error in arg", err.Error())
 	}
