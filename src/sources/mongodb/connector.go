@@ -70,9 +70,8 @@ func (sm *StateMgmt) DisableStrategy(strategyId primitive.ObjectID) {
 	}
 	res, err := col.UpdateOne(context.TODO(), request, update)
 	if err != nil {
-		println("error in arg", err)
+		println("error in arg", err.Error())
 	}
-	println(res)
 }
 
 // TODO: refactor so it will be one global subscribtion to orders collection instead of one per order
@@ -113,7 +112,7 @@ func (sm *StateMgmt) SubscribeToOrder(orderId string, onOrderStatusUpdate func(o
 		// println(data)
 		//		err := json.Unmarshal([]byte(data), &event)
 		if err != nil {
-			println("event decode", err)
+			println("event decode", err.Error())
 		}
 		onOrderStatusUpdate(&event.FullDocument)
 	}
@@ -135,7 +134,7 @@ func (sm *StateMgmt) GetOrder(orderId string) *models.MongoOrder {
 	var order *models.MongoOrder
 	err := coll.FindOne(ctx, request).Decode(&order)
 	if err != nil {
-		println(err)
+		println(err.Error())
 	}
 	return order
 }
@@ -158,9 +157,9 @@ func (sm *StateMgmt) UpdateConditions(strategyId primitive.ObjectID, state *mode
 	}
 	res, err := col.UpdateOne(context.TODO(), request, update)
 	if err != nil {
-		println("error in arg", err)
+		println("error in arg", err.Error())
 	}
-	println(res)
+	// println(res)
 }
 
 func (sm *StateMgmt) UpdateState(strategyId primitive.ObjectID, state *models.MongoStrategyState) {
@@ -181,7 +180,6 @@ func (sm *StateMgmt) UpdateState(strategyId primitive.ObjectID, state *models.Mo
 	}
 	res, err := col.UpdateOne(context.TODO(), request, update)
 	if err != nil {
-		println("error in arg", err)
+		println("error in arg", err.Error())
 	}
-	println(res)
 }

@@ -53,7 +53,7 @@ func Request(method string, data interface{}) interface{} {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		println(err)
+		println(err.Error())
 
 		return Request(method, data)
 	}
