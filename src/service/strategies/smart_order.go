@@ -430,42 +430,30 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 						sm.Strategy.Model.State.ExecutedAmount += response.Data.Filled
 						sm.Strategy.Model.State.ExitPrice = response.Data.Average
 						go sm.StateMgmt.UpdateExecutedAmount(sm.Strategy.Model.ID, &sm.Strategy.Model.State)
-					} else {
-						//executedOrder := sm.StateMgmt.GetOrder(response.Data.Id)
-						//for executedOrder == nil || orderType == "market" && executedOrder.Status == "open" {
-						//	time.Sleep(500 * time.Millisecond)
-						//	executedOrder = sm.StateMgmt.GetOrder(response.Data.Id) // TODO: cover it with tests
-						//}
-						//if executedOrder.Filled > 0 {
-						//	sm.Strategy.Model.State.ExecutedAmount += executedOrder.Filled
-						//}
-						//sm.Strategy.Model.State.ExitPrice = executedOrder.Average
 					}
 				}
 			}
-			// if orderType != "market" {
-				sm.IsWaitingForOrder.Store(step, true)
-				if ifShouldCancelPreviousOrder {
-					// cancel existing order if there is such ( and its not TrailingEntry )
-					if len(sm.Strategy.Model.State.ExecutedOrders) > 0 && step != TrailingEntry {
-						count := len(sm.Strategy.Model.State.ExecutedOrders)
-						existingOrderId := sm.Strategy.Model.State.ExecutedOrders[count-1]
-						sm.ExchangeApi.CancelOrder(trading.CancelOrderRequest{
-							KeyId: sm.KeyId,
-							KeyParams: trading.CancelOrderRequestParams{
-								OrderId:    existingOrderId,
-								MarketType: sm.Strategy.Model.Conditions.MarketType,
-								Pair:       sm.Strategy.Model.Conditions.Pair,
-							},
-						})
-					}
+			sm.IsWaitingForOrder.Store(step, true)
+			if ifShouldCancelPreviousOrder {
+				// cancel existing order if there is such ( and its not TrailingEntry )
+				if len(sm.Strategy.Model.State.ExecutedOrders) > 0 && step != TrailingEntry {
+					count := len(sm.Strategy.Model.State.ExecutedOrders)
+					existingOrderId := sm.Strategy.Model.State.ExecutedOrders[count-1]
+					sm.ExchangeApi.CancelOrder(trading.CancelOrderRequest{
+						KeyId: sm.KeyId,
+						KeyParams: trading.CancelOrderRequestParams{
+							OrderId:    existingOrderId,
+							MarketType: sm.Strategy.Model.Conditions.MarketType,
+							Pair:       sm.Strategy.Model.Conditions.Pair,
+						},
+					})
 				}
-				if response.Data.Id != "0" {
-					go sm.waitForOrder(response.Data.Id, step)
-				} else {
-					println("order 0")
-				}
-			// }
+			}
+			if response.Data.Id != "0" {
+				go sm.waitForOrder(response.Data.Id, step)
+			} else {
+				println("order 0")
+			}
 			sm.Strategy.Model.State.Orders = append(sm.Strategy.Model.State.Orders, response.Data.Id)
 			go sm.StateMgmt.UpdateOrders(sm.Strategy.Model.ID, &sm.Strategy.Model.State)
 			break
@@ -477,8 +465,8 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 		}
 	}
 	canPlaceAnotherOrderForNextTarget := sm.SelectedExitTarget+1 < len(sm.Strategy.Model.Conditions.ExitLevels) ||
-	 sm.SelectedStopLossTarget+1 < len(sm.Strategy.Model.Conditions.ExitLevels)
-	if recursiveCall && canPlaceAnotherOrderForNextTarget  {
+		sm.SelectedStopLossTarget+1 < len(sm.Strategy.Model.Conditions.ExitLevels)
+	if recursiveCall && canPlaceAnotherOrderForNextTarget {
 		if step == Stoploss {
 			sm.SelectedStopLossTarget += 1
 		} else {
