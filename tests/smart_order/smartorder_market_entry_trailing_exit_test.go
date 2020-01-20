@@ -151,7 +151,7 @@ func TestSmartOrderMarketEntryAndThenFollowTrailing(t *testing.T) {
 		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
 	})
 	go smartOrder.Start()
-	time.Sleep(6 * time.Second)
+	time.Sleep(7 * time.Second)
 	isInState, _ := smartOrder.State.IsInState(strategies.End)
 	if !isInState {
 		state, _ := smartOrder.State.State(context.Background())

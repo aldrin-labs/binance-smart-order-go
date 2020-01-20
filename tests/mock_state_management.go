@@ -63,6 +63,19 @@ func (sm *MockStateMgmt) UpdateState(strategyId primitive.ObjectID, state *model
 	sm.StateMap.Store(strategyId, &state)
 }
 
+func (sm *MockStateMgmt) UpdateEntryPrice(strategyId primitive.ObjectID, state *models.MongoStrategyState) {
+	sm.StateMap.Store(strategyId, &state)
+}
+
+func (sm *MockStateMgmt) UpdateExecutedAmount(strategyId primitive.ObjectID, state *models.MongoStrategyState) {
+	sm.StateMap.Store(strategyId, &state)
+}
+
+func (sm *MockStateMgmt) UpdateOrders(strategyId primitive.ObjectID, state *models.MongoStrategyState) {
+	sm.StateMap.Store(strategyId, &state)
+}
+
+
 func (sm *MockStateMgmt) DisableStrategy(strategyId primitive.ObjectID) {
 
 }
