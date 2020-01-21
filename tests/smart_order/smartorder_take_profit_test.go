@@ -41,7 +41,7 @@ func TestSmartTakeProfit(t *testing.T) {
 		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
 	})
 	go smartOrder.Start()
-	time.Sleep(450 * time.Millisecond)
+	time.Sleep(1450 * time.Millisecond)
 
 	// check that one call with 'sell' and one with 'BTC_USDT' should be done
 	if tradingApi.CallCount["sell"] == 0 || tradingApi.CallCount["BTC_USDT"] == 0 {

@@ -41,6 +41,9 @@ func TestSmartExitOnStopMarket(t *testing.T) {
 	smartOrderModel := GetTestSmartOrderStrategy("stopLossMarket")
 	df := tests.NewMockedDataFeed(fakeDataStream)
 	tradingApi := tests.NewMockedTradingAPI()
+
+	tradingApi.BuyDelay = 1000
+	tradingApi.SellDelay = 1000
 	strategy := strategies.Strategy{
 		Model: &smartOrderModel,
 	}
