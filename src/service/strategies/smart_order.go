@@ -60,6 +60,7 @@ type IStateMgmt interface {
 	GetOrder(orderId string) *models.MongoOrder
 	SubscribeToOrder(orderId string, onOrderStatusUpdate func(order *models.MongoOrder)) error
 	DisableStrategy(strategyId primitive.ObjectID)
+	GetMarketPrecision(pair string, marketType int64) (int64, int64)
 }
 
 type SmartOrder struct {
@@ -93,8 +94,9 @@ func (sm *SmartOrder) toFixed(num float64, precision int64) float64 {
 func NewSmartOrder(strategy *Strategy, DataFeed IDataFeed, TradingAPI trading.ITrading, keyId *primitive.ObjectID, stateMgmt IStateMgmt) *SmartOrder {
 	sm := &SmartOrder{Strategy: strategy, DataFeed: DataFeed, ExchangeApi: TradingAPI, KeyId: keyId, StateMgmt: stateMgmt, Lock: false, SelectedExitTarget: 0}
 	initState := WaitForEntry
-	sm.QuantityPricePrecision = 2
-	sm.QuantityAmountPrecision = 3
+	pricePrecision, amountPrecision := stateMgmt.GetMarketPrecision(strategy.Model.Conditions.Pair, strategy.Model.Conditions.MarketType)
+	sm.QuantityPricePrecision = pricePrecision
+	sm.QuantityAmountPrecision = amountPrecision
 	// if state is not empty but if its in the end and open ended, then we skip state value, since want to start over
 	if strategy.Model.State.State != "" && !(strategy.Model.State.State == End && strategy.Model.Conditions.ContinueIfEnded == true) {
 		initState = strategy.Model.State.State
@@ -234,12 +236,16 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 		if isMultiTargets {
 			recursiveCall = true
 			target := sm.Strategy.Model.Conditions.ExitLevels[sm.SelectedStopLossTarget]
-			baseAmount = target.Amount
-			if target.Type == 1 {
-				if baseAmount == 0 {
-					baseAmount = 100
+			if sm.SelectedStopLossTarget < len(sm.Strategy.Model.Conditions.ExitLevels) - 1 {
+				baseAmount = target.Amount
+				if target.Type == 1 {
+					if baseAmount == 0 {
+						baseAmount = 100
+					}
+					baseAmount = sm.Strategy.Model.Conditions.EntryOrder.Amount * (baseAmount / 100)
 				}
-				baseAmount = sm.Strategy.Model.Conditions.EntryOrder.Amount * (baseAmount / 100)
+			} else {
+				baseAmount = sm.getLastTargetAmount()
 			}
 		}
 
@@ -341,13 +347,16 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 			}
 			orderPrice = sm.Strategy.Model.State.TrailingEntryPrice * (1 - target.EntryDeviation/100/sm.Strategy.Model.Conditions.Leverage)
 		}
-
-		baseAmount = target.Amount
-		if target.Type == 1 {
-			if baseAmount == 0 {
-				baseAmount = 100
+		if sm.SelectedExitTarget < len(sm.Strategy.Model.Conditions.ExitLevels) - 1 {
+			baseAmount = target.Amount
+			if target.Type == 1 {
+				if baseAmount == 0 {
+					baseAmount = 100
+				}
+				baseAmount = sm.Strategy.Model.Conditions.EntryOrder.Amount * (baseAmount / 100)
 			}
-			baseAmount = sm.Strategy.Model.Conditions.EntryOrder.Amount * (baseAmount / 100)
+		} else {
+			baseAmount = sm.getLastTargetAmount()
 		}
 		// sm.Strategy.Model.State.ExecutedAmount += amount
 		break
@@ -412,7 +421,7 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 			switch step {
 			case InEntry, WaitForEntry, TrailingEntry:
 				{
-					if orderType == "market" && response.Data.Average == 0 {
+					if orderType == "market" && response.Data.Average == 0 { // TODO maybe remove this
 						time.Sleep(4000 * time.Millisecond)
 						executedOrder := sm.StateMgmt.GetOrder(response.Data.Id)
 						for executedOrder == nil || executedOrder.Status == "open" {
@@ -448,6 +457,7 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 						},
 					})
 				}
+				sm.Strategy.Model.State.ExecutedOrders = append(sm.Strategy.Model.State.ExecutedOrders, response.Data.Id)
 			}
 			if response.Data.Id != "0" {
 				go sm.waitForOrder(response.Data.Id, step)
@@ -455,7 +465,7 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 				println("order 0")
 			}
 			sm.Strategy.Model.State.Orders = append(sm.Strategy.Model.State.Orders, response.Data.Id)
-			go sm.StateMgmt.UpdateOrders(sm.Strategy.Model.ID, &sm.Strategy.Model.State)
+			sm.StateMgmt.UpdateOrders(sm.Strategy.Model.ID, &sm.Strategy.Model.State)
 			break
 		} else {
 			println(response.Status)
@@ -474,6 +484,26 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 		}
 		sm.placeOrder(price, step)
 	}
+}
+
+func (sm *SmartOrder) getLastTargetAmount() float64 {
+	sumAmount := 0.0
+	length := len(sm.Strategy.Model.Conditions.ExitLevels)
+	for i, target := range sm.Strategy.Model.Conditions.ExitLevels {
+		if i < length-1 {
+			baseAmount := target.Amount
+			if target.Type == 1 {
+				if baseAmount == 0 {
+					baseAmount = 100
+				}
+				baseAmount = sm.Strategy.Model.Conditions.EntryOrder.Amount * (baseAmount / 100)
+			}
+			baseAmount = sm.toFixed(baseAmount, sm.QuantityAmountPrecision)
+			sumAmount += baseAmount
+		}
+	}
+	endTargetAmount := sm.Strategy.Model.Conditions.EntryOrder.Amount - sumAmount
+	return endTargetAmount
 }
 
 func (sm *SmartOrder) enterTrailingEntry(ctx context.Context, args ...interface{}) error {
@@ -531,14 +561,18 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 				sm.Strategy.Model.State.ExecutedAmount += order.Filled
 			}
 			sm.Strategy.Model.State.ExitPrice = order.Average
-			sm.Strategy.Model.State.State = End
+			if sm.Strategy.Model.State.ExecutedAmount >= sm.Strategy.Model.Conditions.EntryOrder.Amount {
+				sm.Strategy.Model.State.State = End
+			}
 			return true
 		case Stoploss:
 			if order.Filled > 0 {
 				sm.Strategy.Model.State.ExecutedAmount += order.Filled
 			}
 			sm.Strategy.Model.State.ExitPrice = order.Average
-			sm.Strategy.Model.State.State = End
+			if sm.Strategy.Model.State.ExecutedAmount >= sm.Strategy.Model.Conditions.EntryOrder.Amount {
+				sm.Strategy.Model.State.State = End
+			}
 			return true
 		}
 		break

@@ -154,13 +154,6 @@ func (t *Trading) CreateOrder(order CreateOrderRequest) OrderResponse {
 	if strings.Contains(order.KeyParams.Type, "market") || strings.Contains(order.KeyParams.Params.Type, "market")  {
 		order.KeyParams.Price = 0.0
 	}
-	if strings.Contains(order.KeyParams.Symbol, "_USDT") {
-		order.KeyParams.Price = toFixed(order.KeyParams.Price, 2)
-		order.KeyParams.StopPrice = toFixed(order.KeyParams.StopPrice, 2)
-	} else {
-		order.KeyParams.Price = toFixed(order.KeyParams.Price, 8)
-		order.KeyParams.StopPrice = toFixed(order.KeyParams.StopPrice, 8)
-	}
 	rawResponse := Request("createOrder", order)
 	var response OrderResponse
 	_ = mapstructure.Decode(rawResponse, &response)
