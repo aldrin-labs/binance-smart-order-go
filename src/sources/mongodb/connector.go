@@ -49,7 +49,6 @@ func Connect(url string, connectTimeout time.Duration) (*mongo.Client, error) {
 }
 
 type StateMgmt struct {
-
 }
 
 func (sm *StateMgmt) DisableStrategy(strategyId primitive.ObjectID) {
@@ -172,14 +171,92 @@ func (sm *StateMgmt) UpdateState(strategyId primitive.ObjectID, state *models.Mo
 	update = bson.D{
 		{
 			"$set", bson.D{
-				{
-					"state", state,
-				},
+			{
+				"state.state", state.State,
 			},
 		},
+		},
 	}
-	_, err := col.UpdateOne(context.TODO(), request, update)
+	updated, err := col.UpdateOne(context.TODO(), request, update)
 	if err != nil {
 		println("error in arg", err.Error())
+		return
 	}
+	println("updated state", updated.ModifiedCount, state.State)
+}
+func (sm *StateMgmt) UpdateExecutedAmount(strategyId primitive.ObjectID, state *models.MongoStrategyState) {
+	col := GetCollection("core_strategies")
+	var request bson.D
+	request = bson.D{
+		{"_id", strategyId},
+	}
+	var update bson.D
+	update = bson.D{
+		{
+			"$set", bson.D{
+			{
+				"state.executedAmount", state.ExecutedAmount,
+			},
+			{
+				"state.exitPrice", state.ExitPrice,
+			},
+		},
+		},
+	}
+	updated, err := col.UpdateOne(context.TODO(), request, update)
+	if err != nil {
+		println("error in arg", err.Error())
+		return
+	}
+	println("updated state", updated.ModifiedCount, state.State)
+}
+func (sm *StateMgmt) UpdateOrders(strategyId primitive.ObjectID, state *models.MongoStrategyState) {
+	col := GetCollection("core_strategies")
+	var request bson.D
+	request = bson.D{
+		{"_id", strategyId},
+	}
+	var update bson.D
+	update = bson.D{
+		{
+			"$addToSet", bson.D{
+			{
+				"state.executedOrders", bson.D{
+				{
+					"$each", state.ExecutedOrders,
+				},
+			},
+			},
+		},
+		},
+	}
+	updated, err := col.UpdateOne(context.TODO(), request, update)
+	if err != nil {
+		println("error in arg", err.Error())
+		return
+	}
+	println("updated state", updated.ModifiedCount, state.State)
+}
+func (sm *StateMgmt) UpdateEntryPrice(strategyId primitive.ObjectID, state *models.MongoStrategyState) {
+	col := GetCollection("core_strategies")
+	var request bson.D
+	request = bson.D{
+		{"_id", strategyId},
+	}
+	var update bson.D
+	update = bson.D{
+		{
+			"$set", bson.D{
+			{
+				"state", state,
+			},
+		},
+		},
+	}
+	updated, err := col.UpdateOne(context.TODO(), request, update)
+	if err != nil {
+		println("error in arg", err.Error())
+		return
+	}
+	println("updated state", updated.ModifiedCount, state.State)
 }

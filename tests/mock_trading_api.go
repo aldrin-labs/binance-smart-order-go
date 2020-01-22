@@ -31,8 +31,8 @@ func NewMockedTradingAPI() *MockTrading {
 		CreatedOrders: list.New(),
 		CanceledOrders: list.New(),
 		OrdersMap: &sync.Map{},
-		BuyDelay: 3000, // default 3 sec wait before orders got filled
-		SellDelay: 3000, // default 3 sec wait before orders got filled
+		BuyDelay: 1000, // default 1 sec wait before orders got filled
+		SellDelay: 1000, // default 1 sec wait before orders got filled
 	}
 
 	return &mockTrading
@@ -52,7 +52,7 @@ func NewMockedTradingAPIWithMarketAccess(feed *MockDataFeed) *MockTrading {
 }
 
 func (mt MockTrading) CreateOrder(req trading.CreateOrderRequest) trading.OrderResponse {
-	fmt.Printf("Create Order Request: %v", req)
+	fmt.Printf("Create Order Request: %v %f", req, req.KeyParams.Amount)
 	println()
 	//if mt.CallCount[exchange] {
 	//	callCount[exchange] = 0

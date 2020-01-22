@@ -127,5 +127,4 @@ type MongoStrategyCondition struct {
 	Leverage                  float64           `json:"leverage" bson:"leverage"`
 	EntryLevels               []MongoEntryPoint `json:"entryLevels" bson:"entryLevels"`
 	ExitLevels                []MongoEntryPoint `json:"exitLevels" bson:"exitLevels"`
-	ActivationPrice           float64
 }

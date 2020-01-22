@@ -9,9 +9,9 @@ import (
 
 // should implement IStateMgmt
 type MockStateMgmt struct {
-	StateMap sync.Map
+	StateMap      sync.Map
 	ConditionsMap sync.Map
-	Trading *MockTrading
+	Trading       *MockTrading
 }
 
 func NewMockedStateMgmt(trading *MockTrading) MockStateMgmt {
@@ -34,13 +34,11 @@ func (sm *MockStateMgmt) SubscribeToOrder(orderId string, onOrderStatusUpdate fu
 			orderRaw, ok := sm.Trading.OrdersMap.Load(orderId)
 			if ok {
 				order := orderRaw.(models.MongoOrder)
-				if order.Type == "stop" || order.Type == "limit" {
-					delay := sm.Trading.BuyDelay
-					if order.Side == "sell" {
-						delay = sm.Trading.SellDelay
-					}
-					time.Sleep(time.Duration(delay) * time.Millisecond)
+				delay := sm.Trading.BuyDelay
+				if order.Side == "sell" {
+					delay = sm.Trading.SellDelay
 				}
+				time.Sleep(time.Duration(delay) * time.Millisecond)
 				order.Status = "filled"
 				onOrderStatusUpdate(&order)
 				break
@@ -60,6 +58,18 @@ func (sm *MockStateMgmt) UpdateConditions(strategyId primitive.ObjectID, conditi
 
 // TODO: should be implemented ?
 func (sm *MockStateMgmt) UpdateState(strategyId primitive.ObjectID, state *models.MongoStrategyState) {
+	sm.StateMap.Store(strategyId, &state)
+}
+
+func (sm *MockStateMgmt) UpdateEntryPrice(strategyId primitive.ObjectID, state *models.MongoStrategyState) {
+	sm.StateMap.Store(strategyId, &state)
+}
+
+func (sm *MockStateMgmt) UpdateExecutedAmount(strategyId primitive.ObjectID, state *models.MongoStrategyState) {
+	sm.StateMap.Store(strategyId, &state)
+}
+
+func (sm *MockStateMgmt) UpdateOrders(strategyId primitive.ObjectID, state *models.MongoStrategyState) {
 	sm.StateMap.Store(strategyId, &state)
 }
 

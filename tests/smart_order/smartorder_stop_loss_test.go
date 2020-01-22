@@ -18,7 +18,6 @@ import (
 
 // smart order should exit if loss condition is met
 func TestSmartExitOnStopMarket(t *testing.T) {
-	smartOrderModel := GetTestSmartOrderStrategy("stopLossMarket")
 	// price drops
 	fakeDataStream := []strategies.OHLCV{{
 		Open:   7100,
@@ -39,19 +38,23 @@ func TestSmartExitOnStopMarket(t *testing.T) {
 		Close:  6600,
 		Volume: 30,
 	}}
+	smartOrderModel := GetTestSmartOrderStrategy("stopLossMarket")
 	df := tests.NewMockedDataFeed(fakeDataStream)
 	tradingApi := tests.NewMockedTradingAPI()
+
+	tradingApi.BuyDelay = 1000
+	tradingApi.SellDelay = 1000
 	strategy := strategies.Strategy{
 		Model: &smartOrderModel,
 	}
 	keyId := primitive.NewObjectID()
-	sm := tests.MockStateMgmt{}
+	sm := tests.NewMockedStateMgmt(tradingApi)
 	smartOrder := strategies.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
 	})
 	go smartOrder.Start()
-	time.Sleep(3000 * time.Millisecond)
+	time.Sleep(5000 * time.Millisecond)
 
 	// check that one call with 'sell' and one with 'BTC_USDT' should be done
 	if tradingApi.CallCount["sell"] == 0 || tradingApi.CallCount["BTC_USDT"] == 0 {
@@ -70,7 +73,6 @@ func TestSmartExitOnStopMarket(t *testing.T) {
 
 // smart order should wait for timeout if set
 func TestSmartExitOnStopMarketTimeout(t *testing.T) {
-	smartOrderModel := GetTestSmartOrderStrategy("stopLossMarketTimeout")
 	// price drops
 	fakeDataStream := []strategies.OHLCV{
 		{
@@ -110,19 +112,20 @@ func TestSmartExitOnStopMarketTimeout(t *testing.T) {
 		Close:  6500,
 		Volume: 30,
 	}}
+	smartOrderModel := GetTestSmartOrderStrategy("stopLossMarketTimeout")
 	df := tests.NewMockedDataFeed(fakeDataStream)
 	tradingApi := tests.NewMockedTradingAPI()
 	strategy := strategies.Strategy{
 		Model: &smartOrderModel,
 	}
 	keyId := primitive.NewObjectID()
-	sm := tests.MockStateMgmt{}
+	sm := tests.NewMockedStateMgmt(tradingApi)
 	smartOrder := strategies.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
 	})
 	go smartOrder.Start()
-	time.Sleep(7000 * time.Millisecond)
+	time.Sleep(3000 * time.Millisecond)
 
 	// check that one call with 'sell' and one with 'BTC_USDT' should be done
 	if tradingApi.CallCount["sell"] == 0 || tradingApi.CallCount["BTC_USDT"] == 0 {
