@@ -155,6 +155,7 @@ func NewSmartOrder(strategy *Strategy, DataFeed IDataFeed, TradingAPI trading.IT
 	return sm
 }
 
+
 func (sm *SmartOrder) placeOrder(price float64, step string) {
 	baseAmount := 0.0
 	orderType := "market"
@@ -195,15 +196,15 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 				} else {
 					return // we cant place stop-market orders on spot so we'll wait for exact price
 				}
-			} else {
-				recursiveCall = true // if its not instant order check maybe we can try to place other positions
 			}
-			side = sm.Strategy.Model.Conditions.EntryOrder.Side
-			if side == "sell" {
-				orderPrice = sm.Strategy.Model.State.TrailingEntryPrice * (1 - sm.Strategy.Model.Conditions.EntryOrder.EntryDeviation/100/sm.Strategy.Model.Conditions.Leverage)
-			} else {
-				orderPrice = sm.Strategy.Model.State.TrailingEntryPrice * (1 + sm.Strategy.Model.Conditions.EntryOrder.EntryDeviation/100/sm.Strategy.Model.Conditions.Leverage)
-			}
+		} else {
+			return
+		}
+		side = sm.Strategy.Model.Conditions.EntryOrder.Side
+		if side == "sell" {
+			orderPrice = sm.Strategy.Model.State.TrailingEntryPrice * (1 - sm.Strategy.Model.Conditions.EntryOrder.EntryDeviation/100/sm.Strategy.Model.Conditions.Leverage)
+		} else {
+			orderPrice = sm.Strategy.Model.State.TrailingEntryPrice * (1 + sm.Strategy.Model.Conditions.EntryOrder.EntryDeviation/100/sm.Strategy.Model.Conditions.Leverage)
 		}
 		break
 	case InEntry:
@@ -281,6 +282,7 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 						sm.placeOrder(price, step)
 					}
 				}(sm.Strategy.Model.State.StopLossAt)
+				//TODO fix many stops here
 				return
 			} else if price > 0 && sm.Strategy.Model.State.StopLossAt > 0 {
 				orderType = "market"
@@ -524,13 +526,13 @@ func (sm *SmartOrder) waitForOrder(orderId string, orderStatus string) {
 func (sm *SmartOrder) orderCallback(order *models.MongoOrder) {
 	err := sm.State.Fire(CheckExistingOrders, *order)
 	if err != nil {
-		println(err.Error())
+		 // println(err.Error())
 	}
 }
 
 func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface{}) bool {
 	if args == nil {
-		return true
+		return false
 	}
 	order := args[0].(models.MongoOrder)
 	orderId := order.OrderId
@@ -548,6 +550,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			}
 			sm.Strategy.Model.State.EntryPrice = order.Average
 			sm.Strategy.Model.State.State = InEntry
+			sm.StateMgmt.UpdateEntryPrice(sm.Strategy.Model.ID, &sm.Strategy.Model.State)
 			return true
 		case WaitForEntry:
 			if sm.Strategy.Model.State.EntryPrice > 0 {
@@ -555,6 +558,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			}
 			sm.Strategy.Model.State.EntryPrice = order.Average
 			sm.Strategy.Model.State.State = InEntry
+			sm.StateMgmt.UpdateEntryPrice(sm.Strategy.Model.ID, &sm.Strategy.Model.State)
 			return true
 		case TakeProfit:
 			if order.Filled > 0 {
@@ -564,12 +568,14 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			if sm.Strategy.Model.State.ExecutedAmount >= sm.Strategy.Model.Conditions.EntryOrder.Amount {
 				sm.Strategy.Model.State.State = End
 			}
+			sm.StateMgmt.UpdateExecutedAmount(sm.Strategy.Model.ID, &sm.Strategy.Model.State)
 			return true
 		case Stoploss:
 			if order.Filled > 0 {
 				sm.Strategy.Model.State.ExecutedAmount += order.Filled
 			}
 			sm.Strategy.Model.State.ExitPrice = order.Average
+			sm.StateMgmt.UpdateExecutedAmount(sm.Strategy.Model.ID, &sm.Strategy.Model.State)
 			if sm.Strategy.Model.State.ExecutedAmount >= sm.Strategy.Model.Conditions.EntryOrder.Amount {
 				sm.Strategy.Model.State.State = End
 			}
