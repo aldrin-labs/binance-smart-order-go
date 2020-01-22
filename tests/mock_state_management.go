@@ -27,6 +27,10 @@ func (sm *MockStateMgmt) GetOrder(orderId string) *models.MongoOrder {
 	return &models.MongoOrder{}
 }
 
+func (sm *MockStateMgmt) GetMarketPrecision(pair string, marketType int64) (int64, int64) {
+	return 2, 3
+}
+
 func (sm *MockStateMgmt) SubscribeToOrder(orderId string, onOrderStatusUpdate func(order *models.MongoOrder)) error {
 	//panic("implement me")
 	go func() {
