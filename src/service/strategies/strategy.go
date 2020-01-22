@@ -39,7 +39,8 @@ func (strategy *Strategy) Start() {
 
 
 func (strategy *Strategy) HotReload(mongoStrategy models.MongoStrategy) {
-	strategy.Model = &mongoStrategy
+	strategy.Model.Enabled = mongoStrategy.Enabled
+	strategy.Model.Conditions = mongoStrategy.Conditions
 	if mongoStrategy.Enabled == false {
 		if strategy.StrategyRuntime != nil {
 			strategy.StrategyRuntime.Stop()
