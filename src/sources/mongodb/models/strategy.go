@@ -34,6 +34,20 @@ type MongoSocial struct {
 	IsPrivate  bool
 }
 
+type MongoMarketDefaultProperties struct {
+	PricePrecision int64 `json:"pricePrecision" bson:"pricePrecision"`
+	QuantityPrecision int64 `json:"quantityPrecision" bson:"quantityPrecision"`
+}
+
+type MongoMarketProperties struct {
+	Default MongoMarketDefaultProperties `json:"default" bson:"default"`
+}
+
+type MongoMarket struct {
+	ID         primitive.ObjectID    `json:"_id" bson:"_id"`
+	Properties MongoMarketProperties `json:"properties" bson:"properties"`
+}
+
 type MongoOrder struct {
 	ID         primitive.ObjectID `json:"_id" bson:"_id"`
 	Status     string             `json:"status" bson:"status"`
@@ -121,7 +135,7 @@ type MongoStrategyCondition struct {
 	ChangeTrendIfProfit       bool              `json:"changeTrendIfProfit" bson:"changeTrendIfProfit"`
 	TimeoutWhenLoss           float64           `json:"timeoutWhenLoss" bson:"timeoutWhenLoss"`
 	StopLoss                  float64           `json:"stopLoss" bson:"stopLoss"`
-	StopLossType              string           	`json:"stopLossType" bson:"stopLossType"`
+	StopLossType              string            `json:"stopLossType" bson:"stopLossType"`
 	TimeoutLoss               float64           `json:"timeoutLoss" bson:"timeoutLoss"`
 	ForcedLoss                float64           `json:"forcedLoss" bson:"forcedLoss"`
 	Leverage                  float64           `json:"leverage" bson:"leverage"`

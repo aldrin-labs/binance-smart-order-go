@@ -138,6 +138,25 @@ func (sm *StateMgmt) GetOrder(orderId string) *models.MongoOrder {
 	return order
 }
 
+func (sm *StateMgmt) GetMarketPrecision(pair string, marketType int64) (int64, int64) {
+	CollName := "core_markets"
+	ctx := context.Background()
+	var request bson.D
+	request = bson.D{
+		{"name", pair},
+		{"marketType", marketType},
+	}
+
+	var coll = GetCollection(CollName)
+	var market *models.MongoMarket
+	err := coll.FindOne(ctx, request).Decode(&market)
+	if err != nil {
+		println(err.Error())
+	}
+
+	return market.Properties.Default.PricePrecision, market.Properties.Default.QuantityPrecision
+}
+
 func (sm *StateMgmt) UpdateConditions(strategyId primitive.ObjectID, state *models.MongoStrategyCondition) {
 	col := GetCollection("core_strategies")
 	var request bson.D
@@ -160,7 +179,6 @@ func (sm *StateMgmt) UpdateConditions(strategyId primitive.ObjectID, state *mode
 	}
 	// println(res)
 }
-
 func (sm *StateMgmt) UpdateState(strategyId primitive.ObjectID, state *models.MongoStrategyState) {
 	col := GetCollection("core_strategies")
 	var request bson.D
