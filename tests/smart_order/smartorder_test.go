@@ -213,9 +213,9 @@ func GetTestSmartOrderStrategy(scenario string) models.MongoStrategy {
 			MarketType: 1,
 			EntryOrder: models.MongoEntryPoint{Side: "buy", Price: 6999, Amount: 0.15, OrderType: "market"},
 			ExitLevels: []models.MongoEntryPoint{
-				{Price: 7050, Amount: 50, Type: 1, OrderType: "limit"},
-				{Price: 7100, Amount: 25, Type: 1, OrderType: "limit"},
-				{Price: 7150, Amount: 25, Type: 1, OrderType: "limit"},
+				{Price: 10, Amount: 50, Type: 1, OrderType: "limit"},
+				{Price: 15, Amount: 25, Type: 1, OrderType: "limit"},
+				{Price: 20, Amount: 25, Type: 1, OrderType: "limit"},
 			},
 			Leverage: 20,
 			StopLossType: "limit",

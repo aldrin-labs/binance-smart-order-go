@@ -35,7 +35,7 @@ type MongoSocial struct {
 }
 
 type MongoMarketDefaultProperties struct {
-	PricePrecision int64 `json:"pricePrecision" bson:"pricePrecision"`
+	PricePrecision    int64 `json:"pricePrecision" bson:"pricePrecision"`
 	QuantityPrecision int64 `json:"quantityPrecision" bson:"quantityPrecision"`
 }
 
@@ -124,7 +124,11 @@ type MongoStrategyCondition struct {
 	MarketType int64               `json:"marketType" bson:"marketType"`
 	EntryOrder MongoEntryPoint     `json:"entryOrder" bson:"entryOrder"`
 
-	TimeoutIfProfitable float64 `json:"timeoutIfProfitable" bson:"timeoutIfProfitable"`
+	WaitingEntryTimeout   float64 `json:"waitingEntryTimeout" bson:"waitingEntryTimeout"`
+	ActivationMoveStep    float64 `json:"activationMoveStep" bson:"activationMoveStep"`
+	ActivationMoveTimeout float64 `json:"activationMoveTimeout" bson:"activationMoveTimeout"`
+
+	TimeoutIfProfitable   float64 `json:"timeoutIfProfitable" bson:"timeoutIfProfitable"`
 	// then take profit after some time
 	TimeoutWhenProfit float64 `json:"timeoutWhenProfit" bson:"timeoutWhenProfit"` // if position became profitable at takeProfit,
 	// then dont exit but wait N seconds and exit, so you may catch pump

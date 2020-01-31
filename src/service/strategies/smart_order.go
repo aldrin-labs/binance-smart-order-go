@@ -79,7 +79,6 @@ type SmartOrder struct {
 	Lock                    bool
 	LastTrailingTimestamp   int64
 	SelectedExitTarget      int
-	SelectedStopLossTarget  int
 }
 
 func round(num float64) int {
@@ -146,12 +145,44 @@ func NewSmartOrder(strategy *Strategy, DataFeed IDataFeed, TradingAPI trading.IT
 	// fmt.Printf(sm.State.ToGraph())
 	// fmt.Printf("DONE\n")
 	isFirstRunSoStateisEmpty := strategy.Model.State.State == ""
+	if sm.Strategy.Model.Conditions.WaitingEntryTimeout > 0 {
+		go func() {
+			time.Sleep(time.Duration(sm.Strategy.Model.Conditions.WaitingEntryTimeout) * time.Second)
+			currentState, _ := sm.State.State(context.TODO())
+			if currentState == WaitForEntry || currentState == TrailingEntry {
+				sm.Strategy.Model.Enabled = false
+			}
+		}()
+	}
+
+	if sm.Strategy.Model.Conditions.EntryOrder.ActivatePrice > 0 &&
+		sm.Strategy.Model.Conditions.ActivationMoveTimeout > 0 {
+		go func() {
+			currentState, _ := sm.State.State(context.TODO())
+			for currentState == WaitForEntry {
+				time.Sleep(time.Duration(sm.Strategy.Model.Conditions.ActivationMoveTimeout) * time.Second)
+				currentState, _ = sm.State.State(context.TODO())
+				if currentState == WaitForEntry {
+					activatePrice := sm.Strategy.Model.Conditions.EntryOrder.ActivatePrice
+					side := sm.Strategy.Model.Conditions.EntryOrder.Side
+					if side == "sell" {
+						activatePrice = sm.Strategy.Model.State.TrailingEntryPrice * (1 - sm.Strategy.Model.Conditions.ActivationMoveStep/100/sm.Strategy.Model.Conditions.Leverage)
+					} else {
+						activatePrice = sm.Strategy.Model.State.TrailingEntryPrice * (1 + sm.Strategy.Model.Conditions.ActivationMoveStep/100/sm.Strategy.Model.Conditions.Leverage)
+					}
+					sm.Strategy.Model.Conditions.EntryOrder.ActivatePrice = activatePrice
+				}
+			}
+		}()
+	}
+
 	if isFirstRunSoStateisEmpty {
 		entryIsNotTrailing := sm.Strategy.Model.Conditions.EntryOrder.ActivatePrice == 0
 		if entryIsNotTrailing { // then we must know exact price
 			sm.placeOrder(sm.Strategy.Model.Conditions.EntryOrder.Price, WaitForEntry)
 		}
 	}
+
 	return sm
 }
 
@@ -228,27 +259,8 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 		break
 	case Stoploss:
 		reduceOnly = true
-		baseAmount = sm.Strategy.Model.Conditions.EntryOrder.Amount
+		baseAmount = sm.Strategy.Model.Conditions.EntryOrder.Amount - sm.Strategy.Model.State.ExecutedAmount
 		side = "buy"
-		if sm.SelectedStopLossTarget >= len(sm.Strategy.Model.Conditions.ExitLevels) {
-			return
-		}
-		isMultiTargets := len(sm.Strategy.Model.Conditions.ExitLevels) > 1
-		if isMultiTargets {
-			recursiveCall = true
-			target := sm.Strategy.Model.Conditions.ExitLevels[sm.SelectedStopLossTarget]
-			if sm.SelectedStopLossTarget < len(sm.Strategy.Model.Conditions.ExitLevels) - 1 {
-				baseAmount = target.Amount
-				if target.Type == 1 {
-					if baseAmount == 0 {
-						baseAmount = 100
-					}
-					baseAmount = sm.Strategy.Model.Conditions.EntryOrder.Amount * (baseAmount / 100)
-				}
-			} else {
-				baseAmount = sm.getLastTargetAmount()
-			}
-		}
 
 		if sm.Strategy.Model.Conditions.EntryOrder.Side == side {
 			side = "sell"
@@ -264,7 +276,6 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 				}
 			}
 			orderType = prefix + orderType // ok we are in futures and can place order before it happened
-			recursiveCall = true
 
 			stopLoss := sm.Strategy.Model.Conditions.StopLoss
 			if side == "sell" {
@@ -476,14 +487,9 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 			}
 		}
 	}
-	canPlaceAnotherOrderForNextTarget := sm.SelectedExitTarget+1 < len(sm.Strategy.Model.Conditions.ExitLevels) ||
-		sm.SelectedStopLossTarget+1 < len(sm.Strategy.Model.Conditions.ExitLevels)
+	canPlaceAnotherOrderForNextTarget := sm.SelectedExitTarget+1 < len(sm.Strategy.Model.Conditions.ExitLevels)
 	if recursiveCall && canPlaceAnotherOrderForNextTarget {
-		if step == Stoploss {
-			sm.SelectedStopLossTarget += 1
-		} else {
-			sm.SelectedExitTarget += 1
-		}
+		sm.SelectedExitTarget += 1
 		sm.placeOrder(price, step)
 	}
 }
@@ -569,6 +575,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 				sm.Strategy.Model.State.State = End
 			}
 			sm.StateMgmt.UpdateExecutedAmount(sm.Strategy.Model.ID, &sm.Strategy.Model.State)
+			go sm.placeOrder(0, Stoploss)
 			return true
 		case Stoploss:
 			if order.Filled > 0 {

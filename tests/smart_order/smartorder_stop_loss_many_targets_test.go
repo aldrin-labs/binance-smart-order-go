@@ -49,10 +49,10 @@ func TestSmartPlaceStopLossForEachTarget(t *testing.T) {
 		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
 	})
 	go smartOrder.Start()
-	time.Sleep(15000 * time.Millisecond)
+	time.Sleep(10000 * time.Millisecond)
 
 	// check that one call with 'sell' and one with 'BTC_USDT' should be done
-	if tradingApi.CallCount["sell"] != 6 || tradingApi.CallCount["BTC_USDT"] != 7 {
+	if tradingApi.CallCount["sell"] != 4 || tradingApi.CallCount["BTC_USDT"] != 5 {
 		t.Error("There were " + strconv.Itoa(tradingApi.CallCount["sell"]) + " trading api calls with sell params and " + strconv.Itoa(tradingApi.CallCount["BTC_USDT"]) + " with BTC_USDT params")
 	}
 
