@@ -234,6 +234,9 @@ func (sm *StateMgmt) UpdateOrders(strategyId primitive.ObjectID, state *models.M
 	request = bson.D{
 		{"_id", strategyId},
 	}
+	if len(state.ExecutedOrders) == 0 {
+		return
+	}
 	var update bson.D
 	update = bson.D{
 		{

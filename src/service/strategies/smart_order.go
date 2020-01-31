@@ -396,6 +396,9 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 		stopPrice = orderPrice
 	}
 	for {
+		if baseAmount == 0 {
+			return
+		}
 		request := trading.CreateOrderRequest{
 			KeyId: sm.KeyId,
 			KeyParams: trading.Order{
@@ -431,30 +434,6 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 		}
 		response := sm.ExchangeApi.CreateOrder(request)
 		if response.Status == "OK" && response.Data.Id != "0" && response.Data.Id != "" {
-			switch step {
-			case InEntry, WaitForEntry, TrailingEntry:
-				{
-					if orderType == "market" && response.Data.Average == 0 { // TODO maybe remove this
-						time.Sleep(4000 * time.Millisecond)
-						executedOrder := sm.StateMgmt.GetOrder(response.Data.Id)
-						for executedOrder == nil || executedOrder.Status == "open" {
-							time.Sleep(500 * time.Millisecond)
-							executedOrder = sm.StateMgmt.GetOrder(response.Data.Id)
-						}
-						sm.Strategy.Model.State.EntryPrice = executedOrder.Average
-
-						go sm.StateMgmt.UpdateEntryPrice(sm.Strategy.Model.ID, &sm.Strategy.Model.State)
-					}
-				}
-			case TakeProfit, Stoploss:
-				{
-					if response.Data.Filled > 0 {
-						sm.Strategy.Model.State.ExecutedAmount += response.Data.Filled
-						sm.Strategy.Model.State.ExitPrice = response.Data.Average
-						go sm.StateMgmt.UpdateExecutedAmount(sm.Strategy.Model.ID, &sm.Strategy.Model.State)
-					}
-				}
-			}
 			sm.IsWaitingForOrder.Store(step, true)
 			if ifShouldCancelPreviousOrder {
 				// cancel existing order if there is such ( and its not TrailingEntry )
