@@ -590,26 +590,6 @@ func (sm *SmartOrder) checkTrailingEntry(ctx context.Context, args ...interface{
 	//}
 	currentOHLCV := args[0].(OHLCV)
 	edgePrice := sm.Strategy.Model.State.TrailingEntryPrice
-	if len(sm.Strategy.Model.State.ExecutedOrders) == 0 {
-		isFutures := sm.Strategy.Model.Conditions.MarketType == 1
-		orderType := sm.Strategy.Model.Conditions.EntryOrder.OrderType
-		isStopOrdersSupport := isFutures || orderType == "limit"
-
-		if isStopOrdersSupport { // we can place stop order, lets place it
-			if sm.Lock == false {
-				sm.Lock = true
-				if sm.Strategy.Model.State.TrailingEntryPrice == 0 {
-					sm.Strategy.Model.State.TrailingEntryPrice = currentOHLCV.Close
-				}
-				go func() {
-					sm.placeOrder(-1, TrailingEntry)
-					time.Sleep(3000 * time.Millisecond)
-					sm.Lock = false
-				}() // it will give some time for order execution, to avoid double send of orders
-			}
-			return false
-		}
-	}
 
 	if edgePrice == 0 {
 		println("edgePrice=0")
