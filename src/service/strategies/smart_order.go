@@ -91,6 +91,7 @@ func (sm *SmartOrder) toFixed(num float64, precision int64) float64 {
 }
 
 func NewSmartOrder(strategy *Strategy, DataFeed IDataFeed, TradingAPI trading.ITrading, keyId *primitive.ObjectID, stateMgmt IStateMgmt) *SmartOrder {
+
 	sm := &SmartOrder{Strategy: strategy, DataFeed: DataFeed, ExchangeApi: TradingAPI, KeyId: keyId, StateMgmt: stateMgmt, Lock: false, SelectedExitTarget: 0}
 	initState := WaitForEntry
 	pricePrecision, amountPrecision := stateMgmt.GetMarketPrecision(strategy.Model.Conditions.Pair, strategy.Model.Conditions.MarketType)
@@ -179,7 +180,8 @@ func NewSmartOrder(strategy *Strategy, DataFeed IDataFeed, TradingAPI trading.IT
 	if isFirstRunSoStateisEmpty {
 		entryIsNotTrailing := sm.Strategy.Model.Conditions.EntryOrder.ActivatePrice == 0
 		if entryIsNotTrailing { // then we must know exact price
-			sm.placeOrder(sm.Strategy.Model.Conditions.EntryOrder.Price, WaitForEntry)
+			sm.IsWaitingForOrder.Store(WaitForEntry, true)
+			go sm.placeOrder(sm.Strategy.Model.Conditions.EntryOrder.Price, WaitForEntry)
 		}
 	}
 
@@ -1139,6 +1141,9 @@ type KeyAsset struct {
 }
 
 func RunSmartOrder(strategy *Strategy, df IDataFeed, td trading.ITrading, keyId *primitive.ObjectID) IStrategyRuntime {
+	if strategy.Model.Conditions.Leverage == 0 {
+		strategy.Model.Conditions.Leverage = 1
+	}
 	if keyId == nil {
 		KeyAssets := mongodb.GetCollection("core_key_assets") // TODO: move to statemgmt, avoid any direct dependecies here
 		keyAssetId := strategy.Model.Conditions.KeyAssetId.String()
@@ -1154,6 +1159,9 @@ func RunSmartOrder(strategy *Strategy, df IDataFeed, td trading.ITrading, keyId 
 			println("keyAssetsCursor", err.Error())
 		}
 		keyId = &keyAsset.KeyId
+	}
+	if strategy.Model.Conditions.MarketType == 1 {
+		go td.UpdateLeverage(keyId, strategy.Model.Conditions.Leverage)
 	}
 	runtime := NewSmartOrder(strategy, df, td, keyId, strategy.StateMgmt)
 	runtime.Start()
