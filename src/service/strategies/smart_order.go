@@ -180,7 +180,8 @@ func NewSmartOrder(strategy *Strategy, DataFeed IDataFeed, TradingAPI trading.IT
 	if isFirstRunSoStateisEmpty {
 		entryIsNotTrailing := sm.Strategy.Model.Conditions.EntryOrder.ActivatePrice == 0
 		if entryIsNotTrailing { // then we must know exact price
-			sm.placeOrder(sm.Strategy.Model.Conditions.EntryOrder.Price, WaitForEntry)
+			sm.IsWaitingForOrder.Store(WaitForEntry, true)
+			go sm.placeOrder(sm.Strategy.Model.Conditions.EntryOrder.Price, WaitForEntry)
 		}
 	}
 
