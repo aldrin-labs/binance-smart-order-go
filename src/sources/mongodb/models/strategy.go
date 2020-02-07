@@ -40,7 +40,7 @@ type MongoMarketDefaultProperties struct {
 }
 
 type MongoMarketProperties struct {
-	Default MongoMarketDefaultProperties `json:"default" bson:"default"`
+	Binance MongoMarketDefaultProperties `json:"binance" bson:"binance"`
 }
 
 type MongoMarket struct {
