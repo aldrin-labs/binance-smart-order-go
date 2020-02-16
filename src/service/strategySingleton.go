@@ -75,11 +75,12 @@ func GetStrategy(strategy *models.MongoStrategy, df strategies.IDataFeed, tr tra
 }
 
 func (ss *StrategyService) AddStrategy(strategy * models.MongoStrategy) {
-	sig := GetStrategy(strategy, ss.dataFeed, ss.trading, ss.stateMgmt)
-	println("objid ", sig.Model.ID.String())
-	ss.strategies[sig.Model.ID.String()] = sig
-	go sig.Start()
-
+	if ss.strategies[strategy.ID.String()] == nil {
+		sig := GetStrategy(strategy, ss.dataFeed, ss.trading, ss.stateMgmt)
+		println("start objid ", sig.Model.ID.String())
+		ss.strategies[sig.Model.ID.String()] = sig
+		go sig.Start()
+	}
 }
 
 const CollName = "core_strategies"
