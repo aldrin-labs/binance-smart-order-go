@@ -25,7 +25,7 @@ func GetMongoClientInstance() *mongo.Client {
 		url := os.Getenv("MONGODB")
 		timeout := 10 * time.Second
 		ctx, _ := context.WithTimeout(context.Background(), timeout)
-		client, _ := mongo.Connect(ctx, options.Client().SetDirect(false).
+		client, _ := mongo.Connect(ctx, options.Client().SetDirect(true).
 			SetReadPreference(readpref.Primary()).
 			SetWriteConcern(writeconcern.New(writeconcern.WMajority())).
 			SetRetryWrites(true).
@@ -154,7 +154,7 @@ func (sm *StateMgmt) GetMarketPrecision(pair string, marketType int64) (int64, i
 		println(err.Error())
 	}
 
-	return market.Properties.Default.PricePrecision, market.Properties.Default.QuantityPrecision
+	return market.Properties.Binance.PricePrecision, market.Properties.Binance.QuantityPrecision
 }
 
 func (sm *StateMgmt) UpdateConditions(strategyId primitive.ObjectID, state *models.MongoStrategyCondition) {
