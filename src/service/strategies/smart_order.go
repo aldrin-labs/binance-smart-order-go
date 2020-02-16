@@ -208,6 +208,10 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 	isSpot := sm.Strategy.Model.Conditions.MarketType == 0
 	isTrailingEntry := sm.Strategy.Model.Conditions.EntryOrder.ActivatePrice > 0
 	ifShouldCancelPreviousOrder := false
+	leverage := sm.Strategy.Model.Conditions.Leverage
+	if isSpot {
+		leverage = 1
+	}
 	switch step {
 	case TrailingEntry:
 		orderType = sm.Strategy.Model.Conditions.EntryOrder.OrderType // TODO find out to remove duplicate lines with 154 & 164
@@ -269,22 +273,25 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 		}
 		if sm.Strategy.Model.Conditions.TimeoutLoss == 0 {
 			orderType = sm.Strategy.Model.Conditions.StopLossType
-			isStopOrdersSupport := isFutures || orderType == "limit"
+			isStopOrdersSupport := isFutures // || orderType == "limit"
+
+			stopLoss := sm.Strategy.Model.Conditions.StopLoss
+			if side == "sell" {
+				orderPrice = sm.Strategy.Model.State.EntryPrice * (1 - stopLoss/100/leverage)
+			} else {
+				orderPrice = sm.Strategy.Model.State.EntryPrice * (1 + stopLoss/100/leverage)
+			}
+
 			if isSpot {
 				if price > 0 {
 					break // keep market order
 				} else if !isStopOrdersSupport {
-					return // it is attempt to place an order but we are on spot market without stop-market orders here
+					return // it is attempt to place an stop-order but we are on spot
+					// we cant place stop orders coz then amount will be locked
 				}
 			}
 			orderType = prefix + orderType // ok we are in futures and can place order before it happened
 
-			stopLoss := sm.Strategy.Model.Conditions.StopLoss
-			if side == "sell" {
-				orderPrice = sm.Strategy.Model.State.EntryPrice * (1 - stopLoss/100/sm.Strategy.Model.Conditions.Leverage)
-			} else {
-				orderPrice = sm.Strategy.Model.State.EntryPrice * (1 + stopLoss/100/sm.Strategy.Model.Conditions.Leverage)
-			}
 		} else {
 			if price > 0 && sm.Strategy.Model.State.StopLossAt == 0 {
 				sm.Strategy.Model.State.StopLossAt = time.Now().Unix()
@@ -340,9 +347,9 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 				break
 			case 1:
 				if side == "sell" {
-					orderPrice = sm.Strategy.Model.State.EntryPrice * (1 + target.Price/100/sm.Strategy.Model.Conditions.Leverage)
+					orderPrice = sm.Strategy.Model.State.EntryPrice * (1 + target.Price/100/leverage)
 				} else {
-					orderPrice = sm.Strategy.Model.State.EntryPrice * (1 - target.Price/100/sm.Strategy.Model.Conditions.Leverage)
+					orderPrice = sm.Strategy.Model.State.EntryPrice * (1 - target.Price/100/leverage)
 				}
 				break
 			}
@@ -360,7 +367,7 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 			} else {
 				recursiveCall = true // if its not instant order check maybe we can try to place other positions
 			}
-			orderPrice = sm.Strategy.Model.State.TrailingEntryPrice * (1 - target.EntryDeviation/100/sm.Strategy.Model.Conditions.Leverage)
+			orderPrice = sm.Strategy.Model.State.TrailingEntryPrice * (1 - target.EntryDeviation/100/leverage)
 		}
 		if sm.SelectedExitTarget < len(sm.Strategy.Model.Conditions.ExitLevels) - 1 {
 			baseAmount = target.Amount
@@ -1167,7 +1174,7 @@ func RunSmartOrder(strategy *Strategy, df IDataFeed, td trading.ITrading, keyId 
 		go td.UpdateLeverage(keyId, strategy.Model.Conditions.Leverage)
 	}
 	runtime := NewSmartOrder(strategy, df, td, keyId, strategy.StateMgmt)
-	runtime.Start()
+	go runtime.Start()
 
 	return runtime
 }
