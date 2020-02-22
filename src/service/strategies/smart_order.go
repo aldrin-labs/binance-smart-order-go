@@ -18,6 +18,7 @@ import (
 const (
 	WaitForEntry       = "WaitForEntry"
 	TrailingEntry      = "TrailingEntry"
+	PartiallyEntry     = "PartiallyEntry"
 	InEntry            = "InEntry"
 	TakeProfit         = "TakeProfit"
 	Stoploss           = "Stoploss"
@@ -26,6 +27,7 @@ const (
 	End                = "End"
 	Canceled           = "Canceled"
 	EnterNextTarget    = "EnterNextTarget"
+	Timeout            = "Timeout"
 )
 
 const (
@@ -150,8 +152,11 @@ func NewSmartOrder(strategy *Strategy, DataFeed IDataFeed, TradingAPI trading.IT
 		go func() {
 			time.Sleep(time.Duration(sm.Strategy.Model.Conditions.WaitingEntryTimeout) * time.Second)
 			currentState, _ := sm.State.State(context.TODO())
-			if currentState == WaitForEntry || currentState == TrailingEntry {
+			if (currentState == WaitForEntry || currentState == TrailingEntry) && sm.Lock == false {
+				sm.Lock = true
 				sm.Strategy.Model.Enabled = false
+				sm.Strategy.Model.State.State = Timeout
+				go sm.StateMgmt.UpdateState(sm.Strategy.Model.ID, &sm.Strategy.Model.State)
 			}
 		}()
 	}
@@ -163,13 +168,13 @@ func NewSmartOrder(strategy *Strategy, DataFeed IDataFeed, TradingAPI trading.IT
 			for currentState == WaitForEntry {
 				time.Sleep(time.Duration(sm.Strategy.Model.Conditions.ActivationMoveTimeout) * time.Second)
 				currentState, _ = sm.State.State(context.TODO())
-				if currentState == WaitForEntry {
+				if currentState == WaitForEntry && sm.Strategy.Model.State.TrailingEntryPrice > 0 {
 					activatePrice := sm.Strategy.Model.Conditions.EntryOrder.ActivatePrice
 					side := sm.Strategy.Model.Conditions.EntryOrder.Side
 					if side == "sell" {
-						activatePrice = sm.Strategy.Model.State.TrailingEntryPrice * (1 - sm.Strategy.Model.Conditions.ActivationMoveStep/100/sm.Strategy.Model.Conditions.Leverage)
+						activatePrice = activatePrice * (1 - sm.Strategy.Model.Conditions.ActivationMoveStep/100/sm.Strategy.Model.Conditions.Leverage)
 					} else {
-						activatePrice = sm.Strategy.Model.State.TrailingEntryPrice * (1 + sm.Strategy.Model.Conditions.ActivationMoveStep/100/sm.Strategy.Model.Conditions.Leverage)
+						activatePrice = activatePrice * (1 + sm.Strategy.Model.Conditions.ActivationMoveStep/100/sm.Strategy.Model.Conditions.Leverage)
 					}
 					sm.Strategy.Model.Conditions.EntryOrder.ActivatePrice = activatePrice
 				}
@@ -187,7 +192,6 @@ func NewSmartOrder(strategy *Strategy, DataFeed IDataFeed, TradingAPI trading.IT
 
 	return sm
 }
-
 
 func (sm *SmartOrder) placeOrder(price float64, step string) {
 	baseAmount := 0.0
@@ -369,7 +373,7 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 			}
 			orderPrice = sm.Strategy.Model.State.TrailingEntryPrice * (1 - target.EntryDeviation/100/leverage)
 		}
-		if sm.SelectedExitTarget < len(sm.Strategy.Model.Conditions.ExitLevels) - 1 {
+		if sm.SelectedExitTarget < len(sm.Strategy.Model.Conditions.ExitLevels)-1 {
 			baseAmount = target.Amount
 			if target.Type == 1 {
 				if baseAmount == 0 {
@@ -503,9 +507,8 @@ func (sm *SmartOrder) getLastTargetAmount() float64 {
 }
 
 func (sm *SmartOrder) enterTrailingEntry(ctx context.Context, args ...interface{}) error {
-	if currentOHLCV, ok := args[0].(OHLCV); ok {
+	if _, ok := args[0].(OHLCV); ok {
 		sm.Strategy.Model.State.State = TrailingEntry
-		sm.Strategy.Model.State.TrailingEntryPrice = currentOHLCV.Close
 		sm.StateMgmt.UpdateState(sm.Strategy.Model.ID, &sm.Strategy.Model.State)
 	} else {
 		panic("no ohlcv in trailing !!")
@@ -520,7 +523,7 @@ func (sm *SmartOrder) waitForOrder(orderId string, orderStatus string) {
 func (sm *SmartOrder) orderCallback(order *models.MongoOrder) {
 	err := sm.State.Fire(CheckExistingOrders, *order)
 	if err != nil {
-		 // println(err.Error())
+		// println(err.Error())
 	}
 }
 
@@ -599,11 +602,11 @@ func (sm *SmartOrder) checkTrailingEntry(ctx context.Context, args ...interface{
 	//}
 	currentOHLCV := args[0].(OHLCV)
 	edgePrice := sm.Strategy.Model.State.TrailingEntryPrice
-
+	activateTrailing := false
 	if edgePrice == 0 {
 		println("edgePrice=0")
 		sm.Strategy.Model.State.TrailingEntryPrice = currentOHLCV.Close
-		return false
+		activateTrailing = true
 	}
 	// println(currentOHLCV.Close, edgePrice, currentOHLCV.Close/edgePrice-1)
 	deviation := sm.Strategy.Model.Conditions.EntryOrder.EntryDeviation / sm.Strategy.Model.Conditions.Leverage
@@ -611,19 +614,19 @@ func (sm *SmartOrder) checkTrailingEntry(ctx context.Context, args ...interface{
 	isSpotMarketEntry := sm.Strategy.Model.Conditions.MarketType == 0 && sm.Strategy.Model.Conditions.EntryOrder.OrderType == "market"
 	switch side {
 	case "buy":
-		if !isSpotMarketEntry && currentOHLCV.Close < edgePrice {
+		if  !isSpotMarketEntry && (activateTrailing || currentOHLCV.Close < edgePrice) {
 			edgePrice = sm.Strategy.Model.State.TrailingEntryPrice
 			go sm.placeTrailingOrder(currentOHLCV.Close, time.Now().UnixNano(), 0, side, true, TrailingEntry)
 		}
-		if isSpotMarketEntry && (currentOHLCV.Close/edgePrice-1)*100 >= deviation {
+		if isSpotMarketEntry && ( activateTrailing || (currentOHLCV.Close/edgePrice-1)*100 >= deviation ) {
 			return true
 		}
 		break
 	case "sell":
-		if !isSpotMarketEntry && currentOHLCV.Close > edgePrice {
+		if !isSpotMarketEntry && (activateTrailing || currentOHLCV.Close > edgePrice) {
 			go sm.placeTrailingOrder(currentOHLCV.Close, time.Now().UnixNano(), 0, side, true, TrailingEntry)
 		}
-		if isSpotMarketEntry && (1-currentOHLCV.Close/edgePrice)*100 >= deviation {
+		if isSpotMarketEntry && (activateTrailing || (1-currentOHLCV.Close/edgePrice)*100 >= deviation) {
 			return true
 		}
 		break
@@ -945,17 +948,17 @@ func (sm *SmartOrder) placeTrailingOrder(newTrailingPrice float64, trailingCheck
 	}
 	trailingDidnChange := trailingCheckAt == sm.Strategy.Model.State.TrailingCheckAt
 	newTrailingIncreaseProfits := (newTrailingPrice < edgePrice && !isEntry) || (newTrailingPrice > edgePrice && isEntry)
-	priceRelation := edgePrice/newTrailingPrice
+	priceRelation := edgePrice / newTrailingPrice
 	if isEntry {
-		priceRelation = newTrailingPrice/edgePrice
+		priceRelation = newTrailingPrice / edgePrice
 	}
 	significantPercent := 0.016 * sm.Strategy.Model.Conditions.Leverage
 	trailingChangedALot := newTrailingIncreaseProfits && (significantPercent < (priceRelation-1)*100*sm.Strategy.Model.Conditions.Leverage)
 	if entrySide == "buy" {
 		if !isEntry {
-			priceRelation = newTrailingPrice/edgePrice
+			priceRelation = newTrailingPrice / edgePrice
 		} else {
-			priceRelation = edgePrice/newTrailingPrice
+			priceRelation = edgePrice / newTrailingPrice
 		}
 		newTrailingIncreaseProfits = (newTrailingPrice > edgePrice && !isEntry) || (newTrailingPrice < edgePrice && isEntry)
 		trailingChangedALot = newTrailingIncreaseProfits && (significantPercent < (priceRelation-1)*100*sm.Strategy.Model.Conditions.Leverage)
@@ -1171,7 +1174,7 @@ func RunSmartOrder(strategy *Strategy, df IDataFeed, td trading.ITrading, keyId 
 		keyId = &keyAsset.KeyId
 	}
 	if strategy.Model.Conditions.MarketType == 1 {
-		go td.UpdateLeverage(keyId, strategy.Model.Conditions.Leverage)
+		go td.UpdateLeverage(keyId, strategy.Model.Conditions.Leverage, strategy.Model.Conditions.Pair)
 	}
 	runtime := NewSmartOrder(strategy, df, td, keyId, strategy.StateMgmt)
 	go runtime.Start()
