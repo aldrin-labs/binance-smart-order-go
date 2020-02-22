@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
 	"gitlab.com/crypto_project/core/strategy_service/src/trading"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"strconv"
 	"sync"
 )
@@ -20,7 +21,7 @@ type MockTrading struct {
 	SellDelay int
 }
 
-func (mt MockTrading) UpdateLeverage(keyId string, leverage float64) interface{} {
+func (mt MockTrading) UpdateLeverage(keyId *primitive.ObjectID, leverage float64, symbol string) interface{} {
 	panic("implement me")
 }
 
@@ -82,6 +83,14 @@ func (mt MockTrading) CreateOrder(req trading.CreateOrderRequest) trading.OrderR
 		Symbol: req.KeyParams.Symbol,
 		StopPrice: req.KeyParams.StopPrice,
 		ReduceOnly: req.KeyParams.ReduceOnly,
+	}
+	if order.Average == 0 {
+		lent := len(mt.Feed.tickerData)
+		index := mt.Feed.currentTick
+		if mt.Feed.currentTick >= lent {
+			index = lent - 1
+		}
+		order.Average = mt.Feed.tickerData[index].Close
 	}
 	mt.OrdersMap.Store(orderId, order)
 	mt.CreatedOrders.PushBack(order)

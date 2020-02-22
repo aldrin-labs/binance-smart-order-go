@@ -30,7 +30,7 @@ type OrderResponse struct {
 type ITrading interface {
 	CreateOrder(order CreateOrderRequest) OrderResponse
 	CancelOrder(params CancelOrderRequest) OrderResponse
-	UpdateLeverage(keyId *primitive.ObjectID, leverage float64) interface{}
+	UpdateLeverage(keyId *primitive.ObjectID, leverage float64, symbol string) interface{}
 }
 
 type Trading struct {
@@ -164,9 +164,11 @@ func (t *Trading) CreateOrder(order CreateOrderRequest) OrderResponse {
 
 type UpdateLeverageParams struct {
 	Leverage float64 `json:"leverage"`
+	Symbol string `json:"symbol"`
 	KeyId *primitive.ObjectID `json:"keyId"`
 }
-func (t *Trading) UpdateLeverage(keyId *primitive.ObjectID, leverage float64) interface{} {
+
+func (t *Trading) UpdateLeverage(keyId *primitive.ObjectID, leverage float64, symbol string) interface{} {
 	if leverage < 1 {
 		leverage = 1
 	}
@@ -174,6 +176,7 @@ func (t *Trading) UpdateLeverage(keyId *primitive.ObjectID, leverage float64) in
 	request := UpdateLeverageParams{
 		KeyId: keyId,
 		Leverage:leverage,
+		Symbol: symbol,
 	}
 	return Request("updateLeverage", request)
 }
