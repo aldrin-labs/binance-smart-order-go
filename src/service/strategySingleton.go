@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
@@ -17,9 +18,9 @@ import (
 // StrategyService strategy service type
 type StrategyService struct {
 	strategies map[string]*strategies.Strategy
-	trading trading.ITrading
-	dataFeed strategies.IDataFeed
-	stateMgmt strategies.IStateMgmt
+	trading    trading.ITrading
+	dataFeed   interfaces.IDataFeed
+	stateMgmt  interfaces.IStateMgmt
 }
 
 var singleton *StrategyService
@@ -70,7 +71,7 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup) {
 	}
 }
 
-func GetStrategy(strategy *models.MongoStrategy, df strategies.IDataFeed, tr trading.ITrading, st strategies.IStateMgmt) *strategies.Strategy {
+func GetStrategy(strategy *models.MongoStrategy, df interfaces.IDataFeed, tr trading.ITrading, st interfaces.IStateMgmt) *strategies.Strategy {
 	return &strategies.Strategy{Model:strategy, Datafeed: df, Trading: tr, StateMgmt: st}
 }
 

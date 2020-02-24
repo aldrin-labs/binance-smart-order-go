@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"github.com/qmuntal/stateless"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies"
+	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies/smart_order"
 	"gitlab.com/crypto_project/core/strategy_service/tests"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"strconv"
@@ -21,7 +22,7 @@ import (
 func TestSmartOrderGetInEntryLong(t *testing.T) {
 	smartOrderModel := GetTestSmartOrderStrategy("entryLong")
 	// price dips in the middle (This has no meaning now, reuse and then remove fake data stream)
-	fakeDataStream := []strategies.OHLCV{{
+	fakeDataStream := []smart_order.OHLCV{{
 		Open:   7100,
 		High:   7101,
 		Low:    7000,
@@ -47,7 +48,7 @@ func TestSmartOrderGetInEntryLong(t *testing.T) {
 	}
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi)
-	smartOrder := strategies.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
+	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
 	})
@@ -65,7 +66,7 @@ func TestSmartOrderGetInEntryLong(t *testing.T) {
 func TestSmartOrderGetInEntryShort(t *testing.T) {
 	smartOrderModel := GetTestSmartOrderStrategy("entryShort")
 	// price rises (This has no meaning now, reuse and then remove fake data stream)
-	fakeDataStream := []strategies.OHLCV{{
+	fakeDataStream := []smart_order.OHLCV{{
 		Open:   6800,
 		High:   7101,
 		Low:    6750,
@@ -91,7 +92,7 @@ func TestSmartOrderGetInEntryShort(t *testing.T) {
 	}
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi)
-	smartOrder := strategies.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
+	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
 	})
@@ -109,7 +110,7 @@ func TestSmartOrderGetInEntryShort(t *testing.T) {
 func TestSmartOrderGetInTrailingEntryLong(t *testing.T) {
 	smartOrderModel := GetTestSmartOrderStrategy("trailingEntryLong")
 	// price rises
-	fakeDataStream := []strategies.OHLCV{{
+	fakeDataStream := []smart_order.OHLCV{{
 		Open:   7100,
 		High:   7101,
 		Low:    7000,
@@ -136,10 +137,10 @@ func TestSmartOrderGetInTrailingEntryLong(t *testing.T) {
 	keyId := primitive.NewObjectID()
 	//sm := mongodb.StateMgmt{}
 	sm := tests.NewMockedStateMgmt(&tradingApi)
-	smartOrder := strategies.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
+	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
 	go smartOrder.Start()
 	time.Sleep(800 * time.Millisecond)
-	isInState, _ := smartOrder.State.IsInState(strategies.TrailingEntry)
+	isInState, _ := smartOrder.State.IsInState(smart_order.TrailingEntry)
 	if !isInState {
 		state, _ := smartOrder.State.State(context.Background())
 		stateStr := fmt.Sprintf("%v", state)
@@ -193,7 +194,7 @@ func TestSmartOrderGetInTrailingEntryLong(t *testing.T) {
 func TestSmartOrderGetInTrailingEntryShort(t *testing.T) {
 	smartOrderModel := GetTestSmartOrderStrategy("trailingEntryShort")
 	// price falls
-	fakeDataStream := []strategies.OHLCV{{
+	fakeDataStream := []smart_order.OHLCV{{
 		Open:   7100,
 		High:   7101,
 		Low:    7000,
@@ -219,10 +220,10 @@ func TestSmartOrderGetInTrailingEntryShort(t *testing.T) {
 	}
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(&tradingApi)
-	smartOrder := strategies.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
+	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
 	go smartOrder.Start()
 	time.Sleep(800 * time.Millisecond)
-	isInState, _ := smartOrder.State.IsInState(strategies.TrailingEntry)
+	isInState, _ := smartOrder.State.IsInState(smart_order.TrailingEntry)
 	if !isInState {
 		state, _ := smartOrder.State.State(context.Background())
 		stateStr := fmt.Sprintf("%v", state)
