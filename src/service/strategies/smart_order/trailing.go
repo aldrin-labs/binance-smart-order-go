@@ -7,12 +7,8 @@ import (
 )
 
 func (sm *SmartOrder) enterTrailingEntry(ctx context.Context, args ...interface{}) error {
-	if _, ok := args[0].(interfaces.OHLCV); ok {
-		sm.Strategy.GetModel().State.State = TrailingEntry
-		sm.StateMgmt.UpdateState(sm.Strategy.GetModel().ID, &sm.Strategy.GetModel().State)
-	} else {
-		panic("no ohlcv in trailing !!")
-	}
+	sm.Strategy.GetModel().State.State = TrailingEntry
+	sm.StateMgmt.UpdateState(sm.Strategy.GetModel().ID, &sm.Strategy.GetModel().State)
 	return nil
 }
 

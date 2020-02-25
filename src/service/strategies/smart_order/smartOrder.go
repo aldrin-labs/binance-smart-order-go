@@ -121,41 +121,14 @@ func NewSmartOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed,
 	sm.ExchangeName = "binance"
 	// fmt.Printf(sm.State.ToGraph())
 	// fmt.Printf("DONE\n")
-	isFirstRunSoStateisEmpty := strategy.GetModel().State.State == ""
-	if sm.Strategy.GetModel().Conditions.WaitingEntryTimeout > 0 {
-		go func() {
-			time.Sleep(time.Duration(sm.Strategy.GetModel().Conditions.WaitingEntryTimeout) * time.Second)
-			currentState, _ := sm.State.State(context.TODO())
-			if (currentState == WaitForEntry || currentState == TrailingEntry) && sm.Lock == false {
-				sm.Lock = true
-				sm.Strategy.GetModel().Enabled = false
-				sm.Strategy.GetModel().State.State = Timeout
-				go sm.StateMgmt.UpdateState(sm.Strategy.GetModel().ID, &sm.Strategy.GetModel().State)
-			}
-		}()
-	}
+	sm.checkTimeouts()
+	sm.checkIfPlaceOrderInstantlyOnStart()
 
-	if sm.Strategy.GetModel().Conditions.EntryOrder.ActivatePrice > 0 &&
-		sm.Strategy.GetModel().Conditions.ActivationMoveTimeout > 0 {
-		go func() {
-			currentState, _ := sm.State.State(context.TODO())
-			for currentState == WaitForEntry {
-				time.Sleep(time.Duration(sm.Strategy.GetModel().Conditions.ActivationMoveTimeout) * time.Second)
-				currentState, _ = sm.State.State(context.TODO())
-				if currentState == WaitForEntry && sm.Strategy.GetModel().State.TrailingEntryPrice > 0 {
-					activatePrice := sm.Strategy.GetModel().Conditions.EntryOrder.ActivatePrice
-					side := sm.Strategy.GetModel().Conditions.EntryOrder.Side
-					if side == "sell" {
-						activatePrice = activatePrice * (1 - sm.Strategy.GetModel().Conditions.ActivationMoveStep/100/sm.Strategy.GetModel().Conditions.Leverage)
-					} else {
-						activatePrice = activatePrice * (1 + sm.Strategy.GetModel().Conditions.ActivationMoveStep/100/sm.Strategy.GetModel().Conditions.Leverage)
-					}
-					sm.Strategy.GetModel().Conditions.EntryOrder.ActivatePrice = activatePrice
-				}
-			}
-		}()
-	}
+	return sm
+}
 
+func (sm *SmartOrder) checkIfPlaceOrderInstantlyOnStart() {
+	isFirstRunSoStateisEmpty := sm.Strategy.GetModel().State.State == ""
 	if isFirstRunSoStateisEmpty {
 		entryIsNotTrailing := sm.Strategy.GetModel().Conditions.EntryOrder.ActivatePrice == 0
 		if entryIsNotTrailing { // then we must know exact price
@@ -163,8 +136,6 @@ func NewSmartOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed,
 			go sm.placeOrder(sm.Strategy.GetModel().Conditions.EntryOrder.Price, WaitForEntry)
 		}
 	}
-
-	return sm
 }
 
 func (sm *SmartOrder) getLastTargetAmount() float64 {
@@ -591,7 +562,6 @@ func (sm *SmartOrder) Start() {
 	state, _ := sm.State.State(context.Background())
 	for state != End && state != Canceled {
 		if sm.Strategy.GetModel().Enabled == false {
-			state = Canceled
 			break
 		}
 		if !sm.Lock {
@@ -600,16 +570,17 @@ func (sm *SmartOrder) Start() {
 		time.Sleep(200 * time.Millisecond)
 		state, _ = sm.State.State(context.Background())
 	}
-	if state == Canceled {
-		sm.placeOrder(0, Canceled)
-		sm.tryCancelAllOrders()
-	}
-	sm.StateMgmt.DisableStrategy(sm.Strategy.GetModel().ID)
+	sm.Stop()
 	println("STOPPED")
 }
 
 func (sm *SmartOrder) Stop() {
-	// TODO: implement here canceling all open orders, etc
+	state, _ := sm.State.State(context.Background())
+	if state != End {
+		sm.placeOrder(0, Canceled)
+		sm.tryCancelAllOrders()
+	}
+	sm.StateMgmt.DisableStrategy(sm.Strategy.GetModel().ID)
 }
 
 func (sm *SmartOrder) processEventLoop() {
