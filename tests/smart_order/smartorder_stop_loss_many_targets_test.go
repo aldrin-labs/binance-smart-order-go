@@ -55,8 +55,10 @@ func TestSmartPlaceStopLossForEachTarget(t *testing.T) {
 	time.Sleep(10000 * time.Millisecond)
 
 	// check that one call with 'sell' and one with 'BTC_USDT' should be done
-	if tradingApi.CallCount["sell"] != 4 || tradingApi.CallCount["BTC_USDT"] != 5 {
-		t.Error("There were " + strconv.Itoa(tradingApi.CallCount["sell"]) + " trading api calls with sell params and " + strconv.Itoa(tradingApi.CallCount["BTC_USDT"]) + " with BTC_USDT params")
+	sellCallCount, _ := tradingApi.CallCount.Load("sell")
+	btcUsdtCallCount, _ := tradingApi.CallCount.Load("BTC_USDT")
+	if sellCallCount != 4 || btcUsdtCallCount != 5 {
+		t.Error("There were " + strconv.Itoa(sellCallCount.(int)) + " trading api calls with sell params and " + strconv.Itoa(btcUsdtCallCount.(int)) + " with BTC_USDT params")
 	}
 
 	// check if we are in right state
@@ -66,5 +68,5 @@ func TestSmartPlaceStopLossForEachTarget(t *testing.T) {
 		stateStr := fmt.Sprintf("%v", state)
 		t.Error("SmartOrder state is not End (State: " + stateStr + ")")
 	}
-	fmt.Println("Success! There were " + strconv.Itoa(tradingApi.CallCount["sell"]) + " trading api calls with sell params and " + strconv.Itoa(tradingApi.CallCount["BTC_USDT"]) + " with BTC_USDT params")
+	fmt.Println("Success! There were " + strconv.Itoa(sellCallCount.(int)) + " trading api calls with sell params and " + strconv.Itoa(btcUsdtCallCount.(int)) + " with BTC_USDT params")
 }

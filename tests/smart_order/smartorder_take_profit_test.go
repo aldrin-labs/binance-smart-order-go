@@ -47,8 +47,10 @@ func TestSmartTakeProfit(t *testing.T) {
 	time.Sleep(1450 * time.Millisecond)
 
 	// check that one call with 'sell' and one with 'BTC_USDT' should be done
-	if tradingApi.CallCount["sell"] == 0 || tradingApi.CallCount["BTC_USDT"] == 0 {
-		t.Error("There were " + strconv.Itoa(tradingApi.CallCount["buy"]) + " trading api calls with buy params and " + strconv.Itoa(tradingApi.CallCount["BTC_USDT"]) + " with BTC_USDT params")
+	sellCallCount, sellFound := tradingApi.CallCount.Load("sell")
+	btcUsdtCallCount, usdtBtcFound := tradingApi.CallCount.Load("BTC_USDT")
+	if !sellFound || !usdtBtcFound || sellCallCount == 0 || btcUsdtCallCount == 0 {
+		t.Error("There were " + strconv.Itoa(sellCallCount.(int)) + " trading api calls with sell params and " + strconv.Itoa(btcUsdtCallCount.(int)) + " with BTC_USDT params")
 	}
 
 	// check if we are in right state
@@ -58,7 +60,7 @@ func TestSmartTakeProfit(t *testing.T) {
 		stateStr := fmt.Sprintf("%v", state)
 		t.Error("SmartOrder state is not TakeProfit (State: " + stateStr + ")")
 	}
-	fmt.Println("Success! There were " + strconv.Itoa(tradingApi.CallCount["sell"]) + " trading api calls with buy params and " + strconv.Itoa(tradingApi.CallCount["BTC_USDT"]) + " with BTC_USDT params")
+	fmt.Println("Success! There were " + strconv.Itoa(sellCallCount.(int)) + " trading api calls with sell params and " + strconv.Itoa(btcUsdtCallCount.(int)) + " with BTC_USDT params")
 }
 
 func TestSmartOrderTakeProfit(t *testing.T) {
@@ -191,7 +193,10 @@ func TestSmartOrderTakeProfitAllTargets(t *testing.T) {
 	})
 	go smartOrder.Start()
 	time.Sleep(2 * time.Second)
-	if tradingApi.CallCount["sell"] != 3 && tradingApi.AmountSum["binanceBTC_USDTsell"] != smartOrder.Strategy.GetModel().Conditions.EntryOrder.Amount {
-		t.Error("SmartOrder didn't reach all 3 targets, but reached", tradingApi.CallCount["sell"], tradingApi.AmountSum["binanceBTC_USDTsell"], smartOrder.Strategy.GetModel().Conditions.EntryOrder.Amount)
+
+	sellCallCount, _ := tradingApi.CallCount.Load("sell")
+	amountSum, _ := tradingApi.AmountSum.Load("binanceBTC_USDTsell")
+	if sellCallCount != 3 && amountSum != smartOrder.Strategy.GetModel().Conditions.EntryOrder.Amount {
+		t.Error("SmartOrder didn't reach all 3 targets, but reached", sellCallCount, amountSum, smartOrder.Strategy.GetModel().Conditions.EntryOrder.Amount)
 	}
 }

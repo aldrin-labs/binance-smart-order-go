@@ -58,8 +58,10 @@ func TestSmartOrderGetInEntryLong(t *testing.T) {
 	time.Sleep(800 * time.Millisecond)
 
 	// one call with 'buy' and one with 'BTC_USDT' should be done
-	if tradingApi.CallCount["buy"] == 0 || tradingApi.CallCount["BTC_USDT"] == 0 {
-		t.Error("There were " + strconv.Itoa(tradingApi.CallCount["buy"]) + " trading api calls with buy params and " + strconv.Itoa(tradingApi.CallCount["BTC_USDT"]) + " with BTC_USDT params")
+	buyCallCount, buyOk := tradingApi.CallCount.Load("buy")
+	btcUsdtCallCount, usdtBtcOk := tradingApi.CallCount.Load("BTC_USDT")
+	if !buyOk || !usdtBtcOk || buyCallCount == 0 || btcUsdtCallCount == 0 {
+		t.Error("There were " + strconv.Itoa(buyCallCount.(int)) + " trading api calls with buy params and " + strconv.Itoa(btcUsdtCallCount.(int)) + " with BTC_USDT params")
 	}
 	//fmt.Println("Success! There were " + strconv.Itoa(tradingApi.CallCount["buy"]) + " trading api calls with buy params and " + strconv.Itoa(tradingApi.CallCount["BTC_USDT"]) + " with BTC_USDT params")
 }
@@ -102,10 +104,12 @@ func TestSmartOrderGetInEntryShort(t *testing.T) {
 	time.Sleep(800 * time.Millisecond)
 
 	// one call with 'sell' and one with 'BTC_USDT' should be done
-	if tradingApi.CallCount["sell"] == 0 || tradingApi.CallCount["BTC_USDT"] == 0 {
-		t.Error("There were " + strconv.Itoa(tradingApi.CallCount["sell"]) + " trading api calls with sell params and " + strconv.Itoa(tradingApi.CallCount["BTC_USDT"]) + " with BTC_USDT params")
+	sellCallCount, sellOk := tradingApi.CallCount.Load("sell")
+	btcUsdtCallCount, usdtBtcOk := tradingApi.CallCount.Load("BTC_USDT")
+	if !sellOk || !usdtBtcOk || sellCallCount == 0 || btcUsdtCallCount == 0 {
+		t.Error("There were " + strconv.Itoa(sellCallCount.(int)) + " trading api calls with sell params and " + strconv.Itoa(btcUsdtCallCount.(int)) + " with BTC_USDT params")
 	}
-	fmt.Println("Success! There were " + strconv.Itoa(tradingApi.CallCount["sell"]) + " trading api calls with sell params and " + strconv.Itoa(tradingApi.CallCount["BTC_USDT"]) + " with BTC_USDT params")
+	fmt.Println("Success! There were " + strconv.Itoa(sellCallCount.(int)) + " trading api calls with sell params and " + strconv.Itoa(btcUsdtCallCount.(int)) + " with BTC_USDT params")
 }
 
 // smart order should transition to TrailingEntry state if ActivatePrice > 0 AND currect OHLCV close price is less than condition price

@@ -60,8 +60,10 @@ func TestSmartExitOnStopMarket(t *testing.T) {
 	time.Sleep(5000 * time.Millisecond)
 
 	// check that one call with 'sell' and one with 'BTC_USDT' should be done
-	if tradingApi.CallCount["sell"] == 0 || tradingApi.CallCount["BTC_USDT"] == 0 {
-		t.Error("There were " + strconv.Itoa(tradingApi.CallCount["buy"]) + " trading api calls with buy params and " + strconv.Itoa(tradingApi.CallCount["BTC_USDT"]) + " with BTC_USDT params")
+	sellCallCount, sellFound := tradingApi.CallCount.Load("sell")
+	btcUsdtCallCount, usdtBtcFound := tradingApi.CallCount.Load("BTC_USDT")
+	if !sellFound || !usdtBtcFound || sellCallCount == 0 || btcUsdtCallCount == 0 {
+		t.Error("There were " + strconv.Itoa(sellCallCount.(int)) + " trading api calls with sell params and " + strconv.Itoa(btcUsdtCallCount.(int)) + " with BTC_USDT params")
 	}
 
 	// check if we are in right state
@@ -71,7 +73,7 @@ func TestSmartExitOnStopMarket(t *testing.T) {
 		stateStr := fmt.Sprintf("%v", state)
 		t.Error("SmartOrder state is not End (State: " + stateStr + ")")
 	}
-	fmt.Println("Success! There were " + strconv.Itoa(tradingApi.CallCount["sell"]) + " trading api calls with buy params and " + strconv.Itoa(tradingApi.CallCount["BTC_USDT"]) + " with BTC_USDT params")
+	fmt.Println("Success! There were " + strconv.Itoa(sellCallCount.(int)) + " trading api calls with sell params and " + strconv.Itoa(btcUsdtCallCount.(int)) + " with BTC_USDT params")
 }
 
 // smart order should wait for timeout if set
@@ -131,8 +133,10 @@ func TestSmartExitOnStopMarketTimeout(t *testing.T) {
 	time.Sleep(3000 * time.Millisecond)
 
 	// check that one call with 'sell' and one with 'BTC_USDT' should be done
-	if tradingApi.CallCount["sell"] == 0 || tradingApi.CallCount["BTC_USDT"] == 0 {
-		t.Error("There were " + strconv.Itoa(tradingApi.CallCount["buy"]) + " trading api calls with buy params and " + strconv.Itoa(tradingApi.CallCount["BTC_USDT"]) + " with BTC_USDT params")
+	sellCallCount, sellFound := tradingApi.CallCount.Load("sell")
+	btcUsdtCallCount, usdtBtcFound := tradingApi.CallCount.Load("BTC_USDT")
+	if !sellFound || !usdtBtcFound || sellCallCount == 0 || btcUsdtCallCount == 0 {
+		t.Error("There were " + strconv.Itoa(sellCallCount.(int)) + " trading api calls with sell params and " + strconv.Itoa(btcUsdtCallCount.(int)) + " with BTC_USDT params")
 	}
 
 	// check if we are in right state
@@ -142,5 +146,5 @@ func TestSmartExitOnStopMarketTimeout(t *testing.T) {
 		stateStr := fmt.Sprintf("%v", state)
 		t.Error("SmartOrder state is not End (State: " + stateStr + ")")
 	}
-	fmt.Println("Success! There were " + strconv.Itoa(tradingApi.CallCount["sell"]) + " trading api calls with buy params and " + strconv.Itoa(tradingApi.CallCount["BTC_USDT"]) + " with BTC_USDT params")
+	fmt.Println("Success! There were " + strconv.Itoa(sellCallCount.(int)) + " trading api calls with buy params and " + strconv.Itoa(btcUsdtCallCount.(int)) + " with BTC_USDT params")
 }
