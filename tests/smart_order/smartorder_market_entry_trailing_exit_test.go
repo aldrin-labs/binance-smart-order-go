@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"github.com/qmuntal/stateless"
+	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies"
+	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies/smart_order"
 	"gitlab.com/crypto_project/core/strategy_service/tests"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"testing"
@@ -12,7 +14,7 @@ import (
 )
 
 func TestSmartOrderMarketEntryAndTrailingExit(t *testing.T) {
-	fakeDataStream := []strategies.OHLCV{
+	fakeDataStream := []interfaces.OHLCV{
 		{
 			Open:   7100,
 			High:   7101,
@@ -73,13 +75,13 @@ func TestSmartOrderMarketEntryAndTrailingExit(t *testing.T) {
 	}
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi)
-	smartOrder := strategies.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
+	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
 	})
 	go smartOrder.Start()
 	time.Sleep(4 * time.Second)
-	isInState, _ := smartOrder.State.IsInState(strategies.End)
+	isInState, _ := smartOrder.State.IsInState(smart_order.End)
 	if !isInState {
 		state, _ := smartOrder.State.State(context.Background())
 		stateStr := fmt.Sprintf("%v", state)
@@ -89,7 +91,7 @@ func TestSmartOrderMarketEntryAndTrailingExit(t *testing.T) {
 
 
 func TestSmartOrderMarketEntryAndThenFollowTrailing(t *testing.T) {
-	fakeDataStream := []strategies.OHLCV{
+	fakeDataStream := []smart_order.OHLCV{
 		{
 			Open:   7100,
 			High:   7101,
@@ -150,13 +152,13 @@ func TestSmartOrderMarketEntryAndThenFollowTrailing(t *testing.T) {
 	}
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi)
-	smartOrder := strategies.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
+	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
 	})
 	go smartOrder.Start()
 	time.Sleep(9 * time.Second)
-	isInState, _ := smartOrder.State.IsInState(strategies.End)
+	isInState, _ := smartOrder.State.IsInState(smart_order.End)
 	if !isInState {
 		state, _ := smartOrder.State.State(context.Background())
 		stateStr := fmt.Sprintf("%v", state)

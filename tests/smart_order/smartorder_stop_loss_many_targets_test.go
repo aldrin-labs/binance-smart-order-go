@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/qmuntal/stateless"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies"
+	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies/smart_order"
 	"gitlab.com/crypto_project/core/strategy_service/tests"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"strconv"
@@ -15,7 +16,7 @@ import (
 // smart order should exit if loss condition is met
 func TestSmartPlaceStopLossForEachTarget(t *testing.T) {
 	// price drops
-	fakeDataStream := []strategies.OHLCV{
+	fakeDataStream := []smart_order.OHLCV{
 		{
 		Open:   7100,
 		High:   7101,
@@ -44,7 +45,7 @@ func TestSmartPlaceStopLossForEachTarget(t *testing.T) {
 	}
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi)
-	smartOrder := strategies.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
+	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
 	})
@@ -57,7 +58,7 @@ func TestSmartPlaceStopLossForEachTarget(t *testing.T) {
 	}
 
 	// check if we are in right state
-	isInState, _ := smartOrder.State.IsInState(strategies.InEntry)
+	isInState, _ := smartOrder.State.IsInState(smart_order.InEntry)
 	if !isInState {
 		state, _ := smartOrder.State.State(context.Background())
 		stateStr := fmt.Sprintf("%v", state)
