@@ -3,39 +3,41 @@ package smart_order
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"testing"
+	"time"
+
 	"github.com/qmuntal/stateless"
+	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies/smart_order"
 	"gitlab.com/crypto_project/core/strategy_service/tests"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"strconv"
-	"testing"
-	"time"
 )
 
 // smart order should exit if loss condition is met
 func TestSmartPlaceStopLossForEachTarget(t *testing.T) {
 	// price drops
-	fakeDataStream := []smart_order.OHLCV{
+	fakeDataStream := []interfaces.OHLCV{
 		{
-		Open:   7100,
-		High:   7101,
-		Low:    7000,
-		Close:  7000,
-		Volume: 30,
-	}, {
-		Open:   7005,
-		High:   7005,
-		Low:    7000,
-		Close:  7000,
-		Volume: 30,
-	}, {
-		Open:   6905,
-		High:   7005,
-		Low:    7000,
-		Close:  7000,
-		Volume: 30,
-	}}
+			Open:   7100,
+			High:   7101,
+			Low:    7000,
+			Close:  7000,
+			Volume: 30,
+		}, {
+			Open:   7005,
+			High:   7005,
+			Low:    7000,
+			Close:  7000,
+			Volume: 30,
+		}, {
+			Open:   6905,
+			High:   7005,
+			Low:    7000,
+			Close:  7000,
+			Volume: 30,
+		}}
 	smartOrderModel := GetTestSmartOrderStrategy("stopLossMultiTargets")
 	df := tests.NewMockedDataFeed(fakeDataStream)
 	tradingApi := tests.NewMockedTradingAPI()

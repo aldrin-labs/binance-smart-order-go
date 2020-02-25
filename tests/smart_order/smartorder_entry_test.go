@@ -8,21 +8,23 @@ package smart_order
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"testing"
+	"time"
+
 	"github.com/qmuntal/stateless"
+	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies/smart_order"
 	"gitlab.com/crypto_project/core/strategy_service/tests"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"strconv"
-	"testing"
-	"time"
 )
 
 // smart order should create limit order while still in waitingForEntry state if not trailing
 func TestSmartOrderGetInEntryLong(t *testing.T) {
 	smartOrderModel := GetTestSmartOrderStrategy("entryLong")
 	// price dips in the middle (This has no meaning now, reuse and then remove fake data stream)
-	fakeDataStream := []smart_order.OHLCV{{
+	fakeDataStream := []interfaces.OHLCV{{
 		Open:   7100,
 		High:   7101,
 		Low:    7000,
@@ -66,7 +68,7 @@ func TestSmartOrderGetInEntryLong(t *testing.T) {
 func TestSmartOrderGetInEntryShort(t *testing.T) {
 	smartOrderModel := GetTestSmartOrderStrategy("entryShort")
 	// price rises (This has no meaning now, reuse and then remove fake data stream)
-	fakeDataStream := []smart_order.OHLCV{{
+	fakeDataStream := []interfaces.OHLCV{{
 		Open:   6800,
 		High:   7101,
 		Low:    6750,
@@ -110,7 +112,7 @@ func TestSmartOrderGetInEntryShort(t *testing.T) {
 func TestSmartOrderGetInTrailingEntryLong(t *testing.T) {
 	smartOrderModel := GetTestSmartOrderStrategy("trailingEntryLong")
 	// price rises
-	fakeDataStream := []smart_order.OHLCV{{
+	fakeDataStream := []interfaces.OHLCV{{
 		Open:   7100,
 		High:   7101,
 		Low:    7000,
@@ -194,7 +196,7 @@ func TestSmartOrderGetInTrailingEntryLong(t *testing.T) {
 func TestSmartOrderGetInTrailingEntryShort(t *testing.T) {
 	smartOrderModel := GetTestSmartOrderStrategy("trailingEntryShort")
 	// price falls
-	fakeDataStream := []smart_order.OHLCV{{
+	fakeDataStream := []interfaces.OHLCV{{
 		Open:   7100,
 		High:   7101,
 		Low:    7000,

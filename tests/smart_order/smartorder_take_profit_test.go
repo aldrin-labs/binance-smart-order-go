@@ -3,21 +3,23 @@ package smart_order
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"testing"
+	"time"
+
 	"github.com/qmuntal/stateless"
+	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies/smart_order"
 	"gitlab.com/crypto_project/core/strategy_service/tests"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"strconv"
-	"testing"
-	"time"
 )
 
 // smart order should take profit if condition is met
 func TestSmartTakeProfit(t *testing.T) {
 	smartOrderModel := GetTestSmartOrderStrategy("TakeProfitMarket")
 	// price rises
-	fakeDataStream := []smart_order.OHLCV{{
+	fakeDataStream := []interfaces.OHLCV{{
 		Open:   7100,
 		High:   7101,
 		Low:    7000,
@@ -60,50 +62,50 @@ func TestSmartTakeProfit(t *testing.T) {
 }
 
 func TestSmartOrderTakeProfit(t *testing.T) {
-	fakeDataStream := []smart_order.OHLCV{
+	fakeDataStream := []interfaces.OHLCV{
 		{
-		Open:   7100,
-		High:   7101,
-		Low:    7000,
-		Close:  7005,
-		Volume: 30,
-	}, { // Activation price
-		Open:   7005,
-		High:   7005,
-		Low:    6900,
-		Close:  6900,
-		Volume: 30,
-	}, { // Hit entry
-		Open:   7305,
-		High:   7305,
-		Low:    7300,
-		Close:  7300,
-		Volume: 30,
+			Open:   7100,
+			High:   7101,
+			Low:    7000,
+			Close:  7005,
+			Volume: 30,
+		}, { // Activation price
+			Open:   7005,
+			High:   7005,
+			Low:    6900,
+			Close:  6900,
+			Volume: 30,
 		}, { // Hit entry
 			Open:   7305,
 			High:   7305,
 			Low:    7300,
 			Close:  7300,
 			Volume: 30,
-	}, { // Take profit
-		Open:   7705,
-		High:   7705,
-		Low:    7700,
-		Close:  7700,
-		Volume: 30,
-	}, { // Take profit
-		Open:   7705,
-		High:   7705,
-		Low:    7700,
-		Close:  7700,
-		Volume: 30,
-	}, { // Take profit
-		Open:   7705,
-		High:   7705,
-		Low:    7700,
-		Close:  7700,
-		Volume: 30,
-	}}
+		}, { // Hit entry
+			Open:   7305,
+			High:   7305,
+			Low:    7300,
+			Close:  7300,
+			Volume: 30,
+		}, { // Take profit
+			Open:   7705,
+			High:   7705,
+			Low:    7700,
+			Close:  7700,
+			Volume: 30,
+		}, { // Take profit
+			Open:   7705,
+			High:   7705,
+			Low:    7700,
+			Close:  7700,
+			Volume: 30,
+		}, { // Take profit
+			Open:   7705,
+			High:   7705,
+			Low:    7700,
+			Close:  7700,
+			Volume: 30,
+		}}
 	smartOrderModel := GetTestSmartOrderStrategy("takeProfit")
 	df := tests.NewMockedDataFeed(fakeDataStream)
 	tradingApi := tests.NewMockedTradingAPI()
@@ -131,7 +133,7 @@ func TestSmartOrderTakeProfit(t *testing.T) {
 
 // Smart order can take profit on multiple price targets, not only at one price
 func TestSmartOrderTakeProfitAllTargets(t *testing.T) {
-	fakeDataStream := []smart_order.OHLCV{{
+	fakeDataStream := []interfaces.OHLCV{{
 		Open:   7100,
 		High:   7101,
 		Low:    7000,
@@ -189,7 +191,7 @@ func TestSmartOrderTakeProfitAllTargets(t *testing.T) {
 	})
 	go smartOrder.Start()
 	time.Sleep(2 * time.Second)
-	if tradingApi.CallCount["sell"] != 3 && tradingApi.AmountSum["binanceBTC_USDTsell"] != smartOrder.Strategy.Model.Conditions.EntryOrder.Amount {
-		t.Error("SmartOrder didn't reach all 3 targets, but reached", tradingApi.CallCount["sell"], tradingApi.AmountSum["binanceBTC_USDTsell"], smartOrder.Strategy.Model.Conditions.EntryOrder.Amount)
+	if tradingApi.CallCount["sell"] != 3 && tradingApi.AmountSum["binanceBTC_USDTsell"] != smartOrder.Strategy.GetModel().Conditions.EntryOrder.Amount {
+		t.Error("SmartOrder didn't reach all 3 targets, but reached", tradingApi.CallCount["sell"], tradingApi.AmountSum["binanceBTC_USDTsell"], smartOrder.Strategy.GetModel().Conditions.EntryOrder.Amount)
 	}
 }
