@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/qmuntal/stateless"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies"
+	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies/smart_order"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
 	"gitlab.com/crypto_project/core/strategy_service/tests"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -14,7 +15,7 @@ import (
 
 
 func TestSmartOrderTrailingEntryAndThenActivateTrailingWithHighLeverage(t *testing.T) {
-	fakeDataStream := []strategies.OHLCV{
+	fakeDataStream := []smart_order.OHLCV{
 		{
 			Open:   7100,
 			High:   7101,
@@ -56,13 +57,13 @@ func TestSmartOrderTrailingEntryAndThenActivateTrailingWithHighLeverage(t *testi
 	keyId := primitive.NewObjectID()
 	//sm := mongodb.StateMgmt{}
 	sm := tests.NewMockedStateMgmt(tradingApi)
-	smartOrder := strategies.NewSmartOrder(&strategy, df, sm.Trading, &keyId, &sm)
+	smartOrder := smart_order.NewSmartOrder(&strategy, df, sm.Trading, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
 	})
 	go smartOrder.Start()
 	time.Sleep(10 * time.Second)
-	isInState, _ := smartOrder.State.IsInState(strategies.InEntry)
+	isInState, _ := smartOrder.State.IsInState(smart_order.InEntry)
 	if !isInState {
 		state, _ := smartOrder.State.State(context.Background())
 		stateStr := fmt.Sprintf("%v", state)
@@ -71,7 +72,7 @@ func TestSmartOrderTrailingEntryAndThenActivateTrailingWithHighLeverage(t *testi
 }
 
 func TestSmartOrderTrailingEntryAndTrailingExitWithHighLeverage(t *testing.T) {
-	fakeDataStream := []strategies.OHLCV{
+	fakeDataStream := []smart_order.OHLCV{
 		{
 			Open:   7100,
 			High:   7101,
@@ -120,13 +121,13 @@ func TestSmartOrderTrailingEntryAndTrailingExitWithHighLeverage(t *testing.T) {
 	keyId := primitive.NewObjectID()
 	//sm := mongodb.StateMgmt{}
 	sm := tests.NewMockedStateMgmt(tradingApi)
-	smartOrder := strategies.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
+	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
 	})
 	go smartOrder.Start()
 	time.Sleep(8 * time.Second)
-	isInState, _ := smartOrder.State.IsInState(strategies.End)
+	isInState, _ := smartOrder.State.IsInState(smart_order.End)
 	if !isInState {
 		state, _ := smartOrder.State.State(context.Background())
 		stateStr := fmt.Sprintf("%v", state)
@@ -135,7 +136,7 @@ func TestSmartOrderTrailingEntryAndTrailingExitWithHighLeverage(t *testing.T) {
 }
 
 func TestSmartOrderTrailingEntryAndFollowTrailingMaximumsWithoutEarlyExitWithHighLeverage(t *testing.T) {
-	fakeDataStream := []strategies.OHLCV{
+	fakeDataStream := []smart_order.OHLCV{
 		{
 			Open:   7100,
 			High:   7101,
@@ -193,7 +194,7 @@ func TestSmartOrderTrailingEntryAndFollowTrailingMaximumsWithoutEarlyExitWithHig
 	keyId := primitive.NewObjectID()
 	//sm := mongodb.StateMgmt{}
 	sm := tests.NewMockedStateMgmt(tradingApi)
-	smartOrder := strategies.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
+	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
 	})
@@ -201,7 +202,7 @@ func TestSmartOrderTrailingEntryAndFollowTrailingMaximumsWithoutEarlyExitWithHig
 	go smartOrder.Start()
 	time.Sleep(5 * time.Second)
 	// Check if we got in entry, and follow trailing maximum
-	isInState, _ := smartOrder.State.IsInState(strategies.InEntry)
+	isInState, _ := smartOrder.State.IsInState(smart_order.InEntry)
 	if !isInState {
 		state, _ := smartOrder.State.State(context.Background())
 		stateStr := fmt.Sprintf("%v", state)
@@ -230,7 +231,7 @@ func TestSmartOrderTrailingEntryAndFollowTrailingMaximumsWithoutEarlyExitWithHig
 	}
 
 	// Check if update trailings and cancel previous orders
-	fakeDataStream2 := []strategies.OHLCV{
+	fakeDataStream2 := []smart_order.OHLCV{
 		{ // It goes up..
 			Open:   7180,
 			High:   7180,

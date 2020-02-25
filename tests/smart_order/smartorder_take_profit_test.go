@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/qmuntal/stateless"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies"
+	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies/smart_order"
 	"gitlab.com/crypto_project/core/strategy_service/tests"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"strconv"
@@ -16,7 +17,7 @@ import (
 func TestSmartTakeProfit(t *testing.T) {
 	smartOrderModel := GetTestSmartOrderStrategy("TakeProfitMarket")
 	// price rises
-	fakeDataStream := []strategies.OHLCV{{
+	fakeDataStream := []smart_order.OHLCV{{
 		Open:   7100,
 		High:   7101,
 		Low:    7000,
@@ -36,7 +37,7 @@ func TestSmartTakeProfit(t *testing.T) {
 	}
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi)
-	smartOrder := strategies.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
+	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
 	})
@@ -49,7 +50,7 @@ func TestSmartTakeProfit(t *testing.T) {
 	}
 
 	// check if we are in right state
-	isInState, _ := smartOrder.State.IsInState(strategies.End)
+	isInState, _ := smartOrder.State.IsInState(smart_order.End)
 	if !isInState {
 		state, _ := smartOrder.State.State(context.Background())
 		stateStr := fmt.Sprintf("%v", state)
@@ -59,7 +60,7 @@ func TestSmartTakeProfit(t *testing.T) {
 }
 
 func TestSmartOrderTakeProfit(t *testing.T) {
-	fakeDataStream := []strategies.OHLCV{
+	fakeDataStream := []smart_order.OHLCV{
 		{
 		Open:   7100,
 		High:   7101,
@@ -112,7 +113,7 @@ func TestSmartOrderTakeProfit(t *testing.T) {
 	keyId := primitive.NewObjectID()
 	//sm := mongodb.StateMgmt{}
 	sm := tests.NewMockedStateMgmt(tradingApi)
-	smartOrder := strategies.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
+	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
 	})
@@ -120,7 +121,7 @@ func TestSmartOrderTakeProfit(t *testing.T) {
 	time.Sleep(2 * time.Second)
 	// TODO: now checking if TakeProfit is triggering, but it stops when sm.exit returns default "End" state
 	// TODO: so it should test for TakeProfit state or calls to exchange API or maybe for smart order results?
-	isInState, _ := smartOrder.State.IsInState(strategies.End)
+	isInState, _ := smartOrder.State.IsInState(smart_order.End)
 	if !isInState {
 		state, _ := smartOrder.State.State(context.Background())
 		stateStr := fmt.Sprintf("%v", state)
@@ -130,7 +131,7 @@ func TestSmartOrderTakeProfit(t *testing.T) {
 
 // Smart order can take profit on multiple price targets, not only at one price
 func TestSmartOrderTakeProfitAllTargets(t *testing.T) {
-	fakeDataStream := []strategies.OHLCV{{
+	fakeDataStream := []smart_order.OHLCV{{
 		Open:   7100,
 		High:   7101,
 		Low:    7000,
@@ -182,7 +183,7 @@ func TestSmartOrderTakeProfitAllTargets(t *testing.T) {
 	keyId := primitive.NewObjectID()
 	//sm := mongodb.StateMgmt{}
 	sm := tests.NewMockedStateMgmt(tradingApi)
-	smartOrder := strategies.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm) //TODO
+	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm) //TODO
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
 	})
