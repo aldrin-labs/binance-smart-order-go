@@ -26,6 +26,7 @@ const (
 	Canceled           = "Canceled"
 	EnterNextTarget    = "EnterNextTarget"
 	Timeout            = "Timeout"
+	Error			= "Error"
 )
 
 const (

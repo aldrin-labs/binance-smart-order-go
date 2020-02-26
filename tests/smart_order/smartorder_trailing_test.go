@@ -3,19 +3,20 @@ package smart_order
 import (
 	"context"
 	"fmt"
+	"testing"
+	"time"
+
 	"github.com/qmuntal/stateless"
+	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies/smart_order"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
 	"gitlab.com/crypto_project/core/strategy_service/tests"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"testing"
-	"time"
 )
 
-
 func TestSmartOrderTrailingEntryAndThenActivateTrailingWithHighLeverage(t *testing.T) {
-	fakeDataStream := []smart_order.OHLCV{
+	fakeDataStream := []interfaces.OHLCV{
 		{
 			Open:   7100,
 			High:   7101,
@@ -72,7 +73,7 @@ func TestSmartOrderTrailingEntryAndThenActivateTrailingWithHighLeverage(t *testi
 }
 
 func TestSmartOrderTrailingEntryAndTrailingExitWithHighLeverage(t *testing.T) {
-	fakeDataStream := []smart_order.OHLCV{
+	fakeDataStream := []interfaces.OHLCV{
 		{
 			Open:   7100,
 			High:   7101,
@@ -136,7 +137,7 @@ func TestSmartOrderTrailingEntryAndTrailingExitWithHighLeverage(t *testing.T) {
 }
 
 func TestSmartOrderTrailingEntryAndFollowTrailingMaximumsWithoutEarlyExitWithHighLeverage(t *testing.T) {
-	fakeDataStream := []smart_order.OHLCV{
+	fakeDataStream := []interfaces.OHLCV{
 		{
 			Open:   7100,
 			High:   7101,
@@ -210,15 +211,15 @@ func TestSmartOrderTrailingEntryAndFollowTrailingMaximumsWithoutEarlyExitWithHig
 	}
 	expectedEntryPrice := 6952.09
 	expectedTrailingExitPrice := 7170.0
-	entryPrice := smartOrder.Strategy.Model.State.EntryPrice
+	entryPrice := smartOrder.Strategy.GetModel().State.EntryPrice
 	if entryPrice != expectedEntryPrice {
 		t.Error("SmartOrder entryPrice != " + fmt.Sprintf("%f", entryPrice) + "")
 	}
-	if len(smartOrder.Strategy.Model.State.TrailingExitPrices) == 0 {
+	if len(smartOrder.Strategy.GetModel().State.TrailingExitPrices) == 0 {
 		t.Error("No trailing exit price")
 		return
 	}
-	trailingExitPrice := smartOrder.Strategy.Model.State.TrailingExitPrices[0]
+	trailingExitPrice := smartOrder.Strategy.GetModel().State.TrailingExitPrices[0]
 	if trailingExitPrice != expectedTrailingExitPrice {
 		t.Error("SmartOrder trailingExitPrice " + fmt.Sprintf("%f", trailingExitPrice) + " != " + fmt.Sprintf("%f", expectedTrailingExitPrice) + "")
 	}
@@ -231,7 +232,7 @@ func TestSmartOrderTrailingEntryAndFollowTrailingMaximumsWithoutEarlyExitWithHig
 	}
 
 	// Check if update trailings and cancel previous orders
-	fakeDataStream2 := []smart_order.OHLCV{
+	fakeDataStream2 := []interfaces.OHLCV{
 		{ // It goes up..
 			Open:   7180,
 			High:   7180,
@@ -259,7 +260,7 @@ func TestSmartOrderTrailingEntryAndFollowTrailingMaximumsWithoutEarlyExitWithHig
 	time.Sleep(3 * time.Second)
 	// test 2
 	expectedTrailingExitPrice = 7370.0
-	trailingExitPrice = smartOrder.Strategy.Model.State.TrailingExitPrices[0]
+	trailingExitPrice = smartOrder.Strategy.GetModel().State.TrailingExitPrices[0]
 	if trailingExitPrice != expectedTrailingExitPrice {
 		t.Error("SmartOrder trailingExitPrice " + fmt.Sprintf("%f", trailingExitPrice) + " != " + fmt.Sprintf("%f", expectedTrailingExitPrice) + "")
 	}

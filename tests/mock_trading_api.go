@@ -3,22 +3,23 @@ package tests
 import (
 	"container/list"
 	"fmt"
+	"strconv"
+	"sync"
+
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
 	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"strconv"
-	"sync"
 )
 
 type MockTrading struct {
-	OrdersMap *sync.Map
-	CreatedOrders *list.List
+	OrdersMap      *sync.Map
+	CreatedOrders  *list.List
 	CanceledOrders *list.List
-	CallCount map[string]int
-	AmountSum map[string]float64
-	Feed *MockDataFeed
-	BuyDelay int
-	SellDelay int
+	CallCount      *sync.Map
+	AmountSum      *sync.Map
+	Feed           *MockDataFeed
+	BuyDelay       int
+	SellDelay      int
 }
 
 func (mt MockTrading) UpdateLeverage(keyId *primitive.ObjectID, leverage float64, symbol string) interface{} {
@@ -27,13 +28,13 @@ func (mt MockTrading) UpdateLeverage(keyId *primitive.ObjectID, leverage float64
 
 func NewMockedTradingAPI() *MockTrading {
 	mockTrading := MockTrading{
-		CallCount: map[string]int{},
-		AmountSum: map[string]float64{},
-		CreatedOrders: list.New(),
+		CallCount:      &sync.Map{},
+		AmountSum:      &sync.Map{},
+		CreatedOrders:  list.New(),
 		CanceledOrders: list.New(),
-		OrdersMap: &sync.Map{},
-		BuyDelay: 1000, // default 1 sec wait before orders got filled
-		SellDelay: 1000, // default 1 sec wait before orders got filled
+		OrdersMap:      &sync.Map{},
+		BuyDelay:       1000, // default 1 sec wait before orders got filled
+		SellDelay:      1000, // default 1 sec wait before orders got filled
 	}
 
 	return &mockTrading
@@ -41,47 +42,42 @@ func NewMockedTradingAPI() *MockTrading {
 
 func NewMockedTradingAPIWithMarketAccess(feed *MockDataFeed) *MockTrading {
 	mockTrading := MockTrading{
-		CallCount: map[string]int{},
-		AmountSum: map[string]float64{},
-		Feed: feed,
-		CreatedOrders: list.New(),
+		CallCount:      &sync.Map{},
+		AmountSum:      &sync.Map{},
+		Feed:           feed,
+		CreatedOrders:  list.New(),
 		CanceledOrders: list.New(),
-		OrdersMap: &sync.Map{},
+		OrdersMap:      &sync.Map{},
 	}
 
 	return &mockTrading
 }
 
 func (mt MockTrading) CreateOrder(req trading.CreateOrderRequest) trading.OrderResponse {
-	fmt.Printf("Create Order Request: %v %f", req, req.KeyParams.Amount)
-	println()
-	//if mt.CallCount[exchange] {
-	//	callCount[exchange] = 0
-	//}
-	//if callCount[side] == nil {
-	//	callCount[side] = 0
-	//}
-	//if callCount[pair] == nil {
-	//	callCount[pair] = 0
-	//}
-	//println("create order", exchange, pair, side)
-	//println("create order", req.KeyParams.Symbol, req.KeyParams.Side)
-	//fmt.Printf("%f\n", req.KeyParams.Amount)
-	//mt.CallCount[exchange]++
-	mt.CallCount[req.KeyParams.Side]++
-	mt.CallCount[req.KeyParams.Symbol]++
+	fmt.Printf("Create Order Request: %v %f \n", req, req.KeyParams.Amount)
+
+	callCount, _ := mt.CallCount.LoadOrStore(req.KeyParams.Side, 0)
+	mt.CallCount.Store(req.KeyParams.Side, callCount.(int)+1)
+
+	callCount, _ = mt.CallCount.LoadOrStore(req.KeyParams.Symbol, 0)
+	mt.CallCount.Store(req.KeyParams.Symbol, callCount.(int)+1)
+
 	//mt.AmountSum[exchange+pair+side+fmt.Sprintf("%f", price)] += amount
-	mt.AmountSum[req.KeyParams.Symbol+req.KeyParams.Side+fmt.Sprintf("%f", req.KeyParams.Price)] += req.KeyParams.Amount
-	orderId := req.KeyParams.Symbol + strconv.Itoa(mt.CallCount[req.KeyParams.Symbol])
+	amountSumKey := req.KeyParams.Symbol + req.KeyParams.Side + fmt.Sprintf("%f", req.KeyParams.Price)
+	amountSum, _ := mt.AmountSum.LoadOrStore(amountSumKey, 0.0)
+	mt.AmountSum.Store(amountSumKey, amountSum.(float64)+req.KeyParams.Amount)
+
+	callCount, _ = mt.CallCount.Load(req.KeyParams.Symbol)
+	orderId := req.KeyParams.Symbol + strconv.Itoa(callCount.(int))
 	order := models.MongoOrder{
-		Status:  "filled",
-		OrderId: orderId,
-		Average: req.KeyParams.Price,
-		Filled:  req.KeyParams.Amount,
-		Type: req.KeyParams.Type,
-		Side: req.KeyParams.Side,
-		Symbol: req.KeyParams.Symbol,
-		StopPrice: req.KeyParams.StopPrice,
+		Status:     "filled",
+		OrderId:    orderId,
+		Average:    req.KeyParams.Price,
+		Filled:     req.KeyParams.Amount,
+		Type:       req.KeyParams.Type,
+		Side:       req.KeyParams.Side,
+		Symbol:     req.KeyParams.Symbol,
+		StopPrice:  req.KeyParams.StopPrice,
 		ReduceOnly: req.KeyParams.ReduceOnly,
 	}
 	if order.Average == 0 {
@@ -109,7 +105,8 @@ func (mt MockTrading) CreateOrder(req trading.CreateOrderRequest) trading.OrderR
 }
 
 func (mt MockTrading) CancelOrder(req trading.CancelOrderRequest) trading.OrderResponse {
-	orderId := string(mt.CallCount[req.KeyParams.Pair]) + strconv.Itoa(mt.CallCount[req.KeyParams.Pair])
+	callCount, _ := mt.CallCount.Load(req.KeyParams.Pair)
+	orderId := string(callCount.(int)) + strconv.Itoa(callCount.(int))
 
 	orderRaw, ok := mt.OrdersMap.Load(orderId)
 	var order models.MongoOrder

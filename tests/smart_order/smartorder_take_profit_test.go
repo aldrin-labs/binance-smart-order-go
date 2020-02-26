@@ -3,21 +3,23 @@ package smart_order
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"testing"
+	"time"
+
 	"github.com/qmuntal/stateless"
+	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies/smart_order"
 	"gitlab.com/crypto_project/core/strategy_service/tests"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"strconv"
-	"testing"
-	"time"
 )
 
 // smart order should take profit if condition is met
 func TestSmartTakeProfit(t *testing.T) {
 	smartOrderModel := GetTestSmartOrderStrategy("TakeProfitMarket")
 	// price rises
-	fakeDataStream := []smart_order.OHLCV{{
+	fakeDataStream := []interfaces.OHLCV{{
 		Open:   7100,
 		High:   7101,
 		Low:    7000,
@@ -45,8 +47,12 @@ func TestSmartTakeProfit(t *testing.T) {
 	time.Sleep(1450 * time.Millisecond)
 
 	// check that one call with 'sell' and one with 'BTC_USDT' should be done
-	if tradingApi.CallCount["sell"] == 0 || tradingApi.CallCount["BTC_USDT"] == 0 {
-		t.Error("There were " + strconv.Itoa(tradingApi.CallCount["buy"]) + " trading api calls with buy params and " + strconv.Itoa(tradingApi.CallCount["BTC_USDT"]) + " with BTC_USDT params")
+	sellCallCount, sellFound := tradingApi.CallCount.Load("sell")
+	btcUsdtCallCount, usdtBtcFound := tradingApi.CallCount.Load("BTC_USDT")
+	if !sellFound || !usdtBtcFound || sellCallCount == 0 || btcUsdtCallCount == 0 {
+		t.Error("There were 0 trading api calls with sell params and 0 with BTC_USDT params")
+	} else {
+		fmt.Println("Success! There were " + strconv.Itoa(sellCallCount.(int)) + " trading api calls with sell params and " + strconv.Itoa(btcUsdtCallCount.(int)) + " with BTC_USDT params")
 	}
 
 	// check if we are in right state
@@ -56,54 +62,53 @@ func TestSmartTakeProfit(t *testing.T) {
 		stateStr := fmt.Sprintf("%v", state)
 		t.Error("SmartOrder state is not TakeProfit (State: " + stateStr + ")")
 	}
-	fmt.Println("Success! There were " + strconv.Itoa(tradingApi.CallCount["sell"]) + " trading api calls with buy params and " + strconv.Itoa(tradingApi.CallCount["BTC_USDT"]) + " with BTC_USDT params")
 }
 
 func TestSmartOrderTakeProfit(t *testing.T) {
-	fakeDataStream := []smart_order.OHLCV{
+	fakeDataStream := []interfaces.OHLCV{
 		{
-		Open:   7100,
-		High:   7101,
-		Low:    7000,
-		Close:  7005,
-		Volume: 30,
-	}, { // Activation price
-		Open:   7005,
-		High:   7005,
-		Low:    6900,
-		Close:  6900,
-		Volume: 30,
-	}, { // Hit entry
-		Open:   7305,
-		High:   7305,
-		Low:    7300,
-		Close:  7300,
-		Volume: 30,
+			Open:   7100,
+			High:   7101,
+			Low:    7000,
+			Close:  7005,
+			Volume: 30,
+		}, { // Activation price
+			Open:   7005,
+			High:   7005,
+			Low:    6900,
+			Close:  6900,
+			Volume: 30,
 		}, { // Hit entry
 			Open:   7305,
 			High:   7305,
 			Low:    7300,
 			Close:  7300,
 			Volume: 30,
-	}, { // Take profit
-		Open:   7705,
-		High:   7705,
-		Low:    7700,
-		Close:  7700,
-		Volume: 30,
-	}, { // Take profit
-		Open:   7705,
-		High:   7705,
-		Low:    7700,
-		Close:  7700,
-		Volume: 30,
-	}, { // Take profit
-		Open:   7705,
-		High:   7705,
-		Low:    7700,
-		Close:  7700,
-		Volume: 30,
-	}}
+		}, { // Hit entry
+			Open:   7305,
+			High:   7305,
+			Low:    7300,
+			Close:  7300,
+			Volume: 30,
+		}, { // Take profit
+			Open:   7705,
+			High:   7705,
+			Low:    7700,
+			Close:  7700,
+			Volume: 30,
+		}, { // Take profit
+			Open:   7705,
+			High:   7705,
+			Low:    7700,
+			Close:  7700,
+			Volume: 30,
+		}, { // Take profit
+			Open:   7705,
+			High:   7705,
+			Low:    7700,
+			Close:  7700,
+			Volume: 30,
+		}}
 	smartOrderModel := GetTestSmartOrderStrategy("takeProfit")
 	df := tests.NewMockedDataFeed(fakeDataStream)
 	tradingApi := tests.NewMockedTradingAPI()
@@ -131,7 +136,7 @@ func TestSmartOrderTakeProfit(t *testing.T) {
 
 // Smart order can take profit on multiple price targets, not only at one price
 func TestSmartOrderTakeProfitAllTargets(t *testing.T) {
-	fakeDataStream := []smart_order.OHLCV{{
+	fakeDataStream := []interfaces.OHLCV{{
 		Open:   7100,
 		High:   7101,
 		Low:    7000,
@@ -189,7 +194,10 @@ func TestSmartOrderTakeProfitAllTargets(t *testing.T) {
 	})
 	go smartOrder.Start()
 	time.Sleep(2 * time.Second)
-	if tradingApi.CallCount["sell"] != 3 && tradingApi.AmountSum["binanceBTC_USDTsell"] != smartOrder.Strategy.Model.Conditions.EntryOrder.Amount {
-		t.Error("SmartOrder didn't reach all 3 targets, but reached", tradingApi.CallCount["sell"], tradingApi.AmountSum["binanceBTC_USDTsell"], smartOrder.Strategy.Model.Conditions.EntryOrder.Amount)
+
+	sellCallCount, _ := tradingApi.CallCount.Load("sell")
+	amountSum, _ := tradingApi.AmountSum.Load("binanceBTC_USDTsell")
+	if sellCallCount != 3 && amountSum != smartOrder.Strategy.GetModel().Conditions.EntryOrder.Amount {
+		t.Error("SmartOrder didn't reach all 3 targets, but reached", sellCallCount, amountSum, smartOrder.Strategy.GetModel().Conditions.EntryOrder.Amount)
 	}
 }
