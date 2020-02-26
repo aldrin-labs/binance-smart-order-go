@@ -50,7 +50,9 @@ func TestSmartTakeProfit(t *testing.T) {
 	sellCallCount, sellFound := tradingApi.CallCount.Load("sell")
 	btcUsdtCallCount, usdtBtcFound := tradingApi.CallCount.Load("BTC_USDT")
 	if !sellFound || !usdtBtcFound || sellCallCount == 0 || btcUsdtCallCount == 0 {
-		t.Error("There were " + strconv.Itoa(sellCallCount.(int)) + " trading api calls with sell params and " + strconv.Itoa(btcUsdtCallCount.(int)) + " with BTC_USDT params")
+		t.Error("There were 0 trading api calls with sell params and 0 with BTC_USDT params")
+	} else {
+		fmt.Println("Success! There were " + strconv.Itoa(sellCallCount.(int)) + " trading api calls with sell params and " + strconv.Itoa(btcUsdtCallCount.(int)) + " with BTC_USDT params")
 	}
 
 	// check if we are in right state
@@ -60,7 +62,6 @@ func TestSmartTakeProfit(t *testing.T) {
 		stateStr := fmt.Sprintf("%v", state)
 		t.Error("SmartOrder state is not TakeProfit (State: " + stateStr + ")")
 	}
-	fmt.Println("Success! There were " + strconv.Itoa(sellCallCount.(int)) + " trading api calls with sell params and " + strconv.Itoa(btcUsdtCallCount.(int)) + " with BTC_USDT params")
 }
 
 func TestSmartOrderTakeProfit(t *testing.T) {
