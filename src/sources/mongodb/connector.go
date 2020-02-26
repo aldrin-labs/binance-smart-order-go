@@ -25,7 +25,7 @@ func GetMongoClientInstance() *mongo.Client {
 		url := os.Getenv("MONGODB")
 		timeout := 10 * time.Second
 		ctx, _ := context.WithTimeout(context.Background(), timeout)
-		client, _ := mongo.Connect(ctx, options.Client().SetDirect(true).
+		client, _ := mongo.Connect(ctx, options.Client().SetDirect(false).
 			SetReadPreference(readpref.Primary()).
 			SetWriteConcern(writeconcern.New(writeconcern.WMajority())).
 			SetRetryWrites(true).
@@ -186,13 +186,17 @@ func (sm *StateMgmt) UpdateState(strategyId primitive.ObjectID, state *models.Mo
 		{"_id", strategyId},
 	}
 	var update bson.D
+	updates := bson.D{
+		{
+			"state.state", state.State,
+		},
+	}
+	if len(state.Msg) > 0 {
+		updates = append(updates, bson.E{Key: "state.msg", Value: state.Msg})
+	}
 	update = bson.D{
 		{
-			"$set", bson.D{
-			{
-				"state.state", state.State,
-			},
-		},
+			"$set", updates,
 		},
 	}
 	updated, err := col.UpdateOne(context.TODO(), request, update)
