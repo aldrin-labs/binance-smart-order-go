@@ -8,21 +8,23 @@ package smart_order
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"testing"
+	"time"
+
 	"github.com/qmuntal/stateless"
+	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies/smart_order"
 	"gitlab.com/crypto_project/core/strategy_service/tests"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"strconv"
-	"testing"
-	"time"
 )
 
 // smart order should create limit order while still in waitingForEntry state if not trailing
 func TestSmartOrderGetInEntryLong(t *testing.T) {
 	smartOrderModel := GetTestSmartOrderStrategy("entryLong")
 	// price dips in the middle (This has no meaning now, reuse and then remove fake data stream)
-	fakeDataStream := []smart_order.OHLCV{{
+	fakeDataStream := []interfaces.OHLCV{{
 		Open:   7100,
 		High:   7101,
 		Low:    7000,
@@ -56,17 +58,21 @@ func TestSmartOrderGetInEntryLong(t *testing.T) {
 	time.Sleep(800 * time.Millisecond)
 
 	// one call with 'buy' and one with 'BTC_USDT' should be done
-	if tradingApi.CallCount["buy"] == 0 || tradingApi.CallCount["BTC_USDT"] == 0 {
-		t.Error("There were " + strconv.Itoa(tradingApi.CallCount["buy"]) + " trading api calls with buy params and " + strconv.Itoa(tradingApi.CallCount["BTC_USDT"]) + " with BTC_USDT params")
+	buyCallCount, buyFound := tradingApi.CallCount.Load("buy")
+	btcUsdtCallCount, usdtBtcFound := tradingApi.CallCount.Load("BTC_USDT")
+
+	if !buyFound || !usdtBtcFound || buyCallCount == 0 || btcUsdtCallCount == 0 {
+		t.Error("There were 0 trading api calls with buy params and 0 with BTC_USDT params")
+	} else {
+		fmt.Println("Success! There were " + strconv.Itoa(buyCallCount.(int)) + " trading api calls with buy params and " + strconv.Itoa(btcUsdtCallCount.(int)) + " with BTC_USDT params")
 	}
-	//fmt.Println("Success! There were " + strconv.Itoa(tradingApi.CallCount["buy"]) + " trading api calls with buy params and " + strconv.Itoa(tradingApi.CallCount["BTC_USDT"]) + " with BTC_USDT params")
 }
 
 // smart order should create limit order while still in waitingForEntry state if not trailing
 func TestSmartOrderGetInEntryShort(t *testing.T) {
 	smartOrderModel := GetTestSmartOrderStrategy("entryShort")
 	// price rises (This has no meaning now, reuse and then remove fake data stream)
-	fakeDataStream := []smart_order.OHLCV{{
+	fakeDataStream := []interfaces.OHLCV{{
 		Open:   6800,
 		High:   7101,
 		Low:    6750,
@@ -100,17 +106,20 @@ func TestSmartOrderGetInEntryShort(t *testing.T) {
 	time.Sleep(800 * time.Millisecond)
 
 	// one call with 'sell' and one with 'BTC_USDT' should be done
-	if tradingApi.CallCount["sell"] == 0 || tradingApi.CallCount["BTC_USDT"] == 0 {
-		t.Error("There were " + strconv.Itoa(tradingApi.CallCount["sell"]) + " trading api calls with sell params and " + strconv.Itoa(tradingApi.CallCount["BTC_USDT"]) + " with BTC_USDT params")
+	sellCallCount, sellOk := tradingApi.CallCount.Load("sell")
+	btcUsdtCallCount, usdtBtcOk := tradingApi.CallCount.Load("BTC_USDT")
+	if !sellOk || !usdtBtcOk || sellCallCount == 0 || btcUsdtCallCount == 0 {
+		t.Error("There were 0 trading api calls with sell params and 0 with BTC_USDT params")
+	} else {
+		fmt.Println("Success! There were " + strconv.Itoa(sellCallCount.(int)) + " trading api calls with sell params and " + strconv.Itoa(btcUsdtCallCount.(int)) + " with BTC_USDT params")
 	}
-	fmt.Println("Success! There were " + strconv.Itoa(tradingApi.CallCount["sell"]) + " trading api calls with sell params and " + strconv.Itoa(tradingApi.CallCount["BTC_USDT"]) + " with BTC_USDT params")
 }
 
 // smart order should transition to TrailingEntry state if ActivatePrice > 0 AND currect OHLCV close price is less than condition price
 func TestSmartOrderGetInTrailingEntryLong(t *testing.T) {
 	smartOrderModel := GetTestSmartOrderStrategy("trailingEntryLong")
 	// price rises
-	fakeDataStream := []smart_order.OHLCV{{
+	fakeDataStream := []interfaces.OHLCV{{
 		Open:   7100,
 		High:   7101,
 		Low:    7000,
@@ -194,7 +203,7 @@ func TestSmartOrderGetInTrailingEntryLong(t *testing.T) {
 func TestSmartOrderGetInTrailingEntryShort(t *testing.T) {
 	smartOrderModel := GetTestSmartOrderStrategy("trailingEntryShort")
 	// price falls
-	fakeDataStream := []smart_order.OHLCV{{
+	fakeDataStream := []interfaces.OHLCV{{
 		Open:   7100,
 		High:   7101,
 		Low:    7000,

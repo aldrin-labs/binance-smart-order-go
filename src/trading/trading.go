@@ -14,17 +14,19 @@ import (
 )
 
 type OrderResponseData struct {
-	Id string `json:"orderId"`
-	OrderId string `json:"orderId"`
-	Status string `json:"status"`
-	Price float64 `json:"price"`
+	Id      string  `json:"orderId"`
+	Msg     string  `json:"msg,string"`
+	OrderId string  `json:"orderId"`
+	Status  string  `json:"status"`
+	Price   float64 `json:"price"`
 	Average float64 `json:"average"`
-	Filled float64 `json:"filled"`
+	Filled  float64 `json:"filled"`
+	Code    int64   `json:"code" bson:"code"`
 }
 
 type OrderResponse struct {
-	Status string `json:"status"`
-	Data OrderResponseData `json:"data"`
+	Status string            `json:"status"`
+	Data   OrderResponseData `json:"data"`
 }
 
 type ITrading interface {
@@ -68,6 +70,7 @@ func Request(method string, data interface{}) interface{} {
 	_ = json.Unmarshal(body, &response)
 	return response
 }
+
 /*
 {"status":"OK","data":{"info":
 {"symbol":"BTCUSDT","orderId":878847053,"orderListId":-1,
@@ -87,7 +90,7 @@ func Request(method string, data interface{}) interface{} {
 "qty":"0.00200100","commission":"0.00072150","commissionAsset":"BNB","tradeId":214094126},
 "symbol":"BTC/USDT","price":7505.61,"amount":0.002001,"cost":15.01872561,
 "fee":{"cost":0.0007215,"currency":"BNB"}}]}}
- */
+*/
 /*
 {
 	"keyId": "5ca48f82744e09001ac430d5",
@@ -102,48 +105,49 @@ func Request(method string, data interface{}) interface{} {
 */
 
 type OrderParams struct {
-	StopPrice float64 `json:"stopPrice,omitempty" bson:"stopPrice"`
-	Type      string  `json:"type,omitempty" bson:"type"`
-	MaxIfNotEnough int `json:"maxIfNotEnough,omitempty"`
-	Update bool `json:"update,omitempty"`
+	StopPrice      float64 `json:"stopPrice,omitempty" bson:"stopPrice"`
+	Type           string  `json:"type,omitempty" bson:"type"`
+	MaxIfNotEnough int     `json:"maxIfNotEnough,omitempty"`
+	Update         bool    `json:"update,omitempty"`
 }
 
 type Order struct {
-	TargetPrice float64             `json:"targetPrice,omitempty" bson:"targetPrice"`
-	Symbol      string              `json:"symbol" bson:"symbol"`
-	MarketType  int64               `json:"marketType" bson:"marketType"`
-	Side        string              `json:"side"`
-	Amount      float64             `json:"amount"`
-	ReduceOnly  bool              	`json:"reduceOnly" bson:"reduceOnly"`
-	TimeInForce string              `json:"timeInForce,omitempty" bson:"timeInForce"`
-	Type   		string              `json:"type" bson:"type"`
-	Price       float64             `json:"price,omitempty" bson:"price"`
-	StopPrice float64 `json:"stopPrice,omitempty" bson:"stopPrice"`
-	Params      OrderParams         `json:"params,omitempty" bson:"params"`
+	TargetPrice float64     `json:"targetPrice,omitempty" bson:"targetPrice"`
+	Symbol      string      `json:"symbol" bson:"symbol"`
+	MarketType  int64       `json:"marketType" bson:"marketType"`
+	Side        string      `json:"side"`
+	Amount      float64     `json:"amount"`
+	ReduceOnly  bool        `json:"reduceOnly" bson:"reduceOnly"`
+	TimeInForce string      `json:"timeInForce,omitempty" bson:"timeInForce"`
+	Type        string      `json:"type" bson:"type"`
+	Price       float64     `json:"price,omitempty" bson:"price"`
+	StopPrice   float64     `json:"stopPrice,omitempty" bson:"stopPrice"`
+	Params      OrderParams `json:"params,omitempty" bson:"params"`
 }
 
 type CreateOrderRequest struct {
 	KeyId     *primitive.ObjectID `json:"keyId"`
-	KeyParams Order `json:"keyParams"`
+	KeyParams Order               `json:"keyParams"`
 }
 
 type CancelOrderRequestParams struct {
-	OrderId string `json:"id"`
-	Pair string `json:"pair"`
-	MarketType int64 `json:"marketType"`
+	OrderId    string `json:"id"`
+	Pair       string `json:"pair"`
+	MarketType int64  `json:"marketType"`
 }
 
 type CancelOrderRequest struct {
-	KeyId   *primitive.ObjectID `json:"keyId"`
+	KeyId     *primitive.ObjectID      `json:"keyId"`
 	KeyParams CancelOrderRequestParams `json:"keyParams"`
 }
+
 func round(num float64) int {
 	return int(num + math.Copysign(0.5, num))
 }
 
 func toFixed(num float64, precision int) float64 {
 	output := math.Pow(10, float64(precision))
-	return float64(round(num * output)) / output
+	return float64(round(num*output)) / output
 }
 
 func (t *Trading) CreateOrder(order CreateOrderRequest) OrderResponse {
@@ -151,7 +155,7 @@ func (t *Trading) CreateOrder(order CreateOrderRequest) OrderResponse {
 	if order.KeyParams.MarketType == 1 && (order.KeyParams.Type == "limit" || order.KeyParams.Params.Type == "stop-limit") {
 		order.KeyParams.TimeInForce = "GTC"
 	}
-	if strings.Contains(order.KeyParams.Type, "market") || strings.Contains(order.KeyParams.Params.Type, "market")  {
+	if strings.Contains(order.KeyParams.Type, "market") || strings.Contains(order.KeyParams.Params.Type, "market") {
 		order.KeyParams.Price = 0.0
 	}
 	rawResponse := Request("createOrder", order)
@@ -163,9 +167,9 @@ func (t *Trading) CreateOrder(order CreateOrderRequest) OrderResponse {
 }
 
 type UpdateLeverageParams struct {
-	Leverage float64 `json:"leverage"`
-	Symbol string `json:"symbol"`
-	KeyId *primitive.ObjectID `json:"keyId"`
+	Leverage float64             `json:"leverage"`
+	Symbol   string              `json:"symbol"`
+	KeyId    *primitive.ObjectID `json:"keyId"`
 }
 
 func (t *Trading) UpdateLeverage(keyId *primitive.ObjectID, leverage float64, symbol string) interface{} {
@@ -174,9 +178,9 @@ func (t *Trading) UpdateLeverage(keyId *primitive.ObjectID, leverage float64, sy
 	}
 
 	request := UpdateLeverageParams{
-		KeyId: keyId,
-		Leverage:leverage,
-		Symbol: symbol,
+		KeyId:    keyId,
+		Leverage: leverage,
+		Symbol:   symbol,
 	}
 	return Request("updateLeverage", request)
 }

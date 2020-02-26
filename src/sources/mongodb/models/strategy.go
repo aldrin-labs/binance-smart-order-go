@@ -84,6 +84,7 @@ type MongoStrategyType struct {
 
 type MongoStrategyState struct {
 	State              string    `json:"state" bson:"state"`
+	Msg                string    `json:"msg" bson:"msg"`
 	EntryOrderId       string    `json:"entryOrderId" bson:"entryOrderId"`
 	TakeProfitOrderIds string    `json:"takeProfitOrderIds" bson:"takeProfitOrderIds"`
 	StopLossOrderIds   string    `json:"StopLossOrderIds" bson:"StopLossOrderIds"`
@@ -128,7 +129,7 @@ type MongoStrategyCondition struct {
 	ActivationMoveStep    float64 `json:"activationMoveStep" bson:"activationMoveStep"`
 	ActivationMoveTimeout float64 `json:"activationMoveTimeout" bson:"activationMoveTimeout"`
 
-	TimeoutIfProfitable   float64 `json:"timeoutIfProfitable" bson:"timeoutIfProfitable"`
+	TimeoutIfProfitable float64 `json:"timeoutIfProfitable" bson:"timeoutIfProfitable"`
 	// then take profit after some time
 	TimeoutWhenProfit float64 `json:"timeoutWhenProfit" bson:"timeoutWhenProfit"` // if position became profitable at takeProfit,
 	// then dont exit but wait N seconds and exit, so you may catch pump

@@ -3,14 +3,15 @@ package smart_order
 import (
 	"context"
 	"fmt"
+	"testing"
+	"time"
+
 	"github.com/qmuntal/stateless"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies/smart_order"
 	"gitlab.com/crypto_project/core/strategy_service/tests"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"testing"
-	"time"
 )
 
 func TestSmartOrderMarketEntryAndTrailingExit(t *testing.T) {
@@ -89,9 +90,8 @@ func TestSmartOrderMarketEntryAndTrailingExit(t *testing.T) {
 	}
 }
 
-
 func TestSmartOrderMarketEntryAndThenFollowTrailing(t *testing.T) {
-	fakeDataStream := []smart_order.OHLCV{
+	fakeDataStream := []interfaces.OHLCV{
 		{
 			Open:   7100,
 			High:   7101,
