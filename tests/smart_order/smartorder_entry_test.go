@@ -60,10 +60,12 @@ func TestSmartOrderGetInEntryLong(t *testing.T) {
 	// one call with 'buy' and one with 'BTC_USDT' should be done
 	buyCallCount, buyFound := tradingApi.CallCount.Load("buy")
 	btcUsdtCallCount, usdtBtcFound := tradingApi.CallCount.Load("BTC_USDT")
+
 	if !buyFound || !usdtBtcFound || buyCallCount == 0 || btcUsdtCallCount == 0 {
 		t.Error("There were 0 trading api calls with buy params and 0 with BTC_USDT params")
+	} else {
+		fmt.Println("Success! There were " + strconv.Itoa(buyCallCount.(int)) + " trading api calls with buy params and " + strconv.Itoa(btcUsdtCallCount.(int)) + " with BTC_USDT params")
 	}
-	//fmt.Println("Success! There were " + strconv.Itoa(tradingApi.CallCount["buy"]) + " trading api calls with buy params and " + strconv.Itoa(tradingApi.CallCount["BTC_USDT"]) + " with BTC_USDT params")
 }
 
 // smart order should create limit order while still in waitingForEntry state if not trailing

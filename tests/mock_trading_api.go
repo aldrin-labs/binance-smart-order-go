@@ -15,8 +15,8 @@ type MockTrading struct {
 	OrdersMap      *sync.Map
 	CreatedOrders  *list.List
 	CanceledOrders *list.List
-	CallCount      sync.Map
-	AmountSum      sync.Map
+	CallCount      *sync.Map
+	AmountSum      *sync.Map
 	Feed           *MockDataFeed
 	BuyDelay       int
 	SellDelay      int
@@ -28,10 +28,8 @@ func (mt MockTrading) UpdateLeverage(keyId *primitive.ObjectID, leverage float64
 
 func NewMockedTradingAPI() *MockTrading {
 	mockTrading := MockTrading{
-		// CallCount:      map[string]int{},
-		// AmountSum:      map[string]float64{},
-		CallCount:      sync.Map{},
-		AmountSum:      sync.Map{},
+		CallCount:      &sync.Map{},
+		AmountSum:      &sync.Map{},
 		CreatedOrders:  list.New(),
 		CanceledOrders: list.New(),
 		OrdersMap:      &sync.Map{},
@@ -44,8 +42,8 @@ func NewMockedTradingAPI() *MockTrading {
 
 func NewMockedTradingAPIWithMarketAccess(feed *MockDataFeed) *MockTrading {
 	mockTrading := MockTrading{
-		CallCount:      sync.Map{},
-		AmountSum:      sync.Map{},
+		CallCount:      &sync.Map{},
+		AmountSum:      &sync.Map{},
 		Feed:           feed,
 		CreatedOrders:  list.New(),
 		CanceledOrders: list.New(),
