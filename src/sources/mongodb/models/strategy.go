@@ -115,8 +115,9 @@ type MongoEntryPoint struct {
 	HedgeEntry              float64 `json:"hedgeEntry" bson:"hedgeEntry"`
 	HedgeActivation         float64 `json:"hedgeActivation" bson:"hedgeActivation"`
 	HedgeOppositeActivation float64 `json:"hedgeOppositeActivation" bson:"hedgeOppositeActivation"`
-	Type                    int64   `json:"type" bson:"type"`
-	OrderType               string  `json:"orderType" bson:"orderType"`
+	// Type: 0 means absolute price, 1 means price is relative to entry price
+	Type      int64  `json:"type" bson:"type"`
+	OrderType string `json:"orderType" bson:"orderType"`
 }
 
 type MongoStrategyCondition struct {

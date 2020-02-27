@@ -161,22 +161,22 @@ func TestSmartOrderTakeProfitAllTargets(t *testing.T) {
 		Close:  7500,
 		Volume: 30,
 	}, { // Take profit 2 target
-		Open:   7705,
-		High:   7705,
-		Low:    7700,
-		Close:  7700,
+		Open:   8855,
+		High:   8855,
+		Low:    8855,
+		Close:  8855,
 		Volume: 30,
 	}, { // Take profit 3 target
-		Open:   7705,
-		High:   7705,
-		Low:    7700,
-		Close:  7700,
+		Open:   9240,
+		High:   9240,
+		Low:    9240,
+		Close:  9240,
 		Volume: 30,
 	}, { // Take profit 3 target
-		Open:   9905,
-		High:   9905,
-		Low:    9900,
-		Close:  9900,
+		Open:   9240,
+		High:   9240,
+		Low:    9240,
+		Close:  9240,
 		Volume: 30,
 	}}
 	smartOrderModel := GetTestSmartOrderStrategy("multiplePriceTargets")
@@ -186,18 +186,21 @@ func TestSmartOrderTakeProfitAllTargets(t *testing.T) {
 		Model: &smartOrderModel,
 	}
 	keyId := primitive.NewObjectID()
-	//sm := mongodb.StateMgmt{}
+
 	sm := tests.NewMockedStateMgmt(tradingApi)
 	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm) //TODO
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
 	})
 	go smartOrder.Start()
+
 	time.Sleep(2 * time.Second)
 
 	sellCallCount, _ := tradingApi.CallCount.Load("sell")
-	amountSum, _ := tradingApi.AmountSum.Load("binanceBTC_USDTsell")
-	if sellCallCount != 3 && amountSum != smartOrder.Strategy.GetModel().Conditions.EntryOrder.Amount {
-		t.Error("SmartOrder didn't reach all 3 targets, but reached", sellCallCount, amountSum, smartOrder.Strategy.GetModel().Conditions.EntryOrder.Amount)
+	amountSold, _ := tradingApi.AmountSum.Load("BTC_USDTsell")
+	expectedAmountToSell := smartOrder.Strategy.GetModel().Conditions.EntryOrder.Amount
+
+	if sellCallCount != 3 || amountSold != expectedAmountToSell {
+		t.Error("SmartOrder didn't reach all 3 targets, but called sell", sellCallCount, "times for amount", amountSold, "out of", expectedAmountToSell)
 	}
 }
