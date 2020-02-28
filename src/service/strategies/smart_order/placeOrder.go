@@ -288,15 +288,15 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 			break
 		} else {
 			println(response.Status)
-			//if response.Status == "OK" {
-			//	break
-			//}
-			if len(response.Data.Msg) > 0 {
+			if len(response.Data.Msg) > 0 && step != Canceled {
 				sm.Strategy.GetModel().Enabled = false
 				sm.Strategy.GetModel().State.State = Error
 				sm.Strategy.GetModel().State.Msg = response.Data.Msg
 				go sm.StateMgmt.UpdateState(sm.Strategy.GetModel().ID, &sm.Strategy.GetModel().State)
 
+				break
+			}
+			if response.Status == "OK" {
 				break
 			}
 		}

@@ -84,7 +84,7 @@ func (sm *StateMgmt) SubscribeToOrder(orderId string, onOrderStatusUpdate func(o
 				onOrderStatusUpdate(executedOrder)
 			}
 			time.Sleep(2 * time.Second)
-			isOrderStillOpen = executedOrder == nil || (executedOrder.Status != "filled" && executedOrder.Status != "closed" && executedOrder.Status != "canceled")
+			isOrderStillOpen = executedOrder == nil || (executedOrder.Status != "expired" && executedOrder.Status != "filled" && executedOrder.Status != "closed" && executedOrder.Status != "canceled")
 		}
 	}()
 	time.Sleep(3 * time.Second)
@@ -212,17 +212,24 @@ func (sm *StateMgmt) UpdateExecutedAmount(strategyId primitive.ObjectID, state *
 	request = bson.D{
 		{"_id", strategyId},
 	}
+	updates := bson.D{
+		{
+			"state.executedAmount", state.ExecutedAmount,
+		},
+		{
+			"state.exitPrice", state.ExitPrice,
+		},
+	}
+	if state.ExecutedAmount == 0 {
+		updates = append(updates, bson.E{Key: "state.executedOrders", Value: []string{}})
+		updates = append(updates, bson.E{Key: "state.entryPrice", Value: 0})
+		updates = append(updates, bson.E{Key: "state.amount", Value: 0})
+		updates = append(updates, bson.E{Key: "state.reachedTargetCount", Value: 0})
+	}
 	var update bson.D
 	update = bson.D{
 		{
-			"$set", bson.D{
-			{
-				"state.executedAmount", state.ExecutedAmount,
-			},
-			{
-				"state.exitPrice", state.ExitPrice,
-			},
-		},
+			"$set", updates,
 		},
 	}
 	updated, err := col.UpdateOne(context.TODO(), request, update)

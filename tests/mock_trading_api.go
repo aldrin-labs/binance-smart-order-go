@@ -62,8 +62,9 @@ func (mt MockTrading) CreateOrder(req trading.CreateOrderRequest) trading.OrderR
 	callCount, _ = mt.CallCount.LoadOrStore(req.KeyParams.Symbol, 0)
 	mt.CallCount.Store(req.KeyParams.Symbol, callCount.(int)+1)
 
-	//mt.AmountSum[exchange+pair+side+fmt.Sprintf("%f", price)] += amount
-	amountSumKey := req.KeyParams.Symbol + req.KeyParams.Side + fmt.Sprintf("%f", req.KeyParams.Price)
+	//amountSumKey := req.KeyParams.Symbol + req.KeyParams.Side + fmt.Sprintf("%f", req.KeyParams.Price)
+	amountSumKey := req.KeyParams.Symbol + req.KeyParams.Side
+
 	amountSum, _ := mt.AmountSum.LoadOrStore(amountSumKey, 0.0)
 	mt.AmountSum.Store(amountSumKey, amountSum.(float64)+req.KeyParams.Amount)
 
