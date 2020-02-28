@@ -206,7 +206,6 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			}
 			sm.Strategy.GetModel().State.ExitPrice = order.Average
 			if sm.Strategy.GetModel().State.ExecutedAmount >= sm.Strategy.GetModel().Conditions.EntryOrder.Amount {
-				sm.Strategy.GetModel().State.State = End
 			} else {
 				go sm.placeOrder(0, Stoploss)
 			}
@@ -219,7 +218,6 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			sm.Strategy.GetModel().State.ExitPrice = order.Average
 			sm.StateMgmt.UpdateExecutedAmount(sm.Strategy.GetModel().ID, &sm.Strategy.GetModel().State)
 			if sm.Strategy.GetModel().State.ExecutedAmount >= sm.Strategy.GetModel().Conditions.EntryOrder.Amount {
-				sm.Strategy.GetModel().State.State = End
 			}
 			return true
 		}
@@ -306,10 +304,13 @@ func (sm *SmartOrder) exit(ctx context.Context, args ...interface{}) (stateless.
 			sm.Strategy.GetModel().Conditions.EntryOrder.Side = oppositeSide
 			sm.Strategy.GetModel().Conditions.EntryOrder.ActivatePrice = sm.Strategy.GetModel().State.ExitPrice
 			sm.StateMgmt.UpdateConditions(sm.Strategy.GetModel().ID, &sm.Strategy.GetModel().Conditions)
+			sm.tryCancelAllOrders()
 
 			newState := models.MongoStrategyState{
 				State: WaitForEntry,
 			}
+			sm.Strategy.GetModel().State = newState
+			sm.StateMgmt.UpdateExecutedAmount(sm.Strategy.GetModel().ID, &sm.Strategy.GetModel().State)
 			sm.StateMgmt.UpdateState(sm.Strategy.GetModel().ID, &newState)
 			return WaitForEntry, nil
 		}
