@@ -117,6 +117,51 @@ func (sm *StateMgmt) SubscribeToOrder(orderId string, onOrderStatusUpdate func(o
 	}
 	return nil
 }
+
+func (sm *StateMgmt) SubscribeToHedge(strategyId *primitive.ObjectID, onStrategyUpdate func(strategy *models.MongoStrategy)) error {
+	go func() {
+		var strategy *models.MongoStrategy
+		isOrderStillOpen := true
+		for isOrderStillOpen {
+			strategy = sm.GetStrategy(strategyId)
+			if strategy != nil {
+				onStrategyUpdate(strategy)
+			}
+			time.Sleep(2 * time.Second)
+			isOrderStillOpen = strategy == nil || strategy.State.ExitPrice > 0
+		}
+	}()
+	time.Sleep(3 * time.Second)
+	CollName := "core_strategies"
+	ctx := context.Background()
+	var coll = GetCollection(CollName)
+	pipeline := mongo.Pipeline{bson.D{
+		{"$match",
+			bson.D{
+				{"fullDocument.id", strategyId},
+			},
+		},
+	}}
+	cs, err := coll.Watch(ctx, pipeline, options.ChangeStream().SetFullDocument(options.UpdateLookup))
+	if err != nil {
+		return err
+	}
+	//require.NoError(cs, err)
+	defer cs.Close(ctx)
+	for cs.Next(ctx) {
+		var event models.MongoStrategyUpdateEvent
+		err := cs.Decode(&event)
+		//	data := next.String()
+		// println(data)
+		//		err := json.Unmarshal([]byte(data), &event)
+		if err != nil {
+			println("event decode", err.Error())
+		}
+		onStrategyUpdate(&event.FullDocument)
+	}
+	return nil
+}
+
 func (sm *StateMgmt) GetPosition(strategyId primitive.ObjectID, symbol string) {
 
 }
@@ -136,6 +181,23 @@ func (sm *StateMgmt) GetOrder(orderId string) *models.MongoOrder {
 		println(err.Error())
 	}
 	return order
+}
+
+func (sm *StateMgmt) GetStrategy(strategyId *primitive.ObjectID) *models.MongoStrategy {
+	CollName := "core_strategies"
+	ctx := context.Background()
+	var request bson.D
+	request = bson.D{
+		{"_id", strategyId},
+	}
+	var coll = GetCollection(CollName)
+
+	var strategy *models.MongoStrategy
+	err := coll.FindOne(ctx, request).Decode(&strategy)
+	if err != nil {
+		println(err.Error())
+	}
+	return strategy
 }
 
 func (sm *StateMgmt) GetMarketPrecision(pair string, marketType int64) (int64, int64) {
@@ -280,7 +342,30 @@ func (sm *StateMgmt) UpdateEntryPrice(strategyId primitive.ObjectID, state *mode
 		{
 			"$set", bson.D{
 			{
-				"state", state,
+				"state.entryPrice", state.EntryPrice,
+			},
+		},
+		},
+	}
+	updated, err := col.UpdateOne(context.TODO(), request, update)
+	if err != nil {
+		println("error in arg", err.Error())
+		return
+	}
+	println("updated state", updated.ModifiedCount, state.State)
+}
+func (sm *StateMgmt) UpdateHedgeExitPrice(strategyId primitive.ObjectID, state *models.MongoStrategyState) {
+	col := GetCollection("core_strategies")
+	var request bson.D
+	request = bson.D{
+		{"_id", strategyId},
+	}
+	var update bson.D
+	update = bson.D{
+		{
+			"$set", bson.D{
+			{
+				"state.hedgeExitPrice", state.HedgeExitPrice,
 			},
 		},
 		},

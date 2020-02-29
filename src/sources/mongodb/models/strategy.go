@@ -90,6 +90,9 @@ type MongoStrategyState struct {
 	StopLossOrderIds   string    `json:"StopLossOrderIds" bson:"StopLossOrderIds"`
 	StopLoss           string    `json:"stopLoss" bson:"stopLoss"`
 	TrailingEntryPrice float64   `json:"trailingEntryPrice" bson:"trailingEntryPrice"`
+	HedgeExitPrice     float64   `json:"hedgeExitPrice" bson:"hedgeExitPrice"`
+	TrailingHedgeExitPrice     float64   `json:"trailingHedgeExitPrice" bson:"trailingHedgeExitPrice"`
+
 	TrailingExitPrices []float64 `json:"trailingExitPrices" bson:"trailingExitPrices"`
 	EntryPrice         float64   `json:"entryPrice" bson:"entryPrice"`
 	ExitPrice          float64   `json:"exitPrice" bson:"exitPrice"`
@@ -121,6 +124,8 @@ type MongoEntryPoint struct {
 }
 
 type MongoStrategyCondition struct {
+	HedgeStrategyId *primitive.ObjectID `json:"hedgeStrategyId" bson:"hedgeStrategyId"`
+
 	KeyAssetId *primitive.ObjectID `json:"keyAssetId" bson:"keyAssetId"`
 	Pair       string              `json:"pair" bson:"pair"`
 	MarketType int64               `json:"marketType" bson:"marketType"`
@@ -135,16 +140,19 @@ type MongoStrategyCondition struct {
 	TimeoutWhenProfit float64 `json:"timeoutWhenProfit" bson:"timeoutWhenProfit"` // if position became profitable at takeProfit,
 	// then dont exit but wait N seconds and exit, so you may catch pump
 
-	ContinueIfEnded           bool              `json:"continueIfEnded" bson:"continueIfEnded"`                     // open opposite position, or place buy if sold, or sell if bought // , if entrypoints specified, trading will be within entrypoints, if not exit on takeProfit or timeout or stoploss
-	TimeoutBeforeOpenPosition float64           `json:"timeoutBeforeOpenPosition" bson:"timeoutBeforeOpenPosition"` // wait after closing position before opening new one
-	ChangeTrendIfLoss         bool              `json:"changeTrendIfLoss" bson:"changeTrendIfLoss"`
-	ChangeTrendIfProfit       bool              `json:"changeTrendIfProfit" bson:"changeTrendIfProfit"`
-	TimeoutWhenLoss           float64           `json:"timeoutWhenLoss" bson:"timeoutWhenLoss"`
-	StopLoss                  float64           `json:"stopLoss" bson:"stopLoss"`
-	StopLossType              string            `json:"stopLossType" bson:"stopLossType"`
-	TimeoutLoss               float64           `json:"timeoutLoss" bson:"timeoutLoss"`
-	ForcedLoss                float64           `json:"forcedLoss" bson:"forcedLoss"`
-	Leverage                  float64           `json:"leverage" bson:"leverage"`
-	EntryLevels               []MongoEntryPoint `json:"entryLevels" bson:"entryLevels"`
-	ExitLevels                []MongoEntryPoint `json:"exitLevels" bson:"exitLevels"`
+	ContinueIfEnded           bool    `json:"continueIfEnded" bson:"continueIfEnded"`                     // open opposite position, or place buy if sold, or sell if bought // , if entrypoints specified, trading will be within entrypoints, if not exit on takeProfit or timeout or stoploss
+	TimeoutBeforeOpenPosition float64 `json:"timeoutBeforeOpenPosition" bson:"timeoutBeforeOpenPosition"` // wait after closing position before opening new one
+	ChangeTrendIfLoss         bool    `json:"changeTrendIfLoss" bson:"changeTrendIfLoss"`
+	ChangeTrendIfProfit       bool    `json:"changeTrendIfProfit" bson:"changeTrendIfProfit"`
+
+	TimeoutWhenLoss    float64 `json:"timeoutWhenLoss" bson:"timeoutWhenLoss"`
+	StopLoss           float64 `json:"stopLoss" bson:"stopLoss"`
+	StopLossType       string  `json:"stopLossType" bson:"stopLossType"`
+	TimeoutLoss        float64 `json:"timeoutLoss" bson:"timeoutLoss"`
+	ForcedLoss         float64 `json:"forcedLoss" bson:"forcedLoss"`
+	HedgeLossDeviation float64 `json:"hedgeLossDeviation" bson:"hedgeLossDeviation"`
+
+	Leverage    float64           `json:"leverage" bson:"leverage"`
+	EntryLevels []MongoEntryPoint `json:"entryLevels" bson:"entryLevels"`
+	ExitLevels  []MongoEntryPoint `json:"exitLevels" bson:"exitLevels"`
 }

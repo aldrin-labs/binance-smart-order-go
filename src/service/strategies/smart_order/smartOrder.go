@@ -26,13 +26,15 @@ const (
 	Canceled           = "Canceled"
 	EnterNextTarget    = "EnterNextTarget"
 	Timeout            = "Timeout"
-	Error			= "Error"
+	Error              = "Error"
+	HedgeLoss          = "HedgeLoss"
 )
 
 const (
 	TriggerTrade             = "Trade"
 	TriggerOrderExecuted     = "TriggerOrderExecuted"
 	CheckExistingOrders      = "CheckExistingOrders"
+	CheckHedgeLoss           = "CheckHedgeLoss"
 	CheckProfitTrade         = "CheckProfitTrade"
 	CheckTrailingProfitTrade = "CheckTrailingProfitTrade"
 	CheckTrailingLossTrade   = "CheckTrailingLossTrade"
@@ -99,21 +101,32 @@ func NewSmartOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed,
 	State.Configure(TrailingEntry).Permit(TriggerTrade, InEntry,
 		sm.checkTrailingEntry).Permit(CheckExistingOrders, InEntry,
 		sm.checkExistingOrders).OnEntry(sm.enterTrailingEntry)
+
 	State.Configure(InEntry).PermitDynamic(CheckProfitTrade, sm.exit,
 		sm.checkProfit).PermitDynamic(CheckTrailingProfitTrade, sm.exit,
 		sm.checkTrailingProfit).PermitDynamic(CheckLossTrade, sm.exit,
 		sm.checkLoss).PermitDynamic(CheckExistingOrders, sm.exit,
-		sm.checkExistingOrders).OnEntry(sm.enterEntry)
+		sm.checkExistingOrders).PermitDynamic(CheckHedgeLoss, sm.exit,
+		sm.checkLossHedge).OnEntry(sm.enterEntry)
+
 	State.Configure(TakeProfit).PermitDynamic(CheckProfitTrade, sm.exit,
 		sm.checkProfit).PermitDynamic(CheckTrailingProfitTrade, sm.exit,
 		sm.checkTrailingProfit).PermitDynamic(CheckLossTrade, sm.exit,
 		sm.checkLoss).PermitDynamic(CheckExistingOrders, sm.exit,
-		sm.checkExistingOrders).OnEntry(sm.enterTakeProfit)
+		sm.checkExistingOrders).PermitDynamic(CheckHedgeLoss, sm.exit,
+		sm.checkLossHedge).OnEntry(sm.enterTakeProfit)
+
 	State.Configure(Stoploss).PermitDynamic(CheckProfitTrade, sm.exit,
 		sm.checkProfit).PermitDynamic(CheckTrailingProfitTrade, sm.exit,
 		sm.checkTrailingProfit).PermitDynamic(CheckLossTrade, sm.exit,
 		sm.checkLoss).PermitDynamic(CheckExistingOrders, sm.exit,
-		sm.checkExistingOrders).OnEntry(sm.enterStopLoss)
+		sm.checkExistingOrders).PermitDynamic(CheckHedgeLoss, sm.exit,
+		sm.checkLossHedge).OnEntry(sm.enterStopLoss)
+
+	State.Configure(HedgeLoss).PermitDynamic(CheckTrailingLossTrade, sm.exit,
+		sm.checkTrailingHedgeLoss).PermitDynamic(CheckExistingOrders, sm.exit,
+		sm.checkExistingOrders)
+
 	State.Configure(End).OnEntry(sm.enterEnd)
 
 	State.Activate()
@@ -169,7 +182,6 @@ func (sm *SmartOrder) orderCallback(order *models.MongoOrder) {
 		// println(err.Error())
 	}
 }
-
 func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface{}) bool {
 	if args == nil {
 		return false
@@ -236,7 +248,6 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 	return false
 }
 
-
 func (sm *SmartOrder) exitWaitEntry(ctx context.Context, args ...interface{}) (stateless.State, error) {
 	if sm.Strategy.GetModel().Conditions.EntryOrder.ActivatePrice > 0 {
 		println("move to", TrailingEntry)
@@ -287,6 +298,8 @@ func (sm *SmartOrder) enterEntry(ctx context.Context, args ...interface{}) error
 	go sm.placeOrder(sm.Strategy.GetModel().State.EntryPrice, InEntry)
 	go sm.placeOrder(0, TakeProfit)
 	go sm.placeOrder(0, Stoploss)
+
+	if sm.
 	return nil
 }
 
