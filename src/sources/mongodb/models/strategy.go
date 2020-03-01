@@ -65,6 +65,7 @@ type MongoStrategy struct {
 	ID              primitive.ObjectID     `json:"_id" bson:"_id"`
 	Type            int64                  `json:"type" bson:"type"`
 	Enabled         bool                   `json:"enabled" bson:"enabled"`
+	AccountId       *primitive.ObjectID    `json:"accountId" bson:"accountId"`
 	Conditions      MongoStrategyCondition `bson:"conditions"`
 	State           MongoStrategyState     `bson:"state"`
 	TriggerWhen     TriggerOptions         `bson:"triggerWhen"`
@@ -83,15 +84,15 @@ type MongoStrategyType struct {
 }
 
 type MongoStrategyState struct {
-	State              string    `json:"state" bson:"state"`
-	Msg                string    `json:"msg" bson:"msg"`
-	EntryOrderId       string    `json:"entryOrderId" bson:"entryOrderId"`
-	TakeProfitOrderIds string    `json:"takeProfitOrderIds" bson:"takeProfitOrderIds"`
-	StopLossOrderIds   string    `json:"StopLossOrderIds" bson:"StopLossOrderIds"`
-	StopLoss           string    `json:"stopLoss" bson:"stopLoss"`
-	TrailingEntryPrice float64   `json:"trailingEntryPrice" bson:"trailingEntryPrice"`
-	HedgeExitPrice     float64   `json:"hedgeExitPrice" bson:"hedgeExitPrice"`
-	TrailingHedgeExitPrice     float64   `json:"trailingHedgeExitPrice" bson:"trailingHedgeExitPrice"`
+	State                  string  `json:"state" bson:"state"`
+	Msg                    string  `json:"msg" bson:"msg"`
+	EntryOrderId           string  `json:"entryOrderId" bson:"entryOrderId"`
+	TakeProfitOrderIds     string  `json:"takeProfitOrderIds" bson:"takeProfitOrderIds"`
+	StopLossOrderIds       string  `json:"StopLossOrderIds" bson:"StopLossOrderIds"`
+	StopLoss               string  `json:"stopLoss" bson:"stopLoss"`
+	TrailingEntryPrice     float64 `json:"trailingEntryPrice" bson:"trailingEntryPrice"`
+	HedgeExitPrice         float64 `json:"hedgeExitPrice" bson:"hedgeExitPrice"`
+	TrailingHedgeExitPrice float64 `json:"trailingHedgeExitPrice" bson:"trailingHedgeExitPrice"`
 
 	TrailingExitPrices []float64 `json:"trailingExitPrices" bson:"trailingExitPrices"`
 	EntryPrice         float64   `json:"entryPrice" bson:"entryPrice"`
@@ -124,6 +125,9 @@ type MongoEntryPoint struct {
 }
 
 type MongoStrategyCondition struct {
+	AccountId *primitive.ObjectID `json:"accountId" bson:"accountId"`
+
+	HedgeKeyId      *primitive.ObjectID `json:"hedgeKeyId" bson:"hedgeKeyId"`
 	HedgeStrategyId *primitive.ObjectID `json:"hedgeStrategyId" bson:"hedgeStrategyId"`
 
 	KeyAssetId *primitive.ObjectID `json:"keyAssetId" bson:"keyAssetId"`

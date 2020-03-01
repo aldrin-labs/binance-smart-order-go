@@ -47,9 +47,22 @@ func (sm *SmartOrder) checkTrailingHedgeLoss(ctx context.Context, args ...interf
 	return false
 }
 
-func (sm *SmartOrder) waitForHedge(strategyId *primitive.ObjectID) {
-	_ = sm.StateMgmt.SubscribeToHedge(strategyId, sm.hedgeCallback)
+func (sm *SmartOrder) waitForHedge() {
+	_ = sm.StateMgmt.SubscribeToHedge(sm.Strategy.GetModel().Conditions.HedgeStrategyId, sm.hedgeCallback)
 }
+
+
+func (sm *SmartOrder) hedge() {
+	if sm.Strategy.GetModel().Conditions.HedgeKeyId != nil {
+		hedgedOrder := sm.ExchangeApi.PlaceHedge(sm.Strategy.GetModel())
+		if hedgedOrder.Data.Id != "" {
+			objId, _ := primitive.ObjectIDFromHex(hedgedOrder.Data.Id)
+			sm.Strategy.GetModel().Conditions.HedgeStrategyId = &objId
+			sm.StateMgmt.UpdateConditions(sm.Strategy.GetModel().ID, &sm.Strategy.GetModel().Conditions)
+		}
+	}
+}
+
 func (sm *SmartOrder) hedgeCallback(winStrategy *models.MongoStrategy) {
 	if winStrategy.State.ExitPrice > 0 {
 		err := sm.State.Fire(CheckHedgeLoss, *winStrategy)

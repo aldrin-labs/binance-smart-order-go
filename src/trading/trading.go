@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/mitchellh/mapstructure"
+	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"io/ioutil"
 	"math"
@@ -32,6 +33,8 @@ type OrderResponse struct {
 type ITrading interface {
 	CreateOrder(order CreateOrderRequest) OrderResponse
 	CancelOrder(params CancelOrderRequest) OrderResponse
+	PlaceHedge(parentSmarOrder *models.MongoStrategy) OrderResponse
+
 	UpdateLeverage(keyId *primitive.ObjectID, leverage float64, symbol string) interface{}
 }
 
@@ -105,10 +108,11 @@ func Request(method string, data interface{}) interface{} {
 */
 
 type OrderParams struct {
-	StopPrice      float64 `json:"stopPrice,omitempty" bson:"stopPrice"`
-	Type           string  `json:"type,omitempty" bson:"type"`
-	MaxIfNotEnough int     `json:"maxIfNotEnough,omitempty"`
-	Update         bool    `json:"update,omitempty"`
+	StopPrice      float64                       `json:"stopPrice,omitempty" bson:"stopPrice"`
+	Type           string                        `json:"type,omitempty" bson:"type"`
+	MaxIfNotEnough int                           `json:"maxIfNotEnough,omitempty"`
+	Update         bool                          `json:"update,omitempty"`
+	SmartOrder     models.MongoStrategyCondition `json:"update,smartOrder"`
 }
 
 type Order struct {
@@ -187,6 +191,35 @@ func (t *Trading) UpdateLeverage(keyId *primitive.ObjectID, leverage float64, sy
 
 func (t *Trading) CancelOrder(cancelRequest CancelOrderRequest) OrderResponse {
 	rawResponse := Request("cancelOrder", cancelRequest)
+	var response OrderResponse
+	_ = mapstructure.Decode(rawResponse, &response)
+	return response
+}
+
+// maybe its not the best place and should be in SM, coz its SM related, not trading
+// but i dont care atm sorry not sorry
+func (t *Trading) PlaceHedge(parentSmarOrder *models.MongoStrategy) OrderResponse {
+	hedgedStrategy := *(&parentSmarOrder)
+	hedgedStrategy.Conditions.HedgeStrategyId = &parentSmarOrder.ID
+	*hedgedStrategy.Conditions.AccountId = *hedgedStrategy.Conditions.HedgeKeyId
+	hedgedStrategy.Conditions.HedgeKeyId = nil
+	oppositeSide := hedgedStrategy.Conditions.EntryOrder.Side
+	if oppositeSide == "buy" {
+		oppositeSide = "sell"
+	}
+	hedgedStrategy.Conditions.EntryOrder.Side = oppositeSide
+
+	createRequest := CreateOrderRequest{
+		KeyId: hedgedStrategy.Conditions.AccountId,
+		KeyParams: Order{
+			Type: "smart",
+			Params: OrderParams{
+				SmartOrder: hedgedStrategy.Conditions,
+			},
+		},
+	}
+
+	rawResponse := Request("createOrder", createRequest)
 	var response OrderResponse
 	_ = mapstructure.Decode(rawResponse, &response)
 	return response
