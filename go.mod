@@ -3,6 +3,7 @@ module gitlab.com/crypto_project/core/strategy_service
 go 1.13
 
 require (
+	github.com/go-sql-driver/mysql v1.5.0
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/golang/snappy v0.0.1 // indirect
 	github.com/gomodule/redigo v2.0.0+incompatible
