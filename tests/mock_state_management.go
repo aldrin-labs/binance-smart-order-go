@@ -1,10 +1,11 @@
 package tests
 
 import (
-	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"sync"
 	"time"
+
+	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 // should implement IStateMgmt
@@ -23,7 +24,6 @@ func NewMockedStateMgmt(trading *MockTrading) MockStateMgmt {
 }
 
 func (sm *MockStateMgmt) GetOrder(orderId string) *models.MongoOrder {
-	//panic("implement me")
 	return &models.MongoOrder{}
 }
 
@@ -32,7 +32,6 @@ func (sm *MockStateMgmt) GetMarketPrecision(pair string, marketType int64) (int6
 }
 
 func (sm *MockStateMgmt) SubscribeToOrder(orderId string, onOrderStatusUpdate func(order *models.MongoOrder)) error {
-	//panic("implement me")
 	go func() {
 		for {
 			orderRaw, ok := sm.Trading.OrdersMap.Load(orderId)
