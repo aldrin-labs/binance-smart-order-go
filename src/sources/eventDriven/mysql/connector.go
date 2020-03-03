@@ -19,7 +19,7 @@ func (sc *SQLConn) Initialize() {
 		return
 	}
 
-	log.Println("Connecting to MySQL: ", os.Getenv("SQL_CONN_STRING"))
+	log.Println("Connecting to MySQL...")
 	db, _ := sql.Open("mysql", os.Getenv("SQL_CONN_STRING"))
 
 	// Open doesn't open a connection. Validate connection:
