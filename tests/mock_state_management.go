@@ -79,3 +79,11 @@ func (sm *MockStateMgmt) UpdateOrders(strategyId primitive.ObjectID, state *mode
 func (sm *MockStateMgmt) DisableStrategy(strategyId primitive.ObjectID) {
 
 }
+
+func (sm *MockStateMgmt) SubscribeToHedge(strategyId *primitive.ObjectID, onHedgeExitUpdate func(strategy *models.MongoStrategy)) error {
+	return nil
+}
+
+func (sm *MockStateMgmt) UpdateHedgeExitPrice(strategyId primitive.ObjectID, state *models.MongoStrategyState) {
+
+}

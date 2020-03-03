@@ -127,3 +127,10 @@ func (mt MockTrading) CancelOrder(req trading.CancelOrderRequest) trading.OrderR
 	}
 	return response
 }
+
+func (mt MockTrading) PlaceHedge(parentSmarOrder *models.MongoStrategy) trading.OrderResponse {
+	response := trading.OrderResponse{
+		Status: "OK",
+	}
+	return response
+}
