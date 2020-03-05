@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"sync"
 
+	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
 	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -17,7 +18,7 @@ type MockTrading struct {
 	CanceledOrders *list.List
 	CallCount      *sync.Map
 	AmountSum      *sync.Map
-	Feed           *MockDataFeed
+	Feed           interfaces.IDataFeed
 	BuyDelay       int
 	SellDelay      int
 }
@@ -40,7 +41,7 @@ func NewMockedTradingAPI() *MockTrading {
 	return &mockTrading
 }
 
-func NewMockedTradingAPIWithMarketAccess(feed *MockDataFeed) *MockTrading {
+func NewMockedTradingAPIWithMarketAccess(feed interfaces.IDataFeed) *MockTrading {
 	mockTrading := MockTrading{
 		CallCount:      &sync.Map{},
 		AmountSum:      &sync.Map{},
@@ -82,12 +83,12 @@ func (mt MockTrading) CreateOrder(req trading.CreateOrderRequest) trading.OrderR
 		ReduceOnly: req.KeyParams.ReduceOnly,
 	}
 	if order.Average == 0 {
-		lent := len(mt.Feed.tickerData)
-		index := mt.Feed.currentTick
-		if mt.Feed.currentTick >= lent {
+		lent := len(mt.Feed.GetTickerData())
+		index := mt.Feed.GetCurrentTick()
+		if mt.Feed.GetCurrentTick() >= lent {
 			index = lent - 1
 		}
-		order.Average = mt.Feed.tickerData[index].Close
+		order.Average = mt.Feed.GetTickerData()[index].Close
 	}
 	mt.OrdersMap.Store(orderId, order)
 	mt.CreatedOrders.PushBack(order)
@@ -106,6 +107,8 @@ func (mt MockTrading) CreateOrder(req trading.CreateOrderRequest) trading.OrderR
 }
 
 func (mt MockTrading) CancelOrder(req trading.CancelOrderRequest) trading.OrderResponse {
+	fmt.Printf("Canceling Order... \n")
+
 	callCount, _ := mt.CallCount.Load(req.KeyParams.Pair)
 	orderId := string(callCount.(int)) + strconv.Itoa(callCount.(int))
 

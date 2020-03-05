@@ -33,7 +33,7 @@ func (df *BTDataFeed) GetPriceForPairAtExchange(pair string, exchange string, ma
 		df.currentTick = len - 1
 		return &df.tickerData[df.currentTick]
 	}
-
+	println("Current tick", df.currentTick)
 	return &df.tickerData[df.currentTick]
 }
 
@@ -48,4 +48,12 @@ func (df *BTDataFeed) GetPrice(pair, exchange string, marketType int64) *interfa
 
 func (df *BTDataFeed) AddToFeed(mockedStream []interfaces.OHLCV) {
 	df.tickerData = append(df.tickerData, mockedStream...)
+}
+
+func (df *BTDataFeed) GetTickerData() []interfaces.OHLCV {
+	return df.tickerData
+}
+
+func (df *BTDataFeed) GetCurrentTick() int {
+	return df.currentTick
 }
