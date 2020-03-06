@@ -3,6 +3,7 @@ package backtest
 import (
 	"context"
 	"fmt"
+	"log"
 	"testing"
 	"time"
 
@@ -17,16 +18,17 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+type BacktestResult struct {
+	Spent  float64
+	Gained float64
+}
+
 func TestBacktest(t *testing.T) {
 
-	err := godotenv.Load("../../.env")
-	if err != nil {
-		println("Error loading .env file")
-	}
+	loadENV("../../.env")
 
 	// get historical data
 	df := backtest.NewBTDataFeed("binance", "BTC", "USDT", 60, 1, 1583317500, 1583317500+86400)
-	//fmt.Printf("OHLCVs %v \n", df)
 	printClosePrices(df.GetTickerData())
 
 	// load SM to test
@@ -46,37 +48,16 @@ func TestBacktest(t *testing.T) {
 
 	// run SM
 	go smartOrder.Start()
-	time.Sleep(7 * time.Second)
-
-	// extract info about filled/canceled orders, their cost and volumes from tradingApi
-
-	moneySpent := 0.0
-	moneyGained := 0.0
-	tradingApi.OrdersMap.Range(func(key, value interface{}) bool {
-		//fmt.Printf("%v", order)
-
-		order := value.(models.MongoOrder)
-		if order.Status == "filled" && order.Side == "buy" {
-			moneySpent += order.StopPrice * order.Filled
-		}
-
-		if order.Status == "filled" && order.Side == "sell" {
-			moneyGained += order.StopPrice * order.Filled
-		}
-
-		return true
-	})
+	waitUntilSmartOrderEnds(smartOrder)
 
 	//fmt.Printf("Orders map %v", tradingApi.OrdersMap)
 
-	// TODO: calculate Profit and Loss
-	fmt.Printf("Spent: %.02f Gained: %.02f Profit: %.02f", moneySpent, moneyGained, moneyGained-moneySpent)
+	// calculate Profit and Loss
+	backtestResult := getBacktestResult(tradingApi)
+	fmt.Printf("Spent: %.02f Gained: %.02f Profit: %.02f \n", backtestResult.Spent, backtestResult.Gained, backtestResult.Gained-backtestResult.Spent)
 
 	//amountSold, _ := tradingApi.AmountSum.Load("BTC_USDTsell")
 	//fmt.Printf("Total sold: %f \n", amountSold.(float64))
-
-	// profit := getProfit(smartOrderModel.Conditions.EntryOrder.Side)
-	// fmt.Printf("Total profit: %f \n", profit)
 }
 
 func getBacktestStrategy() models.MongoStrategy {
@@ -117,6 +98,31 @@ func getBacktestStrategy() models.MongoStrategy {
 	return smartOrder
 }
 
+func getBacktestResult(tradingAPI *tests.MockTrading) BacktestResult {
+	// extract info about filled/canceled orders, their cost and volumes from tradingApi
+	moneySpent := 0.0
+	moneyGained := 0.0
+	tradingAPI.OrdersMap.Range(func(key, value interface{}) bool {
+		//fmt.Printf("%v", order)
+
+		order := value.(models.MongoOrder)
+		if order.Status == "filled" && order.Side == "buy" {
+			moneySpent += order.StopPrice * order.Filled
+		}
+
+		if order.Status == "filled" && order.Side == "sell" {
+			moneyGained += order.StopPrice * order.Filled
+		}
+
+		return true
+	})
+
+	return BacktestResult{
+		Spent:  moneySpent,
+		Gained: moneyGained,
+	}
+}
+
 func getProfit(entrySide string, entryAmount float64, entryPrice float64, exitPrice float64) float64 {
 	profit := 0.0
 	return profit
@@ -133,4 +139,22 @@ func printClosePrices(OHLCVs []interfaces.OHLCV) {
 		fmt.Printf("%.2f %s", v.Close, newLine)
 	}
 	println()
+}
+
+func waitUntilSmartOrderEnds(smartOrder *smart_order.SmartOrder) {
+	for true {
+		isInState, _ := smartOrder.State.IsInState(smart_order.End)
+		if isInState {
+			log.Println("SM ended")
+			return
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+}
+
+func loadENV(path string) {
+	err := godotenv.Load(path)
+	if err != nil {
+		println("Error loading .env file")
+	}
 }
