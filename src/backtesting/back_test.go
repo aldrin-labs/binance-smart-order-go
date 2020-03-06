@@ -33,18 +33,10 @@ func TestBacktest(t *testing.T) {
 
 	// load SM to test
 	smartOrderModel := getBacktestStrategy()
-
 	tradingApi := tests.NewMockedTradingAPIWithMarketAccess(df)
-
-	strategy := strategies.Strategy{
-		Model: &smartOrderModel,
-	}
-	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi)
-	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
-	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
-		fmt.Printf("Transitioned from %s to %s on %s (Is reentry: %v) \n", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
-	})
+
+	smartOrder := getSmartOrder(smartOrderModel, df, tradingApi, sm)
 
 	// run SM
 	go smartOrder.Start()
@@ -150,6 +142,18 @@ func waitUntilSmartOrderEnds(smartOrder *smart_order.SmartOrder) {
 		}
 		time.Sleep(500 * time.Millisecond)
 	}
+}
+
+func getSmartOrder(smartOrderModel models.MongoStrategy, dataFeed *backtest.BTDataFeed, TradingAPI *tests.MockTrading, StateManagement tests.MockStateMgmt) *smart_order.SmartOrder {
+	strategy := strategies.Strategy{
+		Model: &smartOrderModel,
+	}
+	keyId := primitive.NewObjectID()
+	smartOrder := smart_order.NewSmartOrder(&strategy, dataFeed, TradingAPI, &keyId, &StateManagement)
+	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
+		fmt.Printf("Transitioned from %s to %s on %s (Is reentry: %v) \n", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
+	})
+	return smartOrder
 }
 
 func loadENV(path string) {
