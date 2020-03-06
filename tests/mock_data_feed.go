@@ -42,3 +42,11 @@ func (df *MockDataFeed) GetPrice(pair, exchange string, marketType int64) *inter
 func (df *MockDataFeed) AddToFeed(mockedStream []interfaces.OHLCV) {
 	df.tickerData = append(df.tickerData, mockedStream...)
 }
+
+func (df *MockDataFeed) GetTickerData() []interfaces.OHLCV {
+	return df.tickerData
+}
+
+func (df *MockDataFeed) GetCurrentTick() int {
+	return df.currentTick
+}
