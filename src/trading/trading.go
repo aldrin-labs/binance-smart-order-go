@@ -30,12 +30,21 @@ type OrderResponse struct {
 	Data   OrderResponseData `json:"data"`
 }
 
+type TransferRequest struct {
+	FromKeyId  *primitive.ObjectID `json:"fromKeyId"`
+	ToKeyId    *primitive.ObjectID `json:"toKeyId"`
+	Symbol     string              `json:"symbol"`
+	MarketType int                 `json:"marketType"`
+	Amount     float64             `json:"amount"`
+}
+
 type ITrading interface {
 	CreateOrder(order CreateOrderRequest) OrderResponse
 	CancelOrder(params CancelOrderRequest) OrderResponse
 	PlaceHedge(parentSmarOrder *models.MongoStrategy) OrderResponse
 
 	UpdateLeverage(keyId *primitive.ObjectID, leverage float64, symbol string) interface{}
+	Transfer(request TransferRequest) OrderResponse
 }
 
 type Trading struct {
@@ -112,7 +121,7 @@ type OrderParams struct {
 	Type           string                        `json:"type,omitempty" bson:"type"`
 	MaxIfNotEnough int                           `json:"maxIfNotEnough,omitempty"`
 	Update         bool                          `json:"update,omitempty"`
-	SmartOrder     models.MongoStrategyCondition `json:"update,smartOrder"`
+	SmartOrder     *models.MongoStrategyCondition `json:"smartOrder,omitempty"`
 }
 
 type Order struct {
@@ -199,13 +208,20 @@ func (t *Trading) CancelOrder(cancelRequest CancelOrderRequest) OrderResponse {
 // maybe its not the best place and should be in SM, coz its SM related, not trading
 // but i dont care atm sorry not sorry
 func (t *Trading) PlaceHedge(parentSmarOrder *models.MongoStrategy) OrderResponse {
-	hedgedStrategy := *(&parentSmarOrder)
-	hedgedStrategy.Conditions.HedgeStrategyId = &parentSmarOrder.ID
-	*hedgedStrategy.Conditions.AccountId = *hedgedStrategy.Conditions.HedgeKeyId
+
+	var jsonStr, _ = json.Marshal(parentSmarOrder)
+	var hedgedStrategy models.MongoStrategy
+	_ = json.Unmarshal(jsonStr, &hedgedStrategy)
+
+	hedgedStrategy.Conditions.HedgeStrategyId = parentSmarOrder.ID
+	accountId, _ := primitive.ObjectIDFromHex(hedgedStrategy.Conditions.HedgeKeyId.Hex())
+	hedgedStrategy.Conditions.AccountId = &accountId
 	hedgedStrategy.Conditions.HedgeKeyId = nil
 	oppositeSide := hedgedStrategy.Conditions.EntryOrder.Side
 	if oppositeSide == "buy" {
 		oppositeSide = "sell"
+	} else {
+		oppositeSide = "buy"
 	}
 	hedgedStrategy.Conditions.EntryOrder.Side = oppositeSide
 
@@ -220,6 +236,14 @@ func (t *Trading) PlaceHedge(parentSmarOrder *models.MongoStrategy) OrderRespons
 	}
 
 	rawResponse := Request("createOrder", createRequest)
+	var response OrderResponse
+	_ = mapstructure.Decode(rawResponse, &response)
+	return response
+}
+
+func (t *Trading) Transfer(request TransferRequest) OrderResponse {
+	rawResponse := Request("transfer", request)
+
 	var response OrderResponse
 	_ = mapstructure.Decode(rawResponse, &response)
 	return response

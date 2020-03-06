@@ -14,7 +14,7 @@ func (sm *SmartOrder) checkTimeouts() {
 				sm.Lock = true
 				sm.Strategy.GetModel().Enabled = false
 				sm.Strategy.GetModel().State.State = Timeout
-				go sm.StateMgmt.UpdateState(sm.Strategy.GetModel().ID, &sm.Strategy.GetModel().State)
+				go sm.StateMgmt.UpdateState(sm.Strategy.GetModel().ID, sm.Strategy.GetModel().State)
 			}
 		}()
 	}

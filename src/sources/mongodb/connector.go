@@ -51,7 +51,7 @@ func Connect(url string, connectTimeout time.Duration) (*mongo.Client, error) {
 type StateMgmt struct {
 }
 
-func (sm *StateMgmt) DisableStrategy(strategyId primitive.ObjectID) {
+func (sm *StateMgmt) DisableStrategy(strategyId *primitive.ObjectID) {
 	col := GetCollection("core_strategies")
 	var request bson.D
 	request = bson.D{
@@ -127,8 +127,8 @@ func (sm *StateMgmt) SubscribeToHedge(strategyId *primitive.ObjectID, onStrategy
 			if strategy != nil {
 				onStrategyUpdate(strategy)
 			}
-			time.Sleep(2 * time.Second)
-			isOrderStillOpen = strategy == nil || strategy.State.ExitPrice > 0
+			time.Sleep(10 * time.Second)
+			isOrderStillOpen = strategy == nil || strategy.State == nil || strategy.State.ExitPrice == 0
 		}
 	}()
 	time.Sleep(3 * time.Second)
@@ -138,7 +138,7 @@ func (sm *StateMgmt) SubscribeToHedge(strategyId *primitive.ObjectID, onStrategy
 	pipeline := mongo.Pipeline{bson.D{
 		{"$match",
 			bson.D{
-				{"fullDocument.id", strategyId},
+				{"fullDocument._id", strategyId},
 			},
 		},
 	}}
@@ -162,7 +162,7 @@ func (sm *StateMgmt) SubscribeToHedge(strategyId *primitive.ObjectID, onStrategy
 	return nil
 }
 
-func (sm *StateMgmt) GetPosition(strategyId primitive.ObjectID, symbol string) {
+func (sm *StateMgmt) GetPosition(strategyId *primitive.ObjectID, symbol string) {
 
 }
 
@@ -219,7 +219,7 @@ func (sm *StateMgmt) GetMarketPrecision(pair string, marketType int64) (int64, i
 	return market.Properties.Binance.PricePrecision, market.Properties.Binance.QuantityPrecision
 }
 
-func (sm *StateMgmt) UpdateConditions(strategyId primitive.ObjectID, state *models.MongoStrategyCondition) {
+func (sm *StateMgmt) UpdateConditions(strategyId *primitive.ObjectID, state *models.MongoStrategyCondition) {
 	col := GetCollection("core_strategies")
 	var request bson.D
 	request = bson.D{
@@ -241,7 +241,7 @@ func (sm *StateMgmt) UpdateConditions(strategyId primitive.ObjectID, state *mode
 	}
 	// println(res)
 }
-func (sm *StateMgmt) UpdateState(strategyId primitive.ObjectID, state *models.MongoStrategyState) {
+func (sm *StateMgmt) UpdateState(strategyId *primitive.ObjectID, state *models.MongoStrategyState) {
 	col := GetCollection("core_strategies")
 	var request bson.D
 	request = bson.D{
@@ -268,7 +268,7 @@ func (sm *StateMgmt) UpdateState(strategyId primitive.ObjectID, state *models.Mo
 	}
 	println("updated state", updated.ModifiedCount, state.State)
 }
-func (sm *StateMgmt) UpdateExecutedAmount(strategyId primitive.ObjectID, state *models.MongoStrategyState) {
+func (sm *StateMgmt) UpdateExecutedAmount(strategyId *primitive.ObjectID, state *models.MongoStrategyState) {
 	col := GetCollection("core_strategies")
 	var request bson.D
 	request = bson.D{
@@ -301,7 +301,7 @@ func (sm *StateMgmt) UpdateExecutedAmount(strategyId primitive.ObjectID, state *
 	}
 	println("updated state", updated.ModifiedCount, state.State)
 }
-func (sm *StateMgmt) UpdateOrders(strategyId primitive.ObjectID, state *models.MongoStrategyState) {
+func (sm *StateMgmt) UpdateOrders(strategyId *primitive.ObjectID, state *models.MongoStrategyState) {
 	col := GetCollection("core_strategies")
 	var request bson.D
 	request = bson.D{
@@ -331,7 +331,7 @@ func (sm *StateMgmt) UpdateOrders(strategyId primitive.ObjectID, state *models.M
 	}
 	println("updated state", updated.ModifiedCount, state.State)
 }
-func (sm *StateMgmt) UpdateEntryPrice(strategyId primitive.ObjectID, state *models.MongoStrategyState) {
+func (sm *StateMgmt) UpdateEntryPrice(strategyId *primitive.ObjectID, state *models.MongoStrategyState) {
 	col := GetCollection("core_strategies")
 	var request bson.D
 	request = bson.D{
@@ -354,7 +354,7 @@ func (sm *StateMgmt) UpdateEntryPrice(strategyId primitive.ObjectID, state *mode
 	}
 	println("updated state", updated.ModifiedCount, state.State)
 }
-func (sm *StateMgmt) UpdateHedgeExitPrice(strategyId primitive.ObjectID, state *models.MongoStrategyState) {
+func (sm *StateMgmt) UpdateHedgeExitPrice(strategyId *primitive.ObjectID, state *models.MongoStrategyState) {
 	col := GetCollection("core_strategies")
 	var request bson.D
 	request = bson.D{

@@ -8,7 +8,7 @@ import (
 
 func (sm *SmartOrder) enterTrailingEntry(ctx context.Context, args ...interface{}) error {
 	sm.Strategy.GetModel().State.State = TrailingEntry
-	sm.StateMgmt.UpdateState(sm.Strategy.GetModel().ID, &sm.Strategy.GetModel().State)
+	sm.StateMgmt.UpdateState(sm.Strategy.GetModel().ID, sm.Strategy.GetModel().State)
 	return nil
 }
 
@@ -57,44 +57,44 @@ func (sm *SmartOrder) checkTrailingProfit(ctx context.Context, args ...interface
 	//	return false
 	//}
 	currentOHLCV := args[0].(interfaces.OHLCV)
-
-	side := sm.Strategy.GetModel().Conditions.EntryOrder.Side
+	model := sm.Strategy.GetModel()
+	side := model.Conditions.EntryOrder.Side
 	switch side {
 	case "buy":
-		for i, target := range sm.Strategy.GetModel().Conditions.ExitLevels {
+		for i, target := range model.Conditions.ExitLevels {
 			isTrailingTarget := target.ActivatePrice > 0
 			if isTrailingTarget {
-				isActivated := i < len(sm.Strategy.GetModel().State.TrailingExitPrices)
-				deviation := target.EntryDeviation / 100 / sm.Strategy.GetModel().Conditions.Leverage
-				activateDeviation := target.ActivatePrice / 100 / sm.Strategy.GetModel().Conditions.Leverage
+				isActivated := i < len(model.State.TrailingExitPrices)
+				deviation := target.EntryDeviation / 100 / model.Conditions.Leverage
+				activateDeviation := target.ActivatePrice / 100 / model.Conditions.Leverage
 
 				activatePrice := target.ActivatePrice
 				if target.Type == 1 {
-					activatePrice = sm.Strategy.GetModel().State.EntryPrice * (1 + activateDeviation)
+					activatePrice = model.State.EntryPrice * (1 + activateDeviation)
 				}
 				didCrossActivatePrice := currentOHLCV.Close >= activatePrice
 
 				if !isActivated && didCrossActivatePrice {
-					sm.Strategy.GetModel().State.TrailingExitPrices = append(sm.Strategy.GetModel().State.TrailingExitPrices, currentOHLCV.Close)
+					model.State.TrailingExitPrices = append(model.State.TrailingExitPrices, currentOHLCV.Close)
 					return false
 				} else if !isActivated && !didCrossActivatePrice {
 					return false
 				}
-				edgePrice := sm.Strategy.GetModel().State.TrailingExitPrices[i]
+				edgePrice := model.State.TrailingExitPrices[i]
 
 				if currentOHLCV.Close > edgePrice {
-					sm.Strategy.GetModel().State.TrailingExitPrices[i] = currentOHLCV.Close
-					edgePrice = sm.Strategy.GetModel().State.TrailingExitPrices[i]
+					model.State.TrailingExitPrices[i] = currentOHLCV.Close
+					edgePrice = model.State.TrailingExitPrices[i]
 
 					go sm.placeTrailingOrder(edgePrice, time.Now().UnixNano(), i, side, false, TakeProfit)
 				}
 
 				deviationFromEdge := (edgePrice/currentOHLCV.Close - 1) * 100
 				if deviationFromEdge > deviation {
-					isSpot := sm.Strategy.GetModel().Conditions.MarketType == 0
+					isSpot := model.Conditions.MarketType == 0
 					isSpotMarketOrder := target.OrderType == "market" && isSpot
 					if isSpotMarketOrder {
-						sm.Strategy.GetModel().State.State = TakeProfit
+						model.State.State = TakeProfit
 						sm.placeOrder(edgePrice, TakeProfit)
 
 						return true
@@ -155,18 +155,23 @@ func (sm *SmartOrder) checkTrailingProfit(ctx context.Context, args ...interface
 func (sm *SmartOrder) placeTrailingOrder(newTrailingPrice float64, trailingCheckAt int64, i int, entrySide string, isEntry bool, step string) {
 	sm.Strategy.GetModel().State.TrailingCheckAt = trailingCheckAt
 	time.Sleep(2 * time.Second)
-	edgePrice := sm.Strategy.GetModel().State.TrailingEntryPrice
+	model := sm.Strategy.GetModel()
+	edgePrice := model.State.TrailingEntryPrice
 	if isEntry == false {
-		edgePrice = sm.Strategy.GetModel().State.TrailingExitPrices[i]
+		if step != HedgeLoss {
+			edgePrice = model.State.TrailingExitPrices[i]
+		} else {
+			edgePrice = model.State.TrailingHedgeExitPrice
+		}
 	}
-	trailingDidnChange := trailingCheckAt == sm.Strategy.GetModel().State.TrailingCheckAt
+	trailingDidnChange := trailingCheckAt == model.State.TrailingCheckAt
 	newTrailingIncreaseProfits := (newTrailingPrice < edgePrice && !isEntry) || (newTrailingPrice > edgePrice && isEntry)
 	priceRelation := edgePrice / newTrailingPrice
 	if isEntry {
 		priceRelation = newTrailingPrice / edgePrice
 	}
-	significantPercent := 0.016 * sm.Strategy.GetModel().Conditions.Leverage
-	trailingChangedALot := newTrailingIncreaseProfits && (significantPercent < (priceRelation-1)*100*sm.Strategy.GetModel().Conditions.Leverage)
+	significantPercent := 0.016 * model.Conditions.Leverage
+	trailingChangedALot := newTrailingIncreaseProfits && (significantPercent < (priceRelation-1)*100*model.Conditions.Leverage)
 	if entrySide == "buy" {
 		if !isEntry {
 			priceRelation = newTrailingPrice / edgePrice
@@ -174,12 +179,12 @@ func (sm *SmartOrder) placeTrailingOrder(newTrailingPrice float64, trailingCheck
 			priceRelation = edgePrice / newTrailingPrice
 		}
 		newTrailingIncreaseProfits = (newTrailingPrice > edgePrice && !isEntry) || (newTrailingPrice < edgePrice && isEntry)
-		trailingChangedALot = newTrailingIncreaseProfits && (significantPercent < (priceRelation-1)*100*sm.Strategy.GetModel().Conditions.Leverage)
+		trailingChangedALot = newTrailingIncreaseProfits && (significantPercent < (priceRelation-1)*100*model.Conditions.Leverage)
 	}
 	if trailingDidnChange || trailingChangedALot {
 		if sm.Lock == false {
 			sm.Lock = true
-			sm.Strategy.GetModel().State.TrailingEntryPrice = newTrailingPrice
+			model.State.TrailingEntryPrice = newTrailingPrice
 			sm.placeOrder(-1, step)
 			time.Sleep(3000 * time.Millisecond) // it will give some time for order execution, to avoid double send of orders
 			sm.Lock = false
