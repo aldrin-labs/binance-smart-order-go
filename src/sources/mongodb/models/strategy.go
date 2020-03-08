@@ -130,6 +130,8 @@ type MongoStrategyCondition struct {
 	HedgeKeyId      *primitive.ObjectID `json:"hedgeKeyId,omitempty" bson:"hedgeKeyId"`
 	HedgeStrategyId *primitive.ObjectID `json:"hedgeStrategyId,omitempty" bson:"hedgeStrategyId"`
 
+	CancelIfAnyActive bool `json:"cancelIfAnyActive,omitempty" bson:"cancelIfAnyActive"`
+
 	KeyAssetId *primitive.ObjectID `json:"keyAssetId,omitempty" bson:"keyAssetId"`
 	Pair       string              `json:"pair,omitempty" bson:"pair"`
 	MarketType int64               `json:"marketType,omitempty" bson:"marketType"`

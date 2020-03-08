@@ -25,7 +25,7 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 	prefix := "stop-"
 	isFutures := model.Conditions.MarketType == 1
 	isSpot := model.Conditions.MarketType == 0
-	isTrailingEntry := model.Conditions.EntryOrder.ActivatePrice > 0
+	isTrailingEntry := model.Conditions.EntryOrder.ActivatePrice != 0
 	ifShouldCancelPreviousOrder := false
 	leverage := model.Conditions.Leverage
 	if isSpot {
@@ -43,7 +43,7 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 		baseAmount = model.Conditions.EntryOrder.Amount
 
 		isNewTrailingMaximum := price == -1
-		isTrailingTarget := model.Conditions.EntryOrder.ActivatePrice > 0
+		isTrailingTarget := model.Conditions.EntryOrder.ActivatePrice != 0
 		if isNewTrailingMaximum && isTrailingTarget {
 			ifShouldCancelPreviousOrder = true
 			if model.Conditions.EntryOrder.OrderType == "market" {
@@ -160,7 +160,7 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 			return
 		}
 		target := model.Conditions.ExitLevels[sm.SelectedExitTarget]
-		isTrailingTarget := target.ActivatePrice > 0
+		isTrailingTarget := target.ActivatePrice != 0
 		isSpotMarketOrder := target.OrderType == "market" && isSpot
 		if price == 0 && isTrailingTarget {
 			// trailing exit, we cant place exit order now
@@ -312,7 +312,7 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 			break
 		} else {
 			println(response.Status)
-			if len(response.Data.Msg) > 0 && step != Canceled {
+			if len(response.Data.Msg) > 0 && step != Canceled && step != End && step != Timeout {
 				model.Enabled = false
 				model.State.State = Error
 				model.State.Msg = response.Data.Msg

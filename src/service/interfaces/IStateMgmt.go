@@ -18,4 +18,5 @@ type IStateMgmt interface {
 	SubscribeToHedge(strategyId *primitive.ObjectID, onHedgeExitUpdate func(strategy *models.MongoStrategy)) error
 	DisableStrategy(strategyId *primitive.ObjectID)
 	GetMarketPrecision(pair string, marketType int64) (int64, int64)
+	AnyActiveStrats(strategy *models.MongoStrategy) bool
 }

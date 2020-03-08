@@ -98,7 +98,7 @@ func NewSmartOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed,
 	*/
 	State.Configure(WaitForEntry).PermitDynamic(TriggerTrade, sm.exitWaitEntry,
 		sm.checkWaitEntry).PermitDynamic(CheckExistingOrders, sm.exitWaitEntry,
-		sm.checkExistingOrders)
+		sm.checkExistingOrders).OnEntry(sm.onStart)
 	State.Configure(TrailingEntry).Permit(TriggerTrade, InEntry,
 		sm.checkTrailingEntry).Permit(CheckExistingOrders, InEntry,
 		sm.checkExistingOrders).OnEntry(sm.enterTrailingEntry)
@@ -139,11 +139,25 @@ func NewSmartOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed,
 	sm.ExchangeName = "binance"
 	// fmt.Printf(sm.State.ToGraph())
 	// fmt.Printf("DONE\n")
-	sm.checkTimeouts()
-	sm.checkIfPlaceOrderInstantlyOnStart()
-	sm.hedge()
-
+	_ = sm.onStart(nil)
 	return sm
+}
+
+func (sm *SmartOrder) checkIfShouldCancelIfAnyActive(){
+	model := sm.Strategy.GetModel()
+
+	if model.Conditions.CancelIfAnyActive && sm.StateMgmt.AnyActiveStrats(model) {
+		model.Enabled = false
+		sm.Strategy.GetModel().State.State = Canceled
+		sm.StateMgmt.UpdateState(sm.Strategy.GetModel().ID, sm.Strategy.GetModel().State)
+	}
+}
+
+func (sm *SmartOrder) onStart(ctx context.Context, args ...interface{}) error {
+	go sm.checkTimeouts()
+	go sm.checkIfPlaceOrderInstantlyOnStart()
+	go sm.hedge()
+	return nil
 }
 
 func (sm *SmartOrder) checkIfPlaceOrderInstantlyOnStart() {
@@ -178,7 +192,7 @@ func (sm *SmartOrder) getLastTargetAmount() float64 {
 }
 
 func (sm *SmartOrder) exitWaitEntry(ctx context.Context, args ...interface{}) (stateless.State, error) {
-	if sm.Strategy.GetModel().Conditions.EntryOrder.ActivatePrice > 0 {
+	if sm.Strategy.GetModel().Conditions.EntryOrder.ActivatePrice != 0 {
 		println("move to", TrailingEntry)
 		return TrailingEntry, nil
 	}
@@ -191,15 +205,17 @@ func (sm *SmartOrder) checkWaitEntry(ctx context.Context, args ...interface{}) b
 		return false
 	}
 	currentOHLCV := args[0].(interfaces.OHLCV)
-	conditionPrice := sm.Strategy.GetModel().Conditions.EntryOrder.Price
-	if sm.Strategy.GetModel().Conditions.EntryOrder.ActivatePrice == 0 && sm.Strategy.GetModel().Conditions.EntryOrder.OrderType == "market" {
+	model := sm.Strategy.GetModel()
+	conditionPrice := model.Conditions.EntryOrder.Price
+	isInstantMarketOrder := model.Conditions.EntryOrder.ActivatePrice == 0 && model.Conditions.EntryOrder.OrderType == "market"
+	if  model.Conditions.EntryOrder.ActivatePrice == -1 || isInstantMarketOrder {
 		return true
 	}
-	isTrailing := sm.Strategy.GetModel().Conditions.EntryOrder.ActivatePrice > 0
+	isTrailing := model.Conditions.EntryOrder.ActivatePrice != 0
 	if isTrailing {
-		conditionPrice = sm.Strategy.GetModel().Conditions.EntryOrder.ActivatePrice
+		conditionPrice = model.Conditions.EntryOrder.ActivatePrice
 	}
-	switch sm.Strategy.GetModel().Conditions.EntryOrder.Side {
+	switch model.Conditions.EntryOrder.Side {
 	case "buy":
 		if currentOHLCV.Close <= conditionPrice {
 			return true

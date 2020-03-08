@@ -62,7 +62,7 @@ func (sm *SmartOrder) checkTrailingProfit(ctx context.Context, args ...interface
 	switch side {
 	case "buy":
 		for i, target := range model.Conditions.ExitLevels {
-			isTrailingTarget := target.ActivatePrice > 0
+			isTrailingTarget := target.ActivatePrice != 0
 			if isTrailingTarget {
 				isActivated := i < len(model.State.TrailingExitPrices)
 				deviation := target.EntryDeviation / 100 / model.Conditions.Leverage
@@ -105,7 +105,7 @@ func (sm *SmartOrder) checkTrailingProfit(ctx context.Context, args ...interface
 		break
 	case "sell":
 		for i, target := range sm.Strategy.GetModel().Conditions.ExitLevels {
-			isTrailingTarget := target.ActivatePrice > 0
+			isTrailingTarget := target.ActivatePrice != 0
 			if isTrailingTarget {
 				isActivated := i < len(sm.Strategy.GetModel().State.TrailingExitPrices)
 				deviation := target.EntryDeviation / 100 / sm.Strategy.GetModel().Conditions.Leverage

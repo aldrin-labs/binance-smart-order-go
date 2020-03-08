@@ -166,6 +166,29 @@ func (sm *StateMgmt) GetPosition(strategyId *primitive.ObjectID, symbol string) 
 
 }
 
+func (sm *StateMgmt) AnyActiveStrats(strategy *models.MongoStrategy) bool {
+	CollName := "core_strategies"
+	ctx := context.Background()
+	var request bson.D
+	request = bson.D{
+		{"_id", bson.D{{"$ne", strategy.ID}}},
+		{"enabled", true},
+		{"accountId", strategy.AccountId},
+		{"conditions.pair", strategy.Conditions.Pair},
+		{"conditions.marketType", strategy.Conditions.MarketType},
+	}
+	var coll = GetCollection(CollName)
+
+	var foundStrategy *models.MongoStrategy
+	err := coll.FindOne(ctx, request).Decode(&foundStrategy)
+	if err != nil {
+		if foundStrategy.ID.Hex() != strategy.ID.Hex() {
+			return true
+		}
+	}
+	return false
+}
+
 func (sm *StateMgmt) GetOrder(orderId string) *models.MongoOrder {
 	CollName := "core_orders"
 	ctx := context.Background()
