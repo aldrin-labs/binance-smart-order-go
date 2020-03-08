@@ -14,19 +14,19 @@ func (sm *SmartOrder) checkTimeouts() {
 				sm.Lock = true
 				sm.Strategy.GetModel().Enabled = false
 				sm.Strategy.GetModel().State.State = Timeout
-				go sm.StateMgmt.UpdateState(sm.Strategy.GetModel().ID, &sm.Strategy.GetModel().State)
+				go sm.StateMgmt.UpdateState(sm.Strategy.GetModel().ID, sm.Strategy.GetModel().State)
 			}
 		}()
 	}
 
-	if sm.Strategy.GetModel().Conditions.EntryOrder.ActivatePrice > 0 &&
+	if sm.Strategy.GetModel().Conditions.EntryOrder.ActivatePrice != 0 &&
 		sm.Strategy.GetModel().Conditions.ActivationMoveTimeout > 0 {
 		go func() {
 			currentState, _ := sm.State.State(context.TODO())
 			for currentState == WaitForEntry {
 				time.Sleep(time.Duration(sm.Strategy.GetModel().Conditions.ActivationMoveTimeout) * time.Second)
 				currentState, _ = sm.State.State(context.TODO())
-				if currentState == WaitForEntry && sm.Strategy.GetModel().Conditions.EntryOrder.ActivatePrice > 0 {
+				if currentState == WaitForEntry && sm.Strategy.GetModel().Conditions.EntryOrder.ActivatePrice != 0 {
 					activatePrice := sm.Strategy.GetModel().Conditions.EntryOrder.ActivatePrice
 					side := sm.Strategy.GetModel().Conditions.EntryOrder.Side
 						if side == "sell" {

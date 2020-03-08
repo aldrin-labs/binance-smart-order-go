@@ -5,6 +5,7 @@ import (
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies/smart_order"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb"
+	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
 	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -39,6 +40,9 @@ func RunSmartOrder(strategy *Strategy, df interfaces.IDataFeed, td trading.ITrad
 	}
 	if strategy.Model.Conditions.MarketType == 1 {
 		go td.UpdateLeverage(keyId, strategy.Model.Conditions.Leverage, strategy.Model.Conditions.Pair)
+	}
+	if strategy.Model.State == nil {
+		strategy.Model.State = &models.MongoStrategyState{}
 	}
 	runtime := smart_order.NewSmartOrder(strategy, df, td, keyId, strategy.StateMgmt)
 	go runtime.Start()
