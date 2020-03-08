@@ -51,7 +51,7 @@ func Connect(url string, connectTimeout time.Duration) (*mongo.Client, error) {
 type StateMgmt struct {
 }
 
-func (sm *StateMgmt) DisableStrategy(strategyId primitive.ObjectID) {
+func (sm *StateMgmt) DisableStrategy(strategyId *primitive.ObjectID) {
 	col := GetCollection("core_strategies")
 	var request bson.D
 	request = bson.D{
@@ -117,8 +117,76 @@ func (sm *StateMgmt) SubscribeToOrder(orderId string, onOrderStatusUpdate func(o
 	}
 	return nil
 }
-func (sm *StateMgmt) GetPosition(strategyId primitive.ObjectID, symbol string) {
 
+func (sm *StateMgmt) SubscribeToHedge(strategyId *primitive.ObjectID, onStrategyUpdate func(strategy *models.MongoStrategy)) error {
+	go func() {
+		var strategy *models.MongoStrategy
+		isOrderStillOpen := true
+		for isOrderStillOpen {
+			strategy = sm.GetStrategy(strategyId)
+			if strategy != nil {
+				onStrategyUpdate(strategy)
+			}
+			time.Sleep(10 * time.Second)
+			isOrderStillOpen = strategy == nil || strategy.State == nil || strategy.State.ExitPrice == 0
+		}
+	}()
+	time.Sleep(3 * time.Second)
+	CollName := "core_strategies"
+	ctx := context.Background()
+	var coll = GetCollection(CollName)
+	pipeline := mongo.Pipeline{bson.D{
+		{"$match",
+			bson.D{
+				{"fullDocument._id", strategyId},
+			},
+		},
+	}}
+	cs, err := coll.Watch(ctx, pipeline, options.ChangeStream().SetFullDocument(options.UpdateLookup))
+	if err != nil {
+		return err
+	}
+	//require.NoError(cs, err)
+	defer cs.Close(ctx)
+	for cs.Next(ctx) {
+		var event models.MongoStrategyUpdateEvent
+		err := cs.Decode(&event)
+		//	data := next.String()
+		// println(data)
+		//		err := json.Unmarshal([]byte(data), &event)
+		if err != nil {
+			println("event decode", err.Error())
+		}
+		onStrategyUpdate(&event.FullDocument)
+	}
+	return nil
+}
+
+func (sm *StateMgmt) GetPosition(strategyId *primitive.ObjectID, symbol string) {
+
+}
+
+func (sm *StateMgmt) AnyActiveStrats(strategy *models.MongoStrategy) bool {
+	CollName := "core_strategies"
+	ctx := context.Background()
+	var request bson.D
+	request = bson.D{
+		{"_id", bson.D{{"$ne", strategy.ID}}},
+		{"enabled", true},
+		{"accountId", strategy.AccountId},
+		{"conditions.pair", strategy.Conditions.Pair},
+		{"conditions.marketType", strategy.Conditions.MarketType},
+	}
+	var coll = GetCollection(CollName)
+
+	var foundStrategy *models.MongoStrategy
+	err := coll.FindOne(ctx, request).Decode(&foundStrategy)
+	if err != nil {
+		if foundStrategy.ID.Hex() != strategy.ID.Hex() {
+			return true
+		}
+	}
+	return false
 }
 
 func (sm *StateMgmt) GetOrder(orderId string) *models.MongoOrder {
@@ -136,6 +204,23 @@ func (sm *StateMgmt) GetOrder(orderId string) *models.MongoOrder {
 		println(err.Error())
 	}
 	return order
+}
+
+func (sm *StateMgmt) GetStrategy(strategyId *primitive.ObjectID) *models.MongoStrategy {
+	CollName := "core_strategies"
+	ctx := context.Background()
+	var request bson.D
+	request = bson.D{
+		{"_id", strategyId},
+	}
+	var coll = GetCollection(CollName)
+
+	var strategy *models.MongoStrategy
+	err := coll.FindOne(ctx, request).Decode(&strategy)
+	if err != nil {
+		println(err.Error())
+	}
+	return strategy
 }
 
 func (sm *StateMgmt) GetMarketPrecision(pair string, marketType int64) (int64, int64) {
@@ -157,7 +242,7 @@ func (sm *StateMgmt) GetMarketPrecision(pair string, marketType int64) (int64, i
 	return market.Properties.Binance.PricePrecision, market.Properties.Binance.QuantityPrecision
 }
 
-func (sm *StateMgmt) UpdateConditions(strategyId primitive.ObjectID, state *models.MongoStrategyCondition) {
+func (sm *StateMgmt) UpdateConditions(strategyId *primitive.ObjectID, state *models.MongoStrategyCondition) {
 	col := GetCollection("core_strategies")
 	var request bson.D
 	request = bson.D{
@@ -179,7 +264,7 @@ func (sm *StateMgmt) UpdateConditions(strategyId primitive.ObjectID, state *mode
 	}
 	// println(res)
 }
-func (sm *StateMgmt) UpdateState(strategyId primitive.ObjectID, state *models.MongoStrategyState) {
+func (sm *StateMgmt) UpdateState(strategyId *primitive.ObjectID, state *models.MongoStrategyState) {
 	col := GetCollection("core_strategies")
 	var request bson.D
 	request = bson.D{
@@ -206,7 +291,7 @@ func (sm *StateMgmt) UpdateState(strategyId primitive.ObjectID, state *models.Mo
 	}
 	println("updated state", updated.ModifiedCount, state.State)
 }
-func (sm *StateMgmt) UpdateExecutedAmount(strategyId primitive.ObjectID, state *models.MongoStrategyState) {
+func (sm *StateMgmt) UpdateExecutedAmount(strategyId *primitive.ObjectID, state *models.MongoStrategyState) {
 	col := GetCollection("core_strategies")
 	var request bson.D
 	request = bson.D{
@@ -239,7 +324,7 @@ func (sm *StateMgmt) UpdateExecutedAmount(strategyId primitive.ObjectID, state *
 	}
 	println("updated state", updated.ModifiedCount, state.State)
 }
-func (sm *StateMgmt) UpdateOrders(strategyId primitive.ObjectID, state *models.MongoStrategyState) {
+func (sm *StateMgmt) UpdateOrders(strategyId *primitive.ObjectID, state *models.MongoStrategyState) {
 	col := GetCollection("core_strategies")
 	var request bson.D
 	request = bson.D{
@@ -269,7 +354,7 @@ func (sm *StateMgmt) UpdateOrders(strategyId primitive.ObjectID, state *models.M
 	}
 	println("updated state", updated.ModifiedCount, state.State)
 }
-func (sm *StateMgmt) UpdateEntryPrice(strategyId primitive.ObjectID, state *models.MongoStrategyState) {
+func (sm *StateMgmt) UpdateEntryPrice(strategyId *primitive.ObjectID, state *models.MongoStrategyState) {
 	col := GetCollection("core_strategies")
 	var request bson.D
 	request = bson.D{
@@ -280,7 +365,30 @@ func (sm *StateMgmt) UpdateEntryPrice(strategyId primitive.ObjectID, state *mode
 		{
 			"$set", bson.D{
 			{
-				"state", state,
+				"state.entryPrice", state.EntryPrice,
+			},
+		},
+		},
+	}
+	updated, err := col.UpdateOne(context.TODO(), request, update)
+	if err != nil {
+		println("error in arg", err.Error())
+		return
+	}
+	println("updated state", updated.ModifiedCount, state.State)
+}
+func (sm *StateMgmt) UpdateHedgeExitPrice(strategyId *primitive.ObjectID, state *models.MongoStrategyState) {
+	col := GetCollection("core_strategies")
+	var request bson.D
+	request = bson.D{
+		{"_id", strategyId},
+	}
+	var update bson.D
+	update = bson.D{
+		{
+			"$set", bson.D{
+			{
+				"state.hedgeExitPrice", state.HedgeExitPrice,
 			},
 		},
 		},

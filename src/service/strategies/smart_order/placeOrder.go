@@ -18,36 +18,37 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 	reduceOnly := false
 
 	oppositeSide := "buy"
-	if sm.Strategy.GetModel().Conditions.EntryOrder.Side == oppositeSide {
+	model := sm.Strategy.GetModel()
+	if model.Conditions.EntryOrder.Side == oppositeSide {
 		oppositeSide = "sell"
 	}
 	prefix := "stop-"
-	isFutures := sm.Strategy.GetModel().Conditions.MarketType == 1
-	isSpot := sm.Strategy.GetModel().Conditions.MarketType == 0
-	isTrailingEntry := sm.Strategy.GetModel().Conditions.EntryOrder.ActivatePrice > 0
+	isFutures := model.Conditions.MarketType == 1
+	isSpot := model.Conditions.MarketType == 0
+	isTrailingEntry := model.Conditions.EntryOrder.ActivatePrice != 0
 	ifShouldCancelPreviousOrder := false
-	leverage := sm.Strategy.GetModel().Conditions.Leverage
+	leverage := model.Conditions.Leverage
 	if isSpot {
 		leverage = 1
 	}
 	switch step {
 	case TrailingEntry:
-		orderType = sm.Strategy.GetModel().Conditions.EntryOrder.OrderType // TODO find out to remove duplicate lines with 154 & 164
+		orderType = model.Conditions.EntryOrder.OrderType // TODO find out to remove duplicate lines with 154 & 164
 		isStopOrdersSupport := isFutures || orderType == "limit"
 		if isStopOrdersSupport { // we can place stop order, lets place it
-			orderType = prefix + sm.Strategy.GetModel().Conditions.EntryOrder.OrderType
+			orderType = prefix + model.Conditions.EntryOrder.OrderType
 		} else {
 			return
 		}
-		baseAmount = sm.Strategy.GetModel().Conditions.EntryOrder.Amount
+		baseAmount = model.Conditions.EntryOrder.Amount
 
 		isNewTrailingMaximum := price == -1
-		isTrailingTarget := sm.Strategy.GetModel().Conditions.EntryOrder.ActivatePrice > 0
+		isTrailingTarget := model.Conditions.EntryOrder.ActivatePrice != 0
 		if isNewTrailingMaximum && isTrailingTarget {
 			ifShouldCancelPreviousOrder = true
-			if sm.Strategy.GetModel().Conditions.EntryOrder.OrderType == "market" {
+			if model.Conditions.EntryOrder.OrderType == "market" {
 				if isFutures {
-					orderType = prefix + sm.Strategy.GetModel().Conditions.EntryOrder.OrderType
+					orderType = prefix + model.Conditions.EntryOrder.OrderType
 				} else {
 					return // we cant place stop-market orders on spot so we'll wait for exact price
 				}
@@ -55,11 +56,11 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 		} else {
 			return
 		}
-		side = sm.Strategy.GetModel().Conditions.EntryOrder.Side
+		side = model.Conditions.EntryOrder.Side
 		if side == "sell" {
-			orderPrice = sm.Strategy.GetModel().State.TrailingEntryPrice * (1 - sm.Strategy.GetModel().Conditions.EntryOrder.EntryDeviation/100/sm.Strategy.GetModel().Conditions.Leverage)
+			orderPrice = model.State.TrailingEntryPrice * (1 - model.Conditions.EntryOrder.EntryDeviation/100/model.Conditions.Leverage)
 		} else {
-			orderPrice = sm.Strategy.GetModel().State.TrailingEntryPrice * (1 + sm.Strategy.GetModel().Conditions.EntryOrder.EntryDeviation/100/sm.Strategy.GetModel().Conditions.Leverage)
+			orderPrice = model.State.TrailingEntryPrice * (1 + model.Conditions.EntryOrder.EntryDeviation/100/model.Conditions.Leverage)
 		}
 		break
 	case InEntry:
@@ -68,36 +69,59 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 			return // if it wasnt trailing we knew the price and placed order already (limit or market)
 			// but if it was trailing with stop-orders support we also already placed order
 		} // so here we only place after trailing market order for spot market:
-		orderType = sm.Strategy.GetModel().Conditions.EntryOrder.OrderType
-		baseAmount = sm.Strategy.GetModel().Conditions.EntryOrder.Amount
-		side = sm.Strategy.GetModel().Conditions.EntryOrder.Side
+		orderType = model.Conditions.EntryOrder.OrderType
+		baseAmount = model.Conditions.EntryOrder.Amount
+		side = model.Conditions.EntryOrder.Side
 		break
 	case WaitForEntry:
 		if isTrailingEntry {
 			return // do nothing because we dont know entry price, coz didnt hit activation price yet
 		}
 
-		orderType = sm.Strategy.GetModel().Conditions.EntryOrder.OrderType
-		side = sm.Strategy.GetModel().Conditions.EntryOrder.Side
-		baseAmount = sm.Strategy.GetModel().Conditions.EntryOrder.Amount
+		orderType = model.Conditions.EntryOrder.OrderType
+		side = model.Conditions.EntryOrder.Side
+		baseAmount = model.Conditions.EntryOrder.Amount
+		break
+	case HedgeLoss:
+		reduceOnly = true
+		baseAmount = model.Conditions.EntryOrder.Amount - model.State.ExecutedAmount
+		side = "buy"
+
+		if model.Conditions.EntryOrder.Side == side {
+			side = "sell"
+		}
+		orderType = model.Conditions.StopLossType
+
+		stopLoss := model.Conditions.HedgeLossDeviation
+		ifShouldCancelPreviousOrder = true
+		if side == "sell" {
+			orderPrice = model.State.TrailingHedgeExitPrice * (1 - stopLoss/100/leverage)
+		} else {
+			orderPrice = model.State.TrailingHedgeExitPrice * (1 + stopLoss/100/leverage)
+		}
+		orderType = prefix + orderType // ok we are in futures and can place order before it happened
 		break
 	case Stoploss:
 		reduceOnly = true
-		baseAmount = sm.Strategy.GetModel().Conditions.EntryOrder.Amount - sm.Strategy.GetModel().State.ExecutedAmount
+		baseAmount = model.Conditions.EntryOrder.Amount - model.State.ExecutedAmount
 		side = "buy"
 
-		if sm.Strategy.GetModel().Conditions.EntryOrder.Side == side {
+		isTrailingHedgeOrder := model.Conditions.HedgeStrategyId != nil || model.Conditions.HedgeKeyId != nil
+		if isTrailingHedgeOrder {
+			return
+		}
+		if model.Conditions.EntryOrder.Side == side {
 			side = "sell"
 		}
-		if sm.Strategy.GetModel().Conditions.TimeoutLoss == 0 {
-			orderType = sm.Strategy.GetModel().Conditions.StopLossType
+		if model.Conditions.TimeoutLoss == 0 {
+			orderType = model.Conditions.StopLossType
 			isStopOrdersSupport := isFutures // || orderType == "limit"
 
-			stopLoss := sm.Strategy.GetModel().Conditions.StopLoss
+			stopLoss := model.Conditions.StopLoss
 			if side == "sell" {
-				orderPrice = sm.Strategy.GetModel().State.EntryPrice * (1 - stopLoss/100/leverage)
+				orderPrice = model.State.EntryPrice * (1 - stopLoss/100/leverage)
 			} else {
-				orderPrice = sm.Strategy.GetModel().State.EntryPrice * (1 + stopLoss/100/leverage)
+				orderPrice = model.State.EntryPrice * (1 + stopLoss/100/leverage)
 			}
 
 			if isSpot {
@@ -111,17 +135,17 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 			orderType = prefix + orderType // ok we are in futures and can place order before it happened
 
 		} else {
-			if price > 0 && sm.Strategy.GetModel().State.StopLossAt == 0 {
-				sm.Strategy.GetModel().State.StopLossAt = time.Now().Unix()
+			if price > 0 && model.State.StopLossAt == 0 {
+				model.State.StopLossAt = time.Now().Unix()
 				go func(lastTimestamp int64) {
-					time.Sleep(time.Duration(sm.Strategy.GetModel().Conditions.TimeoutLoss) * time.Second)
+					time.Sleep(time.Duration(model.Conditions.TimeoutLoss) * time.Second)
 					currentState, _ := sm.State.State(context.TODO())
-					if currentState == Stoploss && sm.Strategy.GetModel().State.StopLossAt == lastTimestamp {
+					if currentState == Stoploss && model.State.StopLossAt == lastTimestamp {
 						sm.placeOrder(price, step)
 					}
-				}(sm.Strategy.GetModel().State.StopLossAt)
+				}(model.State.StopLossAt)
 				return
-			} else if price > 0 && sm.Strategy.GetModel().State.StopLossAt > 0 {
+			} else if price > 0 && model.State.StopLossAt > 0 {
 				orderType = "market"
 				break
 			} else {
@@ -132,11 +156,11 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 	case TakeProfit:
 		prefix := "take-profit-"
 		reduceOnly = true
-		if sm.SelectedExitTarget >= len(sm.Strategy.GetModel().Conditions.ExitLevels) {
+		if sm.SelectedExitTarget >= len(model.Conditions.ExitLevels) {
 			return
 		}
-		target := sm.Strategy.GetModel().Conditions.ExitLevels[sm.SelectedExitTarget]
-		isTrailingTarget := target.ActivatePrice > 0
+		target := model.Conditions.ExitLevels[sm.SelectedExitTarget]
+		isTrailingTarget := target.ActivatePrice != 0
 		isSpotMarketOrder := target.OrderType == "market" && isSpot
 		if price == 0 && isTrailingTarget {
 			// trailing exit, we cant place exit order now
@@ -165,9 +189,9 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 				break
 			case 1:
 				if side == "sell" {
-					orderPrice = sm.Strategy.GetModel().State.EntryPrice * (1 + target.Price/100/leverage)
+					orderPrice = model.State.EntryPrice * (1 + target.Price/100/leverage)
 				} else {
-					orderPrice = sm.Strategy.GetModel().State.EntryPrice * (1 - target.Price/100/leverage)
+					orderPrice = model.State.EntryPrice * (1 - target.Price/100/leverage)
 				}
 				break
 			}
@@ -176,29 +200,29 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 		if isNewTrailingMaximum && isTrailingTarget {
 			prefix = "stop-"
 			ifShouldCancelPreviousOrder = true
-			if target.OrderType == "market" {
-				if isFutures {
-					orderType = prefix + target.OrderType
-				} else if price == 0 {
-					return // we cant place stop-market orders on spot so we'll wait for exact price
-				}
-			} else {
-				recursiveCall = true // if its not instant order check maybe we can try to place other positions
+			if isFutures {
+				orderType = prefix + target.OrderType
+			} else if price == 0 {
+				return // we cant place stop-market orders on spot so we'll wait for exact price
 			}
-			orderPrice = sm.Strategy.GetModel().State.TrailingEntryPrice * (1 - target.EntryDeviation/100/leverage)
+			if side == "sell" {
+				orderPrice = model.State.TrailingEntryPrice * (1 - target.EntryDeviation/100/leverage)
+			} else {
+				orderPrice = model.State.TrailingEntryPrice * (1 + target.EntryDeviation/100/leverage)
+			}
 		}
-		if sm.SelectedExitTarget < len(sm.Strategy.GetModel().Conditions.ExitLevels)-1 {
+		if sm.SelectedExitTarget < len(model.Conditions.ExitLevels)-1 {
 			baseAmount = target.Amount
 			if target.Type == 1 {
 				if baseAmount == 0 {
 					baseAmount = 100
 				}
-				baseAmount = sm.Strategy.GetModel().Conditions.EntryOrder.Amount * (baseAmount / 100)
+				baseAmount = model.Conditions.EntryOrder.Amount * (baseAmount / 100)
 			}
 		} else {
 			baseAmount = sm.getLastTargetAmount()
 		}
-		// sm.Strategy.GetModel().State.ExecutedAmount += amount
+		// model.State.ExecutedAmount += amount
 		break
 	case Canceled:
 		{
@@ -209,7 +233,7 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 			}
 			side = oppositeSide
 			reduceOnly = true
-			baseAmount = sm.Strategy.GetModel().Conditions.EntryOrder.Amount
+			baseAmount = model.Conditions.EntryOrder.Amount
 			break
 		}
 	}
@@ -229,8 +253,8 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 		request := trading.CreateOrderRequest{
 			KeyId: sm.KeyId,
 			KeyParams: trading.Order{
-				Symbol:     sm.Strategy.GetModel().Conditions.Pair,
-				MarketType: sm.Strategy.GetModel().Conditions.MarketType,
+				Symbol:     model.Conditions.Pair,
+				MarketType: model.Conditions.MarketType,
 				Type:       orderType,
 				Side:       side,
 				Amount:     baseAmount,
@@ -244,15 +268,15 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 				Type: advancedOrderType,
 			}
 		}
-		if step == TrailingEntry && orderType != "market" && ifShouldCancelPreviousOrder && len(sm.Strategy.GetModel().State.ExecutedOrders) > 0 {
-			count := len(sm.Strategy.GetModel().State.ExecutedOrders)
-			existingOrderId := sm.Strategy.GetModel().State.ExecutedOrders[count-1]
+		if step == TrailingEntry && orderType != "market" && ifShouldCancelPreviousOrder && len(model.State.ExecutedOrders) > 0 {
+			count := len(model.State.ExecutedOrders)
+			existingOrderId := model.State.ExecutedOrders[count-1]
 			response := sm.ExchangeApi.CancelOrder(trading.CancelOrderRequest{
 				KeyId: sm.KeyId,
 				KeyParams: trading.CancelOrderRequestParams{
 					OrderId:    existingOrderId,
-					MarketType: sm.Strategy.GetModel().Conditions.MarketType,
-					Pair:       sm.Strategy.GetModel().Conditions.Pair,
+					MarketType: model.Conditions.MarketType,
+					Pair:       model.Conditions.Pair,
 				},
 			})
 			if response.Status == "ERR" { // looks like order was already executed or canceled in other thread
@@ -264,35 +288,35 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 			sm.IsWaitingForOrder.Store(step, true)
 			if ifShouldCancelPreviousOrder {
 				// cancel existing order if there is such ( and its not TrailingEntry )
-				if len(sm.Strategy.GetModel().State.ExecutedOrders) > 0 && step != TrailingEntry {
-					count := len(sm.Strategy.GetModel().State.ExecutedOrders)
-					existingOrderId := sm.Strategy.GetModel().State.ExecutedOrders[count-1]
+				if len(model.State.ExecutedOrders) > 0 && step != TrailingEntry {
+					count := len(model.State.ExecutedOrders)
+					existingOrderId := model.State.ExecutedOrders[count-1]
 					sm.ExchangeApi.CancelOrder(trading.CancelOrderRequest{
 						KeyId: sm.KeyId,
 						KeyParams: trading.CancelOrderRequestParams{
 							OrderId:    existingOrderId,
-							MarketType: sm.Strategy.GetModel().Conditions.MarketType,
-							Pair:       sm.Strategy.GetModel().Conditions.Pair,
+							MarketType: model.Conditions.MarketType,
+							Pair:       model.Conditions.Pair,
 						},
 					})
 				}
-				sm.Strategy.GetModel().State.ExecutedOrders = append(sm.Strategy.GetModel().State.ExecutedOrders, response.Data.Id)
+				model.State.ExecutedOrders = append(model.State.ExecutedOrders, response.Data.Id)
 			}
 			if response.Data.Id != "0" {
 				go sm.waitForOrder(response.Data.Id, step)
 			} else {
 				println("order 0")
 			}
-			sm.Strategy.GetModel().State.Orders = append(sm.Strategy.GetModel().State.Orders, response.Data.Id)
-			sm.StateMgmt.UpdateOrders(sm.Strategy.GetModel().ID, &sm.Strategy.GetModel().State)
+			model.State.Orders = append(model.State.Orders, response.Data.Id)
+			sm.StateMgmt.UpdateOrders(model.ID, model.State)
 			break
 		} else {
 			println(response.Status)
-			if len(response.Data.Msg) > 0 && step != Canceled {
-				sm.Strategy.GetModel().Enabled = false
-				sm.Strategy.GetModel().State.State = Error
-				sm.Strategy.GetModel().State.Msg = response.Data.Msg
-				go sm.StateMgmt.UpdateState(sm.Strategy.GetModel().ID, &sm.Strategy.GetModel().State)
+			if len(response.Data.Msg) > 0 && step != Canceled && step != End && step != Timeout {
+				model.Enabled = false
+				model.State.State = Error
+				model.State.Msg = response.Data.Msg
+				go sm.StateMgmt.UpdateState(model.ID, model.State)
 
 				break
 			}
@@ -301,7 +325,7 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 			}
 		}
 	}
-	canPlaceAnotherOrderForNextTarget := sm.SelectedExitTarget+1 < len(sm.Strategy.GetModel().Conditions.ExitLevels)
+	canPlaceAnotherOrderForNextTarget := sm.SelectedExitTarget+1 < len(model.Conditions.ExitLevels)
 	if recursiveCall && canPlaceAnotherOrderForNextTarget {
 		sm.SelectedExitTarget += 1
 		sm.placeOrder(price, step)
