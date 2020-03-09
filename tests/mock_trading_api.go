@@ -137,3 +137,10 @@ func (mt MockTrading) PlaceHedge(parentSmarOrder *models.MongoStrategy) trading.
 	}
 	return response
 }
+
+func (mt MockTrading) Transfer(request trading.TransferRequest) trading.OrderResponse {
+	response := trading.OrderResponse{
+		Status: "OK",
+	}
+	return response
+}
