@@ -5,18 +5,28 @@ import (
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/eventDriven/mysql"
 )
 
+type HistoricalParams struct {
+	Exchange      string
+	Base          string
+	Quote         string
+	OhlcvPeriod   int
+	MarketType    int // 0 - spot, 1 - futures,
+	IntervalStart int // unix time timestamp
+	IntervalEnd   int // unix time timestamp
+}
+
 type BTDataFeed struct {
 	tickerData  []interfaces.OHLCV
 	currentTick int
 }
 
-func NewBTDataFeed(exchange string, base string, quote string, period int, marketType int, fromTs int, toTs int) *BTDataFeed {
+func NewBTDataFeed(params HistoricalParams) *BTDataFeed {
 
 	// connect to MySql
 	sqlConn := mysql.SQLConn{}
 	sqlConn.Initialize()
 
-	ohlcvsFromMysql := sqlConn.GetOhlcv(exchange, base, quote, period, marketType, fromTs, toTs)
+	ohlcvsFromMysql := sqlConn.GetOhlcv(params.Exchange, params.Base, params.Quote, params.OhlcvPeriod, params.MarketType, params.IntervalStart, params.IntervalEnd)
 
 	dataFeed := BTDataFeed{
 		tickerData:  ohlcvsFromMysql,
