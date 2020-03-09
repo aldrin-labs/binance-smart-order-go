@@ -1,12 +1,18 @@
 package server
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/valyala/fasthttp"
-	"gitlab.com/crypto_project/core/strategy_service/src/service"
 	"log"
 	"sync"
+
+	"github.com/valyala/fasthttp"
+	"gitlab.com/crypto_project/core/strategy_service/src/backtesting"
+	backtestingMocks "gitlab.com/crypto_project/core/strategy_service/src/backtesting/mocks"
+	"gitlab.com/crypto_project/core/strategy_service/src/service"
+	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 var (
@@ -22,6 +28,8 @@ func RunServer(wg *sync.WaitGroup) {
 		h = fasthttp.CompressHandler(h)
 	}
 
+	log.Printf("API listening on %s ...", ":8080")
+
 	if err := fasthttp.ListenAndServe(*addr, h); err != nil {
 		wg.Done()
 		log.Fatalf("Error in ListenAndServe: %s", err)
@@ -29,6 +37,63 @@ func RunServer(wg *sync.WaitGroup) {
 }
 
 func requestHandler(ctx *fasthttp.RequestCtx) {
+	switch string(ctx.Method()) {
+	case "POST":
+		postHandler(ctx)
+	case "GET":
+		getHandler(ctx)
+	}
+}
+
+func postHandler(ctx *fasthttp.RequestCtx) {
+	switch string(ctx.Path()) {
+	case "/backtest":
+		backtest(ctx)
+	default:
+		ctx.Error("Unsupported path", fasthttp.StatusNotFound)
+	}
+}
+
+func getHandler(ctx *fasthttp.RequestCtx) {
+	switch string(ctx.Path()) {
+	case "/":
+		index(ctx)
+	case "/test":
+		test(ctx)
+	default:
+		ctx.Error("Unsupported path", fasthttp.StatusNotFound)
+	}
+}
+
+func backtest(ctx *fasthttp.RequestCtx) {
+	// TODO: parse SM params
+	//smartOrderModel := models.MongoStrategy{}
+	smartOrderModel := getBacktestStrategy()
+
+	// TODO: parse historical params
+	historicalDataParams := backtestingMocks.HistoricalParams{
+		Exchange:      "binance",
+		Base:          "BTC",
+		Quote:         "USDT",
+		OhlcvPeriod:   60,
+		MarketType:    1,
+		IntervalStart: 1583317500,
+		IntervalEnd:   1583317500 + 86400,
+	}
+
+	// run SM
+	backtestResult := backtesting.BacktestStrategy(smartOrderModel, historicalDataParams)
+
+	// return results
+	json, err := json.Marshal(backtestResult)
+	if err != nil {
+		fmt.Fprintf(ctx, "{status: ERR, message: %s", err.Error())
+	}
+
+	fmt.Fprintf(ctx, string(json))
+}
+
+func test(ctx *fasthttp.RequestCtx) {
 	fmt.Fprintf(ctx, "Hello, world!\n\n")
 
 	fmt.Fprintf(ctx, "Request method is %q\n", ctx.Method())
@@ -56,4 +121,46 @@ func requestHandler(ctx *fasthttp.RequestCtx) {
 	c.SetKey("cookie-name")
 	c.SetValue("cookie-value")
 	ctx.Response.Header.SetCookie(&c)
+}
+
+func index(ctx *fasthttp.RequestCtx) {
+	fmt.Fprintf(ctx, "Hello, world!\n\n")
+}
+
+func getBacktestStrategy() models.MongoStrategy {
+
+	smartOrder := models.MongoStrategy{
+		ID:          &primitive.ObjectID{},
+		Conditions:  &models.MongoStrategyCondition{},
+		State:       &models.MongoStrategyState{Amount: 1000},
+		TriggerWhen: models.TriggerOptions{},
+		Expiration:  models.ExpirationSchema{},
+		OwnerId:     primitive.ObjectID{},
+		Social:      models.MongoSocial{},
+		Enabled:     true,
+	}
+
+	smartOrder.Conditions = &models.MongoStrategyCondition{
+		Pair:         "BTC_USDT",
+		MarketType:   1,
+		Leverage:     100,
+		StopLossType: "market",
+		StopLoss:     3,
+		EntryOrder: &models.MongoEntryPoint{
+			Side:           "buy",
+			ActivatePrice:  8750,
+			Amount:         0.05,
+			EntryDeviation: 2,
+			OrderType:      "market",
+		},
+		ExitLevels: []*models.MongoEntryPoint{{
+			OrderType:      "market",
+			Type:           1,
+			ActivatePrice:  10,
+			EntryDeviation: 2,
+			Amount:         100,
+		}},
+	}
+
+	return smartOrder
 }

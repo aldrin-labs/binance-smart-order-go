@@ -21,11 +21,11 @@ type BacktestResult struct {
 	Gained float64
 }
 
-func backtestStrategy(smartOrderModel models.MongoStrategy) BacktestResult {
+func BacktestStrategy(smartOrderModel models.MongoStrategy, historicalDataParams backtestingMocks.HistoricalParams) BacktestResult {
 	loadENV("../../.env")
 
 	// get historical data
-	df := backtestingMocks.NewBTDataFeed(backtestingMocks.HistoricalParams{"binance", "BTC", "USDT", 60, 1, 1583317500, 1583317500 + 86400})
+	df := backtestingMocks.NewBTDataFeed(historicalDataParams)
 	//printClosePrices(df.GetTickerData())
 
 	// load SM to test

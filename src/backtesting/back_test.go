@@ -8,14 +8,25 @@ import (
 	"fmt"
 	"testing"
 
+	backtestingMocks "gitlab.com/crypto_project/core/strategy_service/src/backtesting/mocks"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 func TestBacktest(t *testing.T) {
+	historicalDataParams := backtestingMocks.HistoricalParams{
+		Exchange:      "binance",
+		Base:          "BTC",
+		Quote:         "USDT",
+		OhlcvPeriod:   60,
+		MarketType:    1,
+		IntervalStart: 1583317500,
+		IntervalEnd:   1583317500 + 86400,
+	}
+
 	smartOrderModel := getBacktestStrategy()
-	backtestResult := backtestStrategy(smartOrderModel)
+	backtestResult := BacktestStrategy(smartOrderModel, historicalDataParams)
 	fmt.Printf("Spent: %.02f Gained: %.02f Profit: %.02f \n", backtestResult.Spent, backtestResult.Gained, backtestResult.Gained-backtestResult.Spent)
 }
 
