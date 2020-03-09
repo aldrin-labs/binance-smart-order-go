@@ -51,32 +51,32 @@ func (sm *MockStateMgmt) SubscribeToOrder(orderId string, onOrderStatusUpdate fu
 	return nil
 }
 
-func (sm *MockStateMgmt) GetPosition(strategyId primitive.ObjectID, symbol string) {
+func (sm *MockStateMgmt) GetPosition(strategyId *primitive.ObjectID, symbol string) {
 
 }
 
-func (sm *MockStateMgmt) UpdateConditions(strategyId primitive.ObjectID, conditions *models.MongoStrategyCondition) {
+func (sm *MockStateMgmt) UpdateConditions(strategyId *primitive.ObjectID, conditions *models.MongoStrategyCondition) {
 	sm.ConditionsMap.Store(strategyId, &conditions)
 }
 
 // TODO: should be implemented ?
-func (sm *MockStateMgmt) UpdateState(strategyId primitive.ObjectID, state *models.MongoStrategyState) {
+func (sm *MockStateMgmt) UpdateState(strategyId *primitive.ObjectID, state *models.MongoStrategyState) {
 	sm.StateMap.Store(strategyId, &state)
 }
 
-func (sm *MockStateMgmt) UpdateEntryPrice(strategyId primitive.ObjectID, state *models.MongoStrategyState) {
+func (sm *MockStateMgmt) UpdateEntryPrice(strategyId *primitive.ObjectID, state *models.MongoStrategyState) {
 	sm.StateMap.Store(strategyId, &state)
 }
 
-func (sm *MockStateMgmt) UpdateExecutedAmount(strategyId primitive.ObjectID, state *models.MongoStrategyState) {
+func (sm *MockStateMgmt) UpdateExecutedAmount(strategyId *primitive.ObjectID, state *models.MongoStrategyState) {
 	sm.StateMap.Store(strategyId, &state)
 }
 
-func (sm *MockStateMgmt) UpdateOrders(strategyId primitive.ObjectID, state *models.MongoStrategyState) {
+func (sm *MockStateMgmt) UpdateOrders(strategyId *primitive.ObjectID, state *models.MongoStrategyState) {
 	sm.StateMap.Store(strategyId, &state)
 }
 
-func (sm *MockStateMgmt) DisableStrategy(strategyId primitive.ObjectID) {
+func (sm *MockStateMgmt) DisableStrategy(strategyId *primitive.ObjectID) {
 
 }
 
@@ -84,6 +84,11 @@ func (sm *MockStateMgmt) SubscribeToHedge(strategyId *primitive.ObjectID, onHedg
 	return nil
 }
 
-func (sm *MockStateMgmt) UpdateHedgeExitPrice(strategyId primitive.ObjectID, state *models.MongoStrategyState) {
+func (sm *MockStateMgmt) UpdateHedgeExitPrice(strategyId *primitive.ObjectID, state *models.MongoStrategyState) {
 
+}
+
+func (sm *MockStateMgmt) AnyActiveStrats(strategy *models.MongoStrategy) bool {
+	panic("implement me")
+	return false
 }
