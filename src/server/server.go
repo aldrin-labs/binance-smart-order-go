@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 
 	"github.com/valyala/fasthttp"
@@ -146,6 +147,16 @@ func getHistoricalParamsFromParams(params backtesting.BacktestParams) backtestin
 	if params.HistoricalParams.OhlcvPeriod == 0 {
 		params.HistoricalParams.OhlcvPeriod = 60
 	}
+
+	if params.HistoricalParams.MarketType == 0 {
+		if params.SmartOrder.MarketType == 1 {
+			params.HistoricalParams.MarketType = 1
+		}
+	}
+
+	baseAndQuote := strings.Split(params.SmartOrder.Pair, "_")
+	params.HistoricalParams.Base = baseAndQuote[0]
+	params.HistoricalParams.Quote = baseAndQuote[1]
 
 	return params.HistoricalParams
 }
