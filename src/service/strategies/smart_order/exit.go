@@ -25,9 +25,11 @@ func (sm *SmartOrder) exit(ctx context.Context, args ...interface{}) (stateless.
 				oppositeSide = "buy"
 			}
 			model.Conditions.EntryOrder.Side = oppositeSide
-			model.Conditions.EntryOrder.ActivatePrice = model.State.ExitPrice
-			sm.StateMgmt.UpdateConditions(model.ID, model.Conditions)
-			sm.tryCancelAllOrders()
+			if model.Conditions.EntryOrder.ActivatePrice > 0 {
+				model.Conditions.EntryOrder.ActivatePrice = model.State.ExitPrice
+			}
+			go sm.StateMgmt.UpdateConditions(model.ID, model.Conditions)
+			go sm.tryCancelAllOrders()
 
 			newState := models.MongoStrategyState{
 				State: WaitForEntry,
