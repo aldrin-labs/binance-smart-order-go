@@ -16,6 +16,11 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+type BacktestParams struct {
+	SmartOrder       models.MongoStrategyCondition     `json:"smartOrder,omitempty" bson:"smartOrder"`
+	HistoricalParams backtestingMocks.HistoricalParams `json:"historicalParams,omitempty" bson:"historicalParams"`
+}
+
 type BacktestResult struct {
 	Spent  float64
 	Gained float64
@@ -26,7 +31,6 @@ func BacktestStrategy(smartOrderModel models.MongoStrategy, historicalDataParams
 
 	// get historical data
 	df := backtestingMocks.NewBTDataFeed(historicalDataParams)
-	//printClosePrices(df.GetTickerData())
 
 	// load SM to test
 	tradingApi := tests.NewMockedTradingAPIWithMarketAccess(df)

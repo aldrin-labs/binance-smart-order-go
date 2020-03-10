@@ -66,23 +66,19 @@ func getHandler(ctx *fasthttp.RequestCtx) {
 }
 
 func backtest(ctx *fasthttp.RequestCtx) {
-	// TODO: parse SM params
-	//smartOrderModel := models.MongoStrategy{}
-	smartOrderModel := getBacktestStrategy()
 
-	// TODO: parse historical params
-	historicalDataParams := backtestingMocks.HistoricalParams{
-		Exchange:      "binance",
-		Base:          "BTC",
-		Quote:         "USDT",
-		OhlcvPeriod:   60,
-		MarketType:    1,
-		IntervalStart: 1583317500,
-		IntervalEnd:   1583317500 + 86400,
+	// parse SM params
+	var parsedParams backtesting.BacktestParams
+	if err := json.Unmarshal(ctx.PostBody(), &parsedParams); err != nil {
+		fmt.Fprintf(ctx, "{status: ERR, message: %s", err.Error())
 	}
 
+	smartOrderModel := getBacktestStrategyFromParams(parsedParams)
+	// historical params contain data about time frame for testing, exchange, ohlcv period etc.
+	historicalParams := getHistoricalParamsFromParams(parsedParams)
+
 	// run SM
-	backtestResult := backtesting.BacktestStrategy(smartOrderModel, historicalDataParams)
+	backtestResult := backtesting.BacktestStrategy(smartOrderModel, historicalParams)
 
 	// return results
 	json, err := json.Marshal(backtestResult)
@@ -90,7 +86,7 @@ func backtest(ctx *fasthttp.RequestCtx) {
 		fmt.Fprintf(ctx, "{status: ERR, message: %s", err.Error())
 	}
 
-	fmt.Fprintf(ctx, string(json))
+	fmt.Fprintf(ctx, "{status: OK, data: %s}", string(json))
 }
 
 func test(ctx *fasthttp.RequestCtx) {
@@ -127,40 +123,19 @@ func index(ctx *fasthttp.RequestCtx) {
 	fmt.Fprintf(ctx, "Hello, world!\n\n")
 }
 
-func getBacktestStrategy() models.MongoStrategy {
-
-	smartOrder := models.MongoStrategy{
+func getBacktestStrategyFromParams(params backtesting.BacktestParams) models.MongoStrategy {
+	return models.MongoStrategy{
 		ID:          &primitive.ObjectID{},
-		Conditions:  &models.MongoStrategyCondition{},
-		State:       &models.MongoStrategyState{Amount: 1000},
+		Conditions:  &params.SmartOrder,
+		State:       &models.MongoStrategyState{},
 		TriggerWhen: models.TriggerOptions{},
 		Expiration:  models.ExpirationSchema{},
 		OwnerId:     primitive.ObjectID{},
 		Social:      models.MongoSocial{},
 		Enabled:     true,
 	}
+}
 
-	smartOrder.Conditions = &models.MongoStrategyCondition{
-		Pair:         "BTC_USDT",
-		MarketType:   1,
-		Leverage:     100,
-		StopLossType: "market",
-		StopLoss:     3,
-		EntryOrder: &models.MongoEntryPoint{
-			Side:           "buy",
-			ActivatePrice:  8750,
-			Amount:         0.05,
-			EntryDeviation: 2,
-			OrderType:      "market",
-		},
-		ExitLevels: []*models.MongoEntryPoint{{
-			OrderType:      "market",
-			Type:           1,
-			ActivatePrice:  10,
-			EntryDeviation: 2,
-			Amount:         100,
-		}},
-	}
-
-	return smartOrder
+func getHistoricalParamsFromParams(params backtesting.BacktestParams) backtestingMocks.HistoricalParams {
+	return params.HistoricalParams
 }
