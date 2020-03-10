@@ -8,14 +8,8 @@ import (
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 )
 
-// OhlcvFromDB wrapper for OHLCV with additional MySQL data
-// type OhlcvFromDB struct {
-// 	Ohlcv     interfaces.OHLCV
-// 	Timestamp int
-// }
-
-// GetOhlcv - returns OHLCV records from MySQL Database
-func (sc *SQLConn) GetOhlcv(exchange string, base string, quote string, period int, marketType int, fromTs int, toTs int) []interfaces.OHLCV {
+// GetOhlcvPaged - returns OHLCV records from MySQL Database by pages with length of AMOUNT starting with OFFSET
+func (sc *SQLConn) GetOhlcvPaged(exchange string, base string, quote string, period int, marketType int, fromTs int, toTs int, offset int, amount int) []interfaces.OHLCV {
 
 	ohlcvTableName := os.Getenv("SQL_TABLE_NAME")
 	sqlRequest := fmt.Sprintf(`
@@ -25,6 +19,7 @@ func (sc *SQLConn) GetOhlcv(exchange string, base string, quote string, period i
 		period = ? and market_type = ? and exchange = ?
 		and record_date > ? and record_date < ?
 		order by record_date asc
+		LIMIT ?,?
 	`, ohlcvTableName)
 	stmtOut, err := sc.db.Prepare(sqlRequest)
 	if err != nil {
@@ -34,7 +29,7 @@ func (sc *SQLConn) GetOhlcv(exchange string, base string, quote string, period i
 	ohlcvs := []interfaces.OHLCV{}
 	var open, high, low, close, volume float64
 
-	rows, err := stmtOut.Query(base, quote, period, marketType, exchange, fromTs, toTs)
+	rows, err := stmtOut.Query(base, quote, period, marketType, exchange, fromTs, toTs, offset, amount)
 	if err != nil {
 		log.Println("Error while querying data from MySql")
 		panic(err.Error())
@@ -50,4 +45,9 @@ func (sc *SQLConn) GetOhlcv(exchange string, base string, quote string, period i
 	}
 
 	return ohlcvs
+}
+
+// GetOhlcv - returns OHLCV records from MySQL Database
+func (sc *SQLConn) GetOhlcv(exchange string, base string, quote string, period int, marketType int, fromTs int, toTs int) []interfaces.OHLCV {
+	return sc.GetOhlcvPaged(exchange, base, quote, period, marketType, fromTs, toTs, 0, 9223372036854775807)
 }

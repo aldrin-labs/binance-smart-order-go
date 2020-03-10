@@ -1,6 +1,8 @@
 package backtest
 
 import (
+	"log"
+
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/eventDriven/mysql"
 )
@@ -18,19 +20,27 @@ type HistoricalParams struct {
 type BTDataFeed struct {
 	tickerData  []interfaces.OHLCV
 	currentTick int
+	pageSize    int
+	info        HistoricalParams
+	sqlConn     mysql.SQLConn // maybe should move it to sqlConn singleton
 }
 
 func NewBTDataFeed(params HistoricalParams) *BTDataFeed {
+	pageSize := 1000
 
 	// connect to MySql
 	sqlConn := mysql.SQLConn{}
 	sqlConn.Initialize()
 
-	ohlcvsFromMysql := sqlConn.GetOhlcv(params.Exchange, params.Base, params.Quote, params.OhlcvPeriod, params.MarketType, params.IntervalStart, params.IntervalEnd)
+	ohlcvsFromMysql := sqlConn.GetOhlcvPaged(params.Exchange, params.Base, params.Quote, params.OhlcvPeriod,
+		params.MarketType, params.IntervalStart, params.IntervalEnd, 0, pageSize)
 
 	dataFeed := BTDataFeed{
 		tickerData:  ohlcvsFromMysql,
 		currentTick: -1,
+		pageSize:    pageSize,
+		info:        params,
+		sqlConn:     sqlConn,
 	}
 
 	return &dataFeed
@@ -38,12 +48,25 @@ func NewBTDataFeed(params HistoricalParams) *BTDataFeed {
 
 func (df *BTDataFeed) GetPriceForPairAtExchange(pair string, exchange string, marketType int64) *interfaces.OHLCV {
 	df.currentTick += 1
-	len := len(df.tickerData)
-	if df.currentTick >= len {
-		df.currentTick = len - 1
-		return &df.tickerData[df.currentTick]
+	dataLength := len(df.tickerData)
+	if df.currentTick >= dataLength {
+		// get new portion of OHLCVs
+		log.Printf("Fetching more OHLCVs...")
+
+		offset := dataLength
+		ohlcvsFromMysql := df.sqlConn.GetOhlcvPaged(df.info.Exchange, df.info.Base, df.info.Quote, df.info.OhlcvPeriod,
+			df.info.MarketType, df.info.IntervalStart, df.info.IntervalEnd, offset, df.pageSize)
+
+		// check that we can fetch more OHLCV
+		if len(ohlcvsFromMysql) > 0 {
+			df.AddToFeed(ohlcvsFromMysql)
+		} else {
+			// return last available OHLCV datapoint
+			return &df.tickerData[df.currentTick-1]
+		}
 	}
-	println("Current tick", df.currentTick)
+
+	log.Println("Current tick ", df.currentTick)
 	return &df.tickerData[df.currentTick]
 }
 
