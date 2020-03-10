@@ -154,6 +154,7 @@ func (sm *SmartOrder) checkIfShouldCancelIfAnyActive(){
 }
 
 func (sm *SmartOrder) onStart(ctx context.Context, args ...interface{}) error {
+	sm.checkIfShouldCancelIfAnyActive()
 	go sm.checkTimeouts()
 	go sm.checkIfPlaceOrderInstantlyOnStart()
 	go sm.hedge()
