@@ -70,7 +70,8 @@ func backtest(ctx *fasthttp.RequestCtx) {
 	// parse SM params
 	var parsedParams backtesting.BacktestParams
 	if err := json.Unmarshal(ctx.PostBody(), &parsedParams); err != nil {
-		fmt.Fprintf(ctx, "{status: ERR, message: %s", err.Error())
+		fmt.Fprintf(ctx, createErrorResponse(err))
+		return
 	}
 
 	smartOrderModel := getBacktestStrategyFromParams(parsedParams)
@@ -78,12 +79,17 @@ func backtest(ctx *fasthttp.RequestCtx) {
 	historicalParams := getHistoricalParamsFromParams(parsedParams)
 
 	// run SM
-	backtestResult := backtesting.BacktestStrategy(smartOrderModel, historicalParams)
+	backtestResult, err := backtesting.BacktestStrategy(smartOrderModel, historicalParams)
+	if err != nil {
+		fmt.Fprintf(ctx, createErrorResponse(err))
+		return
+	}
 
 	// return results
 	json, err := json.Marshal(backtestResult)
 	if err != nil {
-		fmt.Fprintf(ctx, "{status: ERR, message: %s", err.Error())
+		fmt.Fprintf(ctx, createErrorResponse(err))
+		return
 	}
 
 	fmt.Fprintf(ctx, "{status: OK, data: %s}", string(json))
@@ -137,5 +143,13 @@ func getBacktestStrategyFromParams(params backtesting.BacktestParams) models.Mon
 }
 
 func getHistoricalParamsFromParams(params backtesting.BacktestParams) backtestingMocks.HistoricalParams {
+	if params.HistoricalParams.OhlcvPeriod == 0 {
+		params.HistoricalParams.OhlcvPeriod = 60
+	}
+
 	return params.HistoricalParams
+}
+
+func createErrorResponse(err error) string {
+	return fmt.Sprintf("{status: ERR, message: %s}", err.Error())
 }

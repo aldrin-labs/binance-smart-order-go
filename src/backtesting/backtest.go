@@ -2,6 +2,7 @@ package backtesting
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -26,11 +27,14 @@ type BacktestResult struct {
 	Gained float64
 }
 
-func BacktestStrategy(smartOrderModel models.MongoStrategy, historicalDataParams backtestingMocks.HistoricalParams) BacktestResult {
+func BacktestStrategy(smartOrderModel models.MongoStrategy, historicalDataParams backtestingMocks.HistoricalParams) (BacktestResult, error) {
 	loadENV("../../.env")
 
 	// get historical data
 	df := backtestingMocks.NewBTDataFeed(historicalDataParams)
+	if df == nil || len(df.GetTickerData()) == 0 {
+		return BacktestResult{}, errors.New("No historical data")
+	}
 
 	// load SM to test
 	tradingApi := tests.NewMockedTradingAPIWithMarketAccess(df)
@@ -39,6 +43,7 @@ func BacktestStrategy(smartOrderModel models.MongoStrategy, historicalDataParams
 	smartOrder := getSmartOrder(smartOrderModel, df, tradingApi, sm)
 
 	// run SM
+	// TODO: panic inside Start function should be handled
 	go smartOrder.Start()
 	waitUntilSmartOrderEnds(smartOrder)
 
@@ -50,7 +55,7 @@ func BacktestStrategy(smartOrderModel models.MongoStrategy, historicalDataParams
 	//amountSold, _ := tradingApi.AmountSum.Load("BTC_USDTsell")
 	//fmt.Printf("Total sold: %f \n", amountSold.(float64))
 
-	return backtestResult
+	return backtestResult, nil
 }
 
 func waitUntilSmartOrderEnds(smartOrder *smart_order.SmartOrder) {
