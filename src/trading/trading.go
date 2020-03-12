@@ -223,6 +223,7 @@ func (t *Trading) PlaceHedge(parentSmarOrder *models.MongoStrategy) OrderRespons
 	} else {
 		oppositeSide = "buy"
 	}
+	hedgedStrategy.Conditions.ContinueIfEnded = false
 	hedgedStrategy.Conditions.EntryOrder.Side = oppositeSide
 
 	createRequest := CreateOrderRequest{

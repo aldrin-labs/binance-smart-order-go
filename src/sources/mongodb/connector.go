@@ -390,6 +390,9 @@ func (sm *StateMgmt) UpdateHedgeExitPrice(strategyId *primitive.ObjectID, state 
 			{
 				"state.hedgeExitPrice", state.HedgeExitPrice,
 			},
+			{
+				"state.state", state.State,
+			},
 		},
 		},
 	}
