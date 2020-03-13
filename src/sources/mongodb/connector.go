@@ -2,6 +2,9 @@ package mongodb
 
 import (
 	"context"
+	"os"
+	"time"
+
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -9,8 +12,6 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
 	"go.mongodb.org/mongo-driver/mongo/writeconcern"
-	"os"
-	"time"
 )
 
 var mongoClient *mongo.Client
@@ -61,10 +62,10 @@ func (sm *StateMgmt) DisableStrategy(strategyId *primitive.ObjectID) {
 	update = bson.D{
 		{
 			"$set", bson.D{
-			{
-				"enabled", false,
+				{
+					"enabled", false,
+				},
 			},
-		},
 		},
 	}
 	_, err := col.UpdateOne(context.TODO(), request, update)
@@ -182,10 +183,14 @@ func (sm *StateMgmt) AnyActiveStrats(strategy *models.MongoStrategy) bool {
 	var foundStrategy *models.MongoStrategy
 	err := coll.FindOne(ctx, request).Decode(&foundStrategy)
 	if err != nil {
-		if foundStrategy.ID.Hex() != strategy.ID.Hex() {
-			return true
-		}
+		println("strategy decode error: ", err.Error())
+		return false
 	}
+
+	if foundStrategy.ID.Hex() != strategy.ID.Hex() {
+		return true
+	}
+
 	return false
 }
 
@@ -252,10 +257,10 @@ func (sm *StateMgmt) UpdateConditions(strategyId *primitive.ObjectID, state *mod
 	update = bson.D{
 		{
 			"$set", bson.D{
-			{
-				"conditions", state,
+				{
+					"conditions", state,
+				},
 			},
-		},
 		},
 	}
 	_, err := col.UpdateOne(context.TODO(), request, update)
@@ -337,14 +342,14 @@ func (sm *StateMgmt) UpdateOrders(strategyId *primitive.ObjectID, state *models.
 	update = bson.D{
 		{
 			"$addToSet", bson.D{
-			{
-				"state.executedOrders", bson.D{
 				{
-					"$each", state.ExecutedOrders,
+					"state.executedOrders", bson.D{
+						{
+							"$each", state.ExecutedOrders,
+						},
+					},
 				},
 			},
-			},
-		},
 		},
 	}
 	updated, err := col.UpdateOne(context.TODO(), request, update)
@@ -364,10 +369,10 @@ func (sm *StateMgmt) UpdateEntryPrice(strategyId *primitive.ObjectID, state *mod
 	update = bson.D{
 		{
 			"$set", bson.D{
-			{
-				"state.entryPrice", state.EntryPrice,
+				{
+					"state.entryPrice", state.EntryPrice,
+				},
 			},
-		},
 		},
 	}
 	updated, err := col.UpdateOne(context.TODO(), request, update)
@@ -387,13 +392,13 @@ func (sm *StateMgmt) UpdateHedgeExitPrice(strategyId *primitive.ObjectID, state 
 	update = bson.D{
 		{
 			"$set", bson.D{
-			{
-				"state.hedgeExitPrice", state.HedgeExitPrice,
+				{
+					"state.hedgeExitPrice", state.HedgeExitPrice,
+				},
+				{
+					"state.state", state.State,
+				},
 			},
-			{
-				"state.state", state.State,
-			},
-		},
 		},
 	}
 	updated, err := col.UpdateOne(context.TODO(), request, update)
