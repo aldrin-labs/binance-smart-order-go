@@ -154,9 +154,10 @@ func (sm *SmartOrder) checkIfShouldCancelIfAnyActive(){
 }
 
 func (sm *SmartOrder) onStart(ctx context.Context, args ...interface{}) error {
-	go sm.checkTimeouts()
-	go sm.checkIfPlaceOrderInstantlyOnStart()
+	sm.checkIfShouldCancelIfAnyActive()
 	go sm.hedge()
+	sm.checkIfPlaceOrderInstantlyOnStart()
+	go sm.checkTimeouts()
 	return nil
 }
 
@@ -166,7 +167,7 @@ func (sm *SmartOrder) checkIfPlaceOrderInstantlyOnStart() {
 		entryIsNotTrailing := sm.Strategy.GetModel().Conditions.EntryOrder.ActivatePrice == 0
 		if entryIsNotTrailing { // then we must know exact price
 			sm.IsWaitingForOrder.Store(WaitForEntry, true)
-			go sm.placeOrder(sm.Strategy.GetModel().Conditions.EntryOrder.Price, WaitForEntry)
+			sm.placeOrder(sm.Strategy.GetModel().Conditions.EntryOrder.Price, WaitForEntry)
 		}
 	}
 }
@@ -256,71 +257,71 @@ func (sm *SmartOrder) checkProfit(ctx context.Context, args ...interface{}) bool
 		return false
 	}
 	currentOHLCV := args[0].(interfaces.OHLCV)
-
-	if sm.Strategy.GetModel().Conditions.TimeoutIfProfitable > 0 {
-		isProfitable := (sm.Strategy.GetModel().Conditions.EntryOrder.Side == "buy" && sm.Strategy.GetModel().State.EntryPrice < currentOHLCV.Close) ||
-			(sm.Strategy.GetModel().Conditions.EntryOrder.Side == "sell" && sm.Strategy.GetModel().State.EntryPrice > currentOHLCV.Close)
-		if isProfitable && sm.Strategy.GetModel().State.ProfitableAt == 0 {
-			sm.Strategy.GetModel().State.ProfitableAt = time.Now().Unix()
+	model := sm.Strategy.GetModel()
+	if model.Conditions.TimeoutIfProfitable > 0 {
+		isProfitable := (model.Conditions.EntryOrder.Side == "buy" && model.State.EntryPrice < currentOHLCV.Close) ||
+			(model.Conditions.EntryOrder.Side == "sell" && model.State.EntryPrice > currentOHLCV.Close)
+		if isProfitable && model.State.ProfitableAt == 0 {
+			model.State.ProfitableAt = time.Now().Unix()
 			go func(profitableAt int64) {
-				time.Sleep(time.Duration(sm.Strategy.GetModel().Conditions.TimeoutIfProfitable) * time.Second)
-				stillTimeout := profitableAt == sm.Strategy.GetModel().State.ProfitableAt
+				time.Sleep(time.Duration(model.Conditions.TimeoutIfProfitable) * time.Second)
+				stillTimeout := profitableAt == model.State.ProfitableAt
 				if stillTimeout {
 					sm.placeOrder(-1, TakeProfit)
 				}
-			}(sm.Strategy.GetModel().State.ProfitableAt)
+			}(model.State.ProfitableAt)
 		} else if !isProfitable {
-			sm.Strategy.GetModel().State.ProfitableAt = 0
+			model.State.ProfitableAt = 0
 		}
 	}
 
-	if sm.Strategy.GetModel().Conditions.ExitLevels != nil {
+	if model.Conditions.ExitLevels != nil {
 		amount := 0.0
-		switch sm.Strategy.GetModel().Conditions.EntryOrder.Side {
+		switch model.Conditions.EntryOrder.Side {
 		case "buy":
-			for i, level := range sm.Strategy.GetModel().Conditions.ExitLevels {
-				if sm.Strategy.GetModel().State.ReachedTargetCount < i+1 && level.ActivatePrice == 0 {
-					if level.Type == 1 && currentOHLCV.Close >= (sm.Strategy.GetModel().State.EntryPrice*(100+level.Price/sm.Strategy.GetModel().Conditions.Leverage)/100) ||
+			for i, level := range model.Conditions.ExitLevels {
+				if model.State.ReachedTargetCount < i+1 && level.ActivatePrice == 0 {
+					if level.Type == 1 && currentOHLCV.Close >= (model.State.EntryPrice*(100+level.Price/model.Conditions.Leverage)/100) ||
 						level.Type == 0 && currentOHLCV.Close >= level.Price {
-						sm.Strategy.GetModel().State.ReachedTargetCount += 1
+						model.State.ReachedTargetCount += 1
 						if level.Type == 0 {
 							amount += level.Amount
 						} else if level.Type == 1 {
-							amount += sm.Strategy.GetModel().Conditions.EntryOrder.Amount * (level.Amount / 100)
+							amount += model.Conditions.EntryOrder.Amount * (level.Amount / 100)
 						}
 					}
 				}
 			}
 			break
 		case "sell":
-			for i, level := range sm.Strategy.GetModel().Conditions.ExitLevels {
-				if sm.Strategy.GetModel().State.ReachedTargetCount < i+1 && level.ActivatePrice == 0 {
-					if level.Type == 1 && currentOHLCV.Close <= (sm.Strategy.GetModel().State.EntryPrice*((100-level.Price/sm.Strategy.GetModel().Conditions.Leverage)/100)) ||
+			for i, level := range model.Conditions.ExitLevels {
+				if model.State.ReachedTargetCount < i+1 && level.ActivatePrice == 0 {
+					if level.Type == 1 && currentOHLCV.Close <= (model.State.EntryPrice*((100-level.Price/model.Conditions.Leverage)/100)) ||
 						level.Type == 0 && currentOHLCV.Close <= level.Price {
-						sm.Strategy.GetModel().State.ReachedTargetCount += 1
+						model.State.ReachedTargetCount += 1
 						if level.Type == 0 {
 							amount += level.Amount
 						} else if level.Type == 1 {
-							amount += sm.Strategy.GetModel().Conditions.EntryOrder.Amount * (level.Amount / 100)
+							amount += model.Conditions.EntryOrder.Amount * (level.Amount / 100)
 						}
 					}
 				}
 			}
 			break
 		}
-		if sm.Strategy.GetModel().State.ExecutedAmount == sm.Strategy.GetModel().Conditions.EntryOrder.Amount {
-			sm.Strategy.GetModel().State.Amount = 0
-			sm.Strategy.GetModel().State.State = TakeProfit // took all profits, exit now
-			sm.StateMgmt.UpdateState(sm.Strategy.GetModel().ID, sm.Strategy.GetModel().State)
+		if model.State.ExecutedAmount == model.Conditions.EntryOrder.Amount {
+			model.State.Amount = 0
+			model.State.State = TakeProfit // took all profits, exit now
+			sm.StateMgmt.UpdateState(model.ID, model.State)
 			return true
 		}
 		if amount > 0 {
-			sm.Strategy.GetModel().State.Amount = amount
-			sm.Strategy.GetModel().State.State = TakeProfit
+			model.State.Amount = amount
+			model.State.State = TakeProfit
 			currentState, _ := sm.State.State(context.Background())
 			if currentState == TakeProfit {
-				sm.Strategy.GetModel().State.State = EnterNextTarget
-				sm.StateMgmt.UpdateState(sm.Strategy.GetModel().ID, sm.Strategy.GetModel().State)
+				model.State.State = EnterNextTarget
+				sm.StateMgmt.UpdateState(model.ID, model.State)
 			}
 			return true
 		}
@@ -437,7 +438,7 @@ func (sm *SmartOrder) tryCancelAllOrders() {
 	orderIds := sm.Strategy.GetModel().State.Orders
 	for _, orderId := range orderIds {
 		if orderId != "0" {
-			sm.ExchangeApi.CancelOrder(trading.CancelOrderRequest{
+			go sm.ExchangeApi.CancelOrder(trading.CancelOrderRequest{
 				KeyId: sm.KeyId,
 				KeyParams: trading.CancelOrderRequestParams{
 					OrderId:    orderId,
@@ -449,7 +450,8 @@ func (sm *SmartOrder) tryCancelAllOrders() {
 	}
 }
 func (sm *SmartOrder) Start() {
-	state, _ := sm.State.State(context.Background())
+	ctx := context.TODO()
+	state, _ := sm.State.State(ctx)
 	for state != End && state != Canceled {
 		if sm.Strategy.GetModel().Enabled == false {
 			break
@@ -458,7 +460,7 @@ func (sm *SmartOrder) Start() {
 			sm.processEventLoop()
 		}
 		time.Sleep(200 * time.Millisecond)
-		state, _ = sm.State.State(context.Background())
+		state, _ = sm.State.State(ctx)
 	}
 	sm.Stop()
 	println("STOPPED")
@@ -468,8 +470,8 @@ func (sm *SmartOrder) Stop() {
 	state, _ := sm.State.State(context.Background())
 	if state != End {
 		sm.placeOrder(0, Canceled)
-		sm.tryCancelAllOrders()
 	}
+	sm.tryCancelAllOrders()
 	sm.StateMgmt.DisableStrategy(sm.Strategy.GetModel().ID)
 }
 

@@ -18,19 +18,21 @@ func (sm *SmartOrder) exit(ctx context.Context, args ...interface{}) (stateless.
 			if isTrailingHedgeOrder && !isParentHedge {
 				return End, nil
 			}
-			oppositeSide := model.Conditions.EntryOrder.Side
-			if oppositeSide == "buy" {
-				oppositeSide = "sell"
-			} else {
-				oppositeSide = "buy"
+			//oppositeSide := model.Conditions.EntryOrder.Side
+			//if oppositeSide == "buy" {
+			//	oppositeSide = "sell"
+			//} else {
+			//	oppositeSide = "buy"
+			//}
+			//model.Conditions.EntryOrder.Side = oppositeSide
+			if model.Conditions.EntryOrder.ActivatePrice > 0 {
+				model.Conditions.EntryOrder.ActivatePrice = model.State.ExitPrice
 			}
-			model.Conditions.EntryOrder.Side = oppositeSide
-			model.Conditions.EntryOrder.ActivatePrice = model.State.ExitPrice
-			sm.StateMgmt.UpdateConditions(model.ID, model.Conditions)
-			sm.tryCancelAllOrders()
+			go sm.StateMgmt.UpdateConditions(model.ID, model.Conditions)
+			go sm.tryCancelAllOrders()
 
 			newState := models.MongoStrategyState{
-				State: WaitForEntry,
+				State: "",
 			}
 			model.State = &newState
 			sm.StateMgmt.UpdateExecutedAmount(model.ID, model.State)
