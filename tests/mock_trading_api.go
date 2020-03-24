@@ -87,6 +87,9 @@ func (mt MockTrading) CreateOrder(req trading.CreateOrderRequest) trading.OrderR
 		if mt.Feed.currentTick >= lent {
 			index = lent - 1
 		}
+		if index < 0 {
+			index = 0
+		}
 		order.Average = mt.Feed.tickerData[index].Close
 	}
 	mt.OrdersMap.Store(orderId, order)
@@ -126,4 +129,12 @@ func (mt MockTrading) CancelOrder(req trading.CancelOrderRequest) trading.OrderR
 		Status: "OK",
 	}
 	return response
+}
+
+func (mt MockTrading) PlaceHedge(parentSmarOrder *models.MongoStrategy) trading.OrderResponse {
+	panic("implement me")
+}
+
+func (mt MockTrading) Transfer(request trading.TransferRequest) trading.OrderResponse {
+	panic("implement me")
 }

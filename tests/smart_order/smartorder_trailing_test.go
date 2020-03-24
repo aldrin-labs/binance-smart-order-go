@@ -201,7 +201,7 @@ func TestSmartOrderTrailingEntryAndFollowTrailingMaximumsWithoutEarlyExitWithHig
 	})
 
 	go smartOrder.Start()
-	time.Sleep(5 * time.Second)
+	time.Sleep(7 * time.Second)
 	// Check if we got in entry, and follow trailing maximum
 	isInState, _ := smartOrder.State.IsInState(smart_order.InEntry)
 	if !isInState {
@@ -209,12 +209,14 @@ func TestSmartOrderTrailingEntryAndFollowTrailingMaximumsWithoutEarlyExitWithHig
 		stateStr := fmt.Sprintf("%v", state)
 		t.Error("SmartOrder state is not InEntry (State: " + stateStr + ")")
 	}
-	expectedEntryPrice := 6952.09
+	// was 6952.09, changed to 6954.59
+	expectedEntryPrice := 6954.59
 	expectedTrailingExitPrice := 7170.0
 	entryPrice := smartOrder.Strategy.GetModel().State.EntryPrice
 	if entryPrice != expectedEntryPrice {
 		t.Error("SmartOrder entryPrice != " + fmt.Sprintf("%f", entryPrice) + "")
 	}
+
 	if len(smartOrder.Strategy.GetModel().State.TrailingExitPrices) == 0 {
 		t.Error("No trailing exit price")
 		return
