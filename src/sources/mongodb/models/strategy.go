@@ -63,12 +63,12 @@ type MongoOrder struct {
 
 type MongoStrategy struct {
 	ID              *primitive.ObjectID     `json:"_id" bson:"_id"`
-	Type            int64                  `json:"type,omitempty" bson:"type"`
-	Enabled         bool                   `json:"enabled,omitempty" bson:"enabled"`
-	AccountId       *primitive.ObjectID    `json:"accountId,omitempty" bson:"accountId"`
+	Type            int64                   `json:"type,omitempty" bson:"type"`
+	Enabled         bool                    `json:"enabled,omitempty" bson:"enabled"`
+	AccountId       *primitive.ObjectID     `json:"accountId,omitempty" bson:"accountId"`
 	Conditions      *MongoStrategyCondition `json:"conditions,omitempty" bson:"conditions"`
 	State           *MongoStrategyState     `bson:"state,omitempty"`
-	TriggerWhen     TriggerOptions         `bson:"triggerWhen,omitempty"`
+	TriggerWhen     TriggerOptions          `bson:"triggerWhen,omitempty"`
 	Expiration      ExpirationSchema
 	LastUpdate      int64
 	SignalIds       []primitive.ObjectID
@@ -135,7 +135,7 @@ type MongoStrategyCondition struct {
 	KeyAssetId *primitive.ObjectID `json:"keyAssetId,omitempty" bson:"keyAssetId"`
 	Pair       string              `json:"pair,omitempty" bson:"pair"`
 	MarketType int64               `json:"marketType,omitempty" bson:"marketType"`
-	EntryOrder *MongoEntryPoint     `json:"entryOrder,omitempty" bson:"entryOrder"`
+	EntryOrder *MongoEntryPoint    `json:"entryOrder,omitempty" bson:"entryOrder"`
 
 	WaitingEntryTimeout   float64 `json:"waitingEntryTimeout,omitempty" bson:"waitingEntryTimeout"`
 	ActivationMoveStep    float64 `json:"activationMoveStep,omitempty" bson:"activationMoveStep"`
@@ -151,14 +151,16 @@ type MongoStrategyCondition struct {
 	ChangeTrendIfLoss         bool    `json:"changeTrendIfLoss,omitempty" bson:"changeTrendIfLoss"`
 	ChangeTrendIfProfit       bool    `json:"changeTrendIfProfit,omitempty" bson:"changeTrendIfProfit"`
 
-	TimeoutWhenLoss    float64 `json:"timeoutWhenLoss,omitempty" bson:"timeoutWhenLoss"`
-	StopLoss           float64 `json:"stopLoss,omitempty" bson:"stopLoss"`
-	StopLossType       string  `json:"stopLossType,omitempty" bson:"stopLossType"`
-	TimeoutLoss        float64 `json:"timeoutLoss,omitempty" bson:"timeoutLoss"`
-	ForcedLoss         float64 `json:"forcedLoss,omitempty" bson:"forcedLoss"`
-	HedgeLossDeviation float64 `json:"hedgeLossDeviation,omitempty" bson:"hedgeLossDeviation"`
+	MoveStopCloser        bool    `json:"moveStopClose,omitempty" bson:"moveStopCloser"`
+	MoveForcedStopAtEntry bool    `json:"moveForcedStopAtEntry,omitempty" bson:"moveForcedStopAtEntry"`
+	TimeoutWhenLoss       float64 `json:"timeoutWhenLoss,omitempty" bson:"timeoutWhenLoss"` // wait after hit SL and gives it a chance to grow back
+	TimeoutLoss           float64 `json:"timeoutLoss,omitempty" bson:"timeoutLoss"` // if ROE negative it counts down and if still negative then exit
+	StopLoss              float64 `json:"stopLoss,omitempty" bson:"stopLoss"`
+	StopLossType          string  `json:"stopLossType,omitempty" bson:"stopLossType"`
+	ForcedLoss            float64 `json:"forcedLoss,omitempty" bson:"forcedLoss"`
+	HedgeLossDeviation    float64 `json:"hedgeLossDeviation,omitempty" bson:"hedgeLossDeviation"`
 
-	Leverage    float64           `json:"leverage,omitempty" bson:"leverage"`
+	Leverage    float64            `json:"leverage,omitempty" bson:"leverage"`
 	EntryLevels []*MongoEntryPoint `json:"entryLevels,omitempty" bson:"entryLevels"`
 	ExitLevels  []*MongoEntryPoint `json:"exitLevels,omitempty" bson:"exitLevels"`
 }

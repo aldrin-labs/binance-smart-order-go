@@ -303,6 +303,9 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 				model.State.ExecutedOrders = append(model.State.ExecutedOrders, response.Data.Id)
 			}
 			if response.Data.Id != "0" {
+				sm.OrdersMux.Lock()
+				sm.OrdersMap[response.Data.OrderId] = true
+				sm.OrdersMux.Unlock()
 				go sm.waitForOrder(response.Data.Id, step)
 			} else {
 				println("order 0")

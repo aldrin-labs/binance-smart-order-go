@@ -3,6 +3,7 @@ package mongodb
 import (
 	"context"
 	"os"
+	"sync"
 	"time"
 
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
@@ -50,6 +51,44 @@ func Connect(url string, connectTimeout time.Duration) (*mongo.Client, error) {
 }
 
 type StateMgmt struct {
+	OrderCallbacks *sync.Map
+}
+
+func (sm *StateMgmt) InitOrdersWatch() {
+	sm.OrderCallbacks = &sync.Map{}
+	CollName := "core_orders"
+	ctx := context.Background()
+	var coll = GetCollection(CollName)
+	pipeline := mongo.Pipeline{bson.D{
+		{"$match", bson.M{"$or": []interface{}{
+			bson.M{"fullDocument.status": "filled"},
+			bson.M{"fullDocument.status": "canceled"},
+		}},
+		},
+	}}
+	cs, err := coll.Watch(ctx, pipeline, options.ChangeStream().SetFullDocument(options.UpdateLookup))
+	if err != nil {
+		panic(err.Error())
+	}
+	//require.NoError(cs, err)
+	defer cs.Close(ctx)
+	for cs.Next(ctx) {
+		var event models.MongoOrderUpdateEvent
+		err := cs.Decode(&event)
+		//	data := next.String()
+		// println(data)
+		//		err := json.Unmarshal([]byte(data), &event)
+		if err != nil {
+			println("event decode", err.Error())
+		}
+		if event.FullDocument.Status == "filled" || event.FullDocument.Status == "canceled" {
+			getCallBackRaw, ok := sm.OrderCallbacks.Load(event.FullDocument.OrderId)
+			if ok {
+				callback := getCallBackRaw.(func(order *models.MongoOrder))
+				callback(&event.FullDocument)
+			}
+		}
+	}
 }
 
 func (sm *StateMgmt) DisableStrategy(strategyId *primitive.ObjectID) {
@@ -76,46 +115,32 @@ func (sm *StateMgmt) DisableStrategy(strategyId *primitive.ObjectID) {
 
 // TODO: refactor so it will be one global subscribtion to orders collection instead of one per order
 func (sm *StateMgmt) SubscribeToOrder(orderId string, onOrderStatusUpdate func(order *models.MongoOrder)) error {
-	go func() {
-		executedOrder := sm.GetOrder(orderId)
-		isOrderStillOpen := true
-		for isOrderStillOpen {
-			executedOrder = sm.GetOrder(orderId)
-			if executedOrder != nil {
-				onOrderStatusUpdate(executedOrder)
-			}
-			time.Sleep(2 * time.Second)
-			isOrderStillOpen = executedOrder == nil || (executedOrder.Status != "expired" && executedOrder.Status != "filled" && executedOrder.Status != "closed" && executedOrder.Status != "canceled")
-		}
-	}()
-	time.Sleep(3 * time.Second)
-	CollName := "core_orders"
-	ctx := context.Background()
-	var coll = GetCollection(CollName)
-	pipeline := mongo.Pipeline{bson.D{
-		{"$match",
-			bson.D{
-				{"fullDocument.id", orderId},
-			},
-		},
-	}}
-	cs, err := coll.Watch(ctx, pipeline, options.ChangeStream().SetFullDocument(options.UpdateLookup))
-	if err != nil {
-		return err
+
+	sm.OrderCallbacks.Store(orderId, onOrderStatusUpdate)
+	executedOrder := sm.GetOrder(orderId)
+	if executedOrder != nil {
+		onOrderStatusUpdate(executedOrder)
 	}
-	//require.NoError(cs, err)
-	defer cs.Close(ctx)
-	for cs.Next(ctx) {
-		var event models.MongoOrderUpdateEvent
-		err := cs.Decode(&event)
-		//	data := next.String()
-		// println(data)
-		//		err := json.Unmarshal([]byte(data), &event)
-		if err != nil {
-			println("event decode", err.Error())
-		}
-		onOrderStatusUpdate(&event.FullDocument)
-	}
+	//ch := make(chan int)
+	//go func(ch chan int) {
+	//	executedOrder := sm.GetOrder(orderId)
+	//	isOrderStillOpen := true
+	//	for isOrderStillOpen {
+	//		select {
+	//		case i := <-ch:
+	//			println("received realtime, closing refetch loop", orderId, i)
+	//			return
+	//		default:
+	//			executedOrder = sm.GetOrder(orderId)
+	//			if executedOrder != nil {
+	//				onOrderStatusUpdate(executedOrder)
+	//			}
+	//			time.Sleep(2 * time.Second)
+	//			isOrderStillOpen = executedOrder == nil || (executedOrder.Status != "expired" && executedOrder.Status != "filled" && executedOrder.Status != "closed" && executedOrder.Status != "canceled")
+	//		}
+	//	}
+	//}(ch)
+	//time.Sleep(3 * time.Second)
 	return nil
 }
 

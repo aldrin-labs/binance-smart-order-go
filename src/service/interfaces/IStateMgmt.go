@@ -19,4 +19,5 @@ type IStateMgmt interface {
 	DisableStrategy(strategyId *primitive.ObjectID)
 	GetMarketPrecision(pair string, marketType int64) (int64, int64)
 	AnyActiveStrats(strategy *models.MongoStrategy) bool
+	InitOrdersWatch()
 }

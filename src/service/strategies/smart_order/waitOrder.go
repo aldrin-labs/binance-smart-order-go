@@ -10,6 +10,17 @@ func (sm *SmartOrder) waitForOrder(orderId string, orderStatus string) {
 	_ = sm.StateMgmt.SubscribeToOrder(orderId, sm.orderCallback)
 }
 func (sm *SmartOrder) orderCallback(order *models.MongoOrder) {
+	if order == nil || order.OrderId == "" || !(order.Status == "filled" || order.Status == "canceled") {
+		return
+	}
+	sm.OrdersMux.Lock()
+	if _, ok := sm.OrdersMap[order.OrderId]; ok {
+		delete(sm.OrdersMap, order.OrderId)
+	} else {
+		sm.OrdersMux.Unlock()
+		return
+	}
+	sm.OrdersMux.Unlock()
 	err := sm.State.Fire(CheckExistingOrders, *order)
 	if err != nil {
 		// println(err.Error())
@@ -21,12 +32,15 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 	}
 	order := args[0].(models.MongoOrder)
 	orderId := order.OrderId
-	orderStatus := order.Status
 	step, ok := sm.StatusByOrderId.Load(orderId)
-	model := sm.Strategy.GetModel()
+	if order.Status == "filled" || order.Status == "canceled" {
+		sm.StatusByOrderId.Delete(orderId)
+	}
 	if !ok {
 		return false
 	}
+	orderStatus := order.Status
+	model := sm.Strategy.GetModel()
 	switch orderStatus {
 	case "closed", "filled": // TODO i
 		switch step {
