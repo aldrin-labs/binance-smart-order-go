@@ -32,6 +32,7 @@ func GetStrategyService() *StrategyService {
 		df := redis.InitRedis()
 		tr := trading.InitTrading()
 		sm := mongodb.StateMgmt{}
+		go sm.InitOrdersWatch()
 		singleton = &StrategyService{
 			strategies: map[string]*strategies.Strategy{},
 			dataFeed: df,
