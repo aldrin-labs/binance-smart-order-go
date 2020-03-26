@@ -51,13 +51,14 @@ type SmartOrder struct {
 	ExchangeApi             trading.ITrading
 	StateMgmt               interfaces.IStateMgmt
 	IsWaitingForOrder       sync.Map // TODO: this must be filled on start of SM if not first start (e.g. restore the state by checking order statuses)
-	OrdersMap               sync.Map
+	OrdersMap               map[string]bool
 	StatusByOrderId         sync.Map
 	QuantityAmountPrecision int64
 	QuantityPricePrecision  int64
 	Lock                    bool
 	LastTrailingTimestamp   int64
 	SelectedExitTarget      int
+	OrdersMux sync.Mutex
 }
 
 func round(num float64) int {
@@ -71,8 +72,7 @@ func (sm *SmartOrder) toFixed(num float64, precision int64) float64 {
 
 func NewSmartOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed, TradingAPI trading.ITrading, keyId *primitive.ObjectID, stateMgmt interfaces.IStateMgmt) *SmartOrder {
 
-	sm := &SmartOrder{Strategy: strategy, DataFeed: DataFeed, ExchangeApi: TradingAPI, KeyId: keyId, StateMgmt: stateMgmt, Lock: false, SelectedExitTarget: 0}
-
+	sm := &SmartOrder{Strategy: strategy, DataFeed: DataFeed, ExchangeApi: TradingAPI, KeyId: keyId, StateMgmt: stateMgmt, Lock: false, SelectedExitTarget: 0, OrdersMap: map[string]bool{}}
 	initState := WaitForEntry
 	pricePrecision, amountPrecision := stateMgmt.GetMarketPrecision(strategy.GetModel().Conditions.Pair, strategy.GetModel().Conditions.MarketType)
 	sm.QuantityPricePrecision = pricePrecision
@@ -357,6 +357,7 @@ func (sm *SmartOrder) checkLoss(ctx context.Context, args ...interface{}) bool {
 		} else if !isLoss {
 			model.State.LossableAt = 0
 		}
+		return false
 	}
 	switch model.Conditions.EntryOrder.Side {
 	case "buy":
