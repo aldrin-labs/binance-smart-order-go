@@ -97,16 +97,16 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			}
 		}
 		break
-	case "canceled":
-		switch step {
-		case WaitForEntry:
-			model.State.State = Canceled
-			return true
-		case InEntry:
-			model.State.State = Canceled
-			return true
-		}
-		break
+	//case "canceled":
+	//	switch step {
+	//	case WaitForEntry:
+	//		model.State.State = Canceled
+	//		return true
+	//	case InEntry:
+	//		model.State.State = Canceled
+	//		return true
+	//	}
+	//	break
 	}
 	return false
 }

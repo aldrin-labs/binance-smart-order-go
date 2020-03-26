@@ -73,21 +73,23 @@ func (sm *StateMgmt) InitOrdersWatch() {
 	//require.NoError(cs, err)
 	defer cs.Close(ctx)
 	for cs.Next(ctx) {
-		var event models.MongoOrderUpdateEvent
-		err := cs.Decode(&event)
+		var eventDecoded models.MongoOrderUpdateEvent
+		err := cs.Decode(&eventDecoded)
 		//	data := next.String()
 		// println(data)
 		//		err := json.Unmarshal([]byte(data), &event)
 		if err != nil {
 			println("event decode", err.Error())
 		}
-		if event.FullDocument.Status == "filled" || event.FullDocument.Status == "canceled" {
-			getCallBackRaw, ok := sm.OrderCallbacks.Load(event.FullDocument.OrderId)
-			if ok {
-				callback := getCallBackRaw.(func(order *models.MongoOrder))
-				callback(&event.FullDocument)
+		go func(event models.MongoOrderUpdateEvent){
+			if event.FullDocument.Status == "filled" || event.FullDocument.Status == "canceled" {
+				getCallBackRaw, ok := sm.OrderCallbacks.Load(event.FullDocument.OrderId)
+				if ok {
+					callback := getCallBackRaw.(func(order *models.MongoOrder))
+					callback(&event.FullDocument)
+				}
 			}
-		}
+		}(eventDecoded)
 	}
 }
 
