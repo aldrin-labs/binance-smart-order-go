@@ -25,6 +25,8 @@ func main() {
     go server.RunServer(&wg)
     wg.Add(1)
     // add keyId here
+    // isLocalBuild := os.Getenv("LOCAL_BUILD")
+    // go service.GetStrategyService().Init(&wg, isLocalBuild)
     go service.GetStrategyService().Init(&wg)
     wg.Wait()
 }
