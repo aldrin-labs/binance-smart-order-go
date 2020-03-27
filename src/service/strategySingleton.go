@@ -42,12 +42,13 @@ func GetStrategyService() *StrategyService {
 	})
 	return singleton
 }
-
+// func (ss *StrategyService) Init(wg *sync.WaitGroup, keyId string) {
 func (ss *StrategyService) Init(wg *sync.WaitGroup) {
 	ctx := context.Background()
 	var coll = mongodb.GetCollection("core_strategies")
 	// testStrat, _ := primitive.ObjectIDFromHex("5deecc36ba8a424bfd363aaf")
 	// , {"_id", testStrat}
+	//cur, err := coll.Find(ctx, bson.D{{"enabled", true}, {"accountId", keyId}})
 	cur, err := coll.Find(ctx, bson.D{{"enabled",true}})
 	if err != nil {
 		wg.Done()
@@ -86,9 +87,11 @@ func (ss *StrategyService) AddStrategy(strategy * models.MongoStrategy) {
 }
 
 const CollName = "core_strategies"
+// func (ss *StrategyService) WatchStrategies(keyId string) error {
 func (ss *StrategyService) WatchStrategies() error {
 	ctx := context.Background()
 	var coll = mongodb.GetCollection(CollName)
+	//cs, err := coll.Watch(ctx, mongo.Pipeline{bson.D{{"accountId",keyId}}}, options.ChangeStream().SetFullDocument(options.UpdateLookup))
 	cs, err := coll.Watch(ctx, mongo.Pipeline{}, options.ChangeStream().SetFullDocument(options.UpdateLookup))
 	if err != nil {
 		return err

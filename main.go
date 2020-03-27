@@ -24,6 +24,7 @@ func main() {
     wg.Add(1)
     go server.RunServer(&wg)
     wg.Add(1)
+    // add keyId here
     go service.GetStrategyService().Init(&wg)
     wg.Wait()
 }
