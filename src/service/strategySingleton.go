@@ -66,6 +66,7 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup) {
 		GetStrategyService().strategies[strategy.Model.ID.String()] = strategy
 		go strategy.Start()
 	}
+	// ss.WatchStrategies(keyId)
 	ss.WatchStrategies()
 	if err := cur.Err(); err != nil {
 		wg.Done()
