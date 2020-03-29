@@ -25,9 +25,11 @@ func GetCollection(colName string) *mongo.Collection {
 func GetMongoClientInstance() *mongo.Client {
 	if mongoClient == nil {
 		url := os.Getenv("MONGODB")
+		isLocalBuild := os.Getenv("LOCAL") == "true"
 		timeout := 10 * time.Second
 		ctx, _ := context.WithTimeout(context.Background(), timeout)
-		client, _ := mongo.Connect(ctx, options.Client().SetDirect(false).
+		client, _ := mongo.Connect(ctx, options.Client().SetDirect(isLocalBuild).
+		//client, _ := mongo.Connect(ctx, options.Client().SetDirect(false).
 			SetReadPreference(readpref.Primary()).
 			SetWriteConcern(writeconcern.New(writeconcern.WMajority())).
 			SetRetryWrites(true).
@@ -41,7 +43,9 @@ func GetMongoClientInstance() *mongo.Client {
 func Connect(url string, connectTimeout time.Duration) (*mongo.Client, error) {
 	ctx, _ := context.WithTimeout(context.Background(), connectTimeout)
 	timeout := 10 * time.Second
-	mongoClient, err := mongo.Connect(ctx, options.Client().SetDirect(false).
+	isLocalBuild := os.Getenv("LOCAL") == "true"
+	mongoClient, err := mongo.Connect(ctx, options.Client().SetDirect(isLocalBuild).
+	// mongoClient, err := mongo.Connect(ctx, options.Client().SetDirect(false).
 		SetReadPreference(readpref.Primary()).
 		SetWriteConcern(writeconcern.New(writeconcern.WMajority())).
 		SetRetryWrites(true).

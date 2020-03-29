@@ -4,6 +4,7 @@ import (
     "github.com/joho/godotenv"
     "gitlab.com/crypto_project/core/strategy_service/src/server"
     "gitlab.com/crypto_project/core/strategy_service/src/service"
+    "os"
     "sync"
 )
 
@@ -24,9 +25,8 @@ func main() {
     wg.Add(1)
     go server.RunServer(&wg)
     wg.Add(1)
-    // add keyId here
-    // isLocalBuild := os.Getenv("LOCAL_BUILD")
-    // go service.GetStrategyService().Init(&wg, isLocalBuild)
-    go service.GetStrategyService().Init(&wg)
+    isLocalBuild := os.Getenv("LOCAL") == "true"
+    go service.GetStrategyService().Init(&wg, isLocalBuild)
+    //go service.GetStrategyService().Init(&wg)
     wg.Wait()
 }
