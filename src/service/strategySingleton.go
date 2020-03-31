@@ -114,7 +114,6 @@ func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) 
 	for cs.Next(ctx) {
 		var event models.MongoStrategyUpdateEvent
 		err := cs.Decode(&event)
-		accountObjID, _ := primitive.ObjectIDFromHex(accountId)
 
 		//	data := next.String()
 		// println(data)
@@ -123,7 +122,7 @@ func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) 
 			println("event decode", err.Error())
 		}
 
-		if isLocalBuild && event.FullDocument.AccountId.String() != accountObjID.String() {
+		if isLocalBuild && event.FullDocument.AccountId.Hex() != accountId {
 			return nil
 		}
 
