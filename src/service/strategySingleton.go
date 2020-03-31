@@ -51,9 +51,9 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 	// testStrat, _ := primitive.ObjectIDFromHex("5deecc36ba8a424bfd363aaf")
 	// , {"_id", testStrat}
 	additionalCondition := bson.E{}
+	accountId := os.Getenv("ACCOUNT_ID")
 
 	if isLocalBuild {
-		accountId := os.Getenv("ACCOUNT_ID")
 		additionalCondition.Key = "accountId"
 		additionalCondition.Value, _ =  primitive.ObjectIDFromHex(accountId)
 	}
@@ -76,7 +76,7 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 		GetStrategyService().strategies[strategy.Model.ID.String()] = strategy
 		go strategy.Start()
 	}
-	ss.WatchStrategies(additionalCondition)
+	ss.WatchStrategies(isLocalBuild, accountId)
 	//ss.WatchStrategies()
 	if err := cur.Err(); err != nil {
 		wg.Done()
@@ -98,12 +98,12 @@ func (ss *StrategyService) AddStrategy(strategy * models.MongoStrategy) {
 }
 
 const CollName = "core_strategies"
-func (ss *StrategyService) WatchStrategies(additionalCondition bson.E) error {
+func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) error {
 //func (ss *StrategyService) WatchStrategies() error {
 	ctx := context.Background()
 	var coll = mongodb.GetCollection(CollName)
 
-	cs, err := coll.Watch(ctx, mongo.Pipeline{bson.D{additionalCondition}}, options.ChangeStream().SetFullDocument(options.UpdateLookup))
+	cs, err := coll.Watch(ctx, mongo.Pipeline{}, options.ChangeStream().SetFullDocument(options.UpdateLookup))
 	//cs, err := coll.Watch(ctx, mongo.Pipeline{}, options.ChangeStream().SetFullDocument(options.UpdateLookup))
 	if err != nil {
 		return err
@@ -120,6 +120,11 @@ func (ss *StrategyService) WatchStrategies(additionalCondition bson.E) error {
 		if err != nil {
 			println("event decode", err.Error())
 		}
+
+		if isLocalBuild && event.FullDocument.AccountId.String() != "ObjectID(\"" + accountId + "\")" {
+			return nil
+		}
+
 		if ss.strategies[event.FullDocument.ID.String()] != nil {
 			ss.strategies[event.FullDocument.ID.String()].HotReload(event.FullDocument)
 			if event.FullDocument.Enabled == false {
