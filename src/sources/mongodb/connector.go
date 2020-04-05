@@ -358,7 +358,7 @@ func (sm *StateMgmt) UpdateExecutedAmount(strategyId *primitive.ObjectID, state 
 		println("error in arg", err.Error())
 		return
 	}
-	println("updated state", updated.ModifiedCount, state.State)
+	println("updated executed amount state", updated.ModifiedCount, state.State)
 }
 func (sm *StateMgmt) UpdateOrders(strategyId *primitive.ObjectID, state *models.MongoStrategyState) {
 	col := GetCollection("core_strategies")
@@ -388,7 +388,7 @@ func (sm *StateMgmt) UpdateOrders(strategyId *primitive.ObjectID, state *models.
 		println("error in arg", err.Error())
 		return
 	}
-	println("updated state", updated.ModifiedCount, state.State)
+	println("updated orders state", updated.ModifiedCount, state.State)
 }
 func (sm *StateMgmt) UpdateEntryPrice(strategyId *primitive.ObjectID, state *models.MongoStrategyState) {
 	col := GetCollection("core_strategies")
@@ -411,7 +411,7 @@ func (sm *StateMgmt) UpdateEntryPrice(strategyId *primitive.ObjectID, state *mod
 		println("error in arg", err.Error())
 		return
 	}
-	println("updated state", updated.ModifiedCount, state.State)
+	println("updated entryPrice state", updated.ModifiedCount, state.State)
 }
 func (sm *StateMgmt) UpdateHedgeExitPrice(strategyId *primitive.ObjectID, state *models.MongoStrategyState) {
 	col := GetCollection("core_strategies")
@@ -437,5 +437,5 @@ func (sm *StateMgmt) UpdateHedgeExitPrice(strategyId *primitive.ObjectID, state 
 		println("error in arg", err.Error())
 		return
 	}
-	println("updated state", updated.ModifiedCount, state.State)
+	println("updated hedgeExitPrice state", updated.ModifiedCount, state.State)
 }
