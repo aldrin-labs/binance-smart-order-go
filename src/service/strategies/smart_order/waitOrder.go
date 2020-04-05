@@ -93,6 +93,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			model.State.ExitPrice = order.Average
 			sm.StateMgmt.UpdateExecutedAmount(model.ID, model.State)
 			if model.State.ExecutedAmount >= model.Conditions.EntryOrder.Amount {
+				println("go to end by stoploss checkExistingOrders")
 				return true
 			}
 		}

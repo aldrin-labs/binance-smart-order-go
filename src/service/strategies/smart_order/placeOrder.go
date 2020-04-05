@@ -113,6 +113,13 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 		if model.Conditions.EntryOrder.Side == side {
 			side = "sell"
 		}
+		// try exit on timeoutWhenLoss
+		if model.Conditions.TimeoutWhenLoss > 0 && price < 0 {
+			orderType = "market"
+			println("close by timeoutWhenLoss")
+			break
+		}
+
 		if model.Conditions.TimeoutLoss == 0 {
 			orderType = model.Conditions.StopLossType
 			isStopOrdersSupport := isFutures // || orderType == "limit"
@@ -138,17 +145,27 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 			if price > 0 && model.State.StopLossAt == 0 {
 				model.State.StopLossAt = time.Now().Unix()
 				go func(lastTimestamp int64) {
+					println("sleep TimeoutLoss ", model.Conditions.TimeoutLoss)
 					time.Sleep(time.Duration(model.Conditions.TimeoutLoss) * time.Second)
-					currentState, _ := sm.State.State(context.TODO())
+					currentState := sm.Strategy.GetModel().State.State
+					println("exit by timeout", currentState == Stoploss && model.State.StopLossAt == lastTimestamp)
 					if currentState == Stoploss && model.State.StopLossAt == lastTimestamp {
+						println("price, step", price, step)
 						sm.placeOrder(price, step)
+						model.State.State = End
+						sm.StateMgmt.UpdateState(model.ID, model.State)
+					} else {
+						model.State.StopLossAt = 0
+						sm.StateMgmt.UpdateState(model.ID, model.State)
 					}
 				}(model.State.StopLossAt)
 				return
 			} else if price > 0 && model.State.StopLossAt > 0 {
-				orderType = "market"
-				break
+				println("close by timeoutLoss, order type: ", model.Conditions.StopLossType)
+				orderType = model.Conditions.StopLossType
+				orderPrice = price
 			} else {
+				println("price < 0, timeoutLoss > 0")
 				return // cant do anything here
 			}
 		}
@@ -168,6 +185,13 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 		}
 		if price > 0 && !isSpotMarketOrder {
 			return // order was placed before, exit
+		}
+
+		// try exit on timeoutIfProfitable
+		if model.Conditions.TimeoutIfProfitable > 0 && price < 0 {
+			orderType = "market"
+			println("close by TimeoutIfProfitable")
+			break
 		}
 
 		side = oppositeSide
