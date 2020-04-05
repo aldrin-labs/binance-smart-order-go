@@ -113,6 +113,12 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 		if model.Conditions.EntryOrder.Side == side {
 			side = "sell"
 		}
+		// try exit on timeoutWhenLoss
+		if model.Conditions.TimeoutWhenLoss > 0 && price < 0 {
+			orderType = "market"
+			break
+		}
+
 		if model.Conditions.TimeoutLoss == 0 {
 			orderType = model.Conditions.StopLossType
 			isStopOrdersSupport := isFutures // || orderType == "limit"
@@ -139,15 +145,20 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 				model.State.StopLossAt = time.Now().Unix()
 				go func(lastTimestamp int64) {
 					time.Sleep(time.Duration(model.Conditions.TimeoutLoss) * time.Second)
-					currentState, _ := sm.State.State(context.TODO())
+					currentState := sm.Strategy.GetModel().State.State
 					if currentState == Stoploss && model.State.StopLossAt == lastTimestamp {
 						sm.placeOrder(price, step)
+						model.State.State = End
+						sm.StateMgmt.UpdateState(model.ID, model.State)
+					} else {
+						model.State.StopLossAt = 0
+						sm.StateMgmt.UpdateState(model.ID, model.State)
 					}
 				}(model.State.StopLossAt)
 				return
 			} else if price > 0 && model.State.StopLossAt > 0 {
-				orderType = "market"
-				break
+				orderType = model.Conditions.StopLossType
+				orderPrice = price
 			} else {
 				return // cant do anything here
 			}
@@ -168,6 +179,12 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 		}
 		if price > 0 && !isSpotMarketOrder {
 			return // order was placed before, exit
+		}
+
+		// try exit on timeoutIfProfitable
+		if model.Conditions.TimeoutIfProfitable > 0 && price < 0 {
+			orderType = "market"
+			break
 		}
 
 		side = oppositeSide
