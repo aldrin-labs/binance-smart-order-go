@@ -342,7 +342,7 @@ func (sm *SmartOrder) checkLoss(ctx context.Context, args ...interface{}) bool {
 		return false
 	}
 	stopLoss := model.Conditions.StopLoss / model.Conditions.Leverage
-	currentState, _ := sm.State.State(context.TODO())
+	currentState := model.State.State
 
 	// if we did not have time to go out to check existing orders (market)
 	if currentState == End {
