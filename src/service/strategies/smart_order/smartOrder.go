@@ -455,7 +455,6 @@ func (sm *SmartOrder) enterStopLoss(ctx context.Context, args ...interface{}) er
 				return nil
 			}
 			sm.Lock = true
-			//println("enter stoploss, place order")
 			// sm.cancelOpenOrders(sm.Strategy.GetModel().Conditions.Pair)
 			sm.placeOrder(currentOHLCV.Close, Stoploss)
 		}

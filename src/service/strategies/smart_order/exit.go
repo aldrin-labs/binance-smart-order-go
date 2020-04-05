@@ -10,7 +10,6 @@ func (sm *SmartOrder) exit(ctx context.Context, args ...interface{}) (stateless.
 	state, _ := sm.State.State(context.TODO())
 	nextState := End
 	model := sm.Strategy.GetModel()
-	//println("go into exit func")
 	if model.State.State != WaitLossHedge && model.State.ExecutedAmount >= model.Conditions.EntryOrder.Amount { // all trades executed, nothing more to trade
 		if model.Conditions.ContinueIfEnded {
 			isParentHedge := model.Conditions.HedgeKeyId != nil
