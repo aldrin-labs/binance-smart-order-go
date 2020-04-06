@@ -233,6 +233,13 @@ func (sm *SmartOrder) checkWaitEntry(ctx context.Context, args ...interface{}) b
 }
 
 func (sm *SmartOrder) enterEntry(ctx context.Context, args ...interface{}) error {
+	// if we returned to InEntry from Stoploss timeout
+	if sm.Strategy.GetModel().State.StopLossAt == -1 {
+		println("clear stopLossAt")
+		sm.Strategy.GetModel().State.StopLossAt = 0
+		sm.StateMgmt.UpdateState(sm.Strategy.GetModel().ID, sm.Strategy.GetModel().State)
+		return nil
+	}
 	if currentOHLCV, ok := args[0].(interfaces.OHLCV); ok {
 		sm.Strategy.GetModel().State.EntryPrice = currentOHLCV.Close
 	}
@@ -343,9 +350,15 @@ func (sm *SmartOrder) checkLoss(ctx context.Context, args ...interface{}) bool {
 	}
 	stopLoss := model.Conditions.StopLoss / model.Conditions.Leverage
 	currentState := model.State.State
+	stateFromStateMachine, _ := sm.State.State(ctx)
 
 	// if we did not have time to go out to check existing orders (market)
 	if currentState == End {
+		return true
+	}
+
+	// after return from Stoploss state to InEntry we should change state in machine
+	if stateFromStateMachine == Stoploss && model.State.StopLossAt == -1 && model.Conditions.TimeoutLoss > 0 {
 		return true
 	}
 
