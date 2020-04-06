@@ -235,7 +235,6 @@ func (sm *SmartOrder) checkWaitEntry(ctx context.Context, args ...interface{}) b
 func (sm *SmartOrder) enterEntry(ctx context.Context, args ...interface{}) error {
 	// if we returned to InEntry from Stoploss timeout
 	if sm.Strategy.GetModel().State.StopLossAt == -1 {
-		println("clear stopLossAt")
 		sm.Strategy.GetModel().State.StopLossAt = 0
 		sm.StateMgmt.UpdateState(sm.Strategy.GetModel().ID, sm.Strategy.GetModel().State)
 		return nil

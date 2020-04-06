@@ -152,10 +152,6 @@ func TestSmartExitOnStopMarketTimeout(t *testing.T) {
 	}
 }
 
-// here i need to write 2 test
-// one for case when SM go into loss, and while timeoutLoss is working price will return to point higher SL
-// second for case when SM will be closed after timeout
-
 func TestSmartExitAfterTimeoutLoss(t *testing.T) {
 	// price drops
 	fakeDataStream := []interfaces.OHLCV{{
