@@ -85,6 +85,9 @@ func (sm *SmartOrder) exit(ctx context.Context, args ...interface{}) (stateless.
 		case Stoploss:
 			nextState = Stoploss
 			break
+		case InEntry:
+			nextState = InEntry
+			break
 		case End:
 			nextState = End
 			break

@@ -151,7 +151,7 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 						model.State.State = End
 						sm.StateMgmt.UpdateState(model.ID, model.State)
 					} else {
-						model.State.StopLossAt = 0
+						model.State.StopLossAt = -1
 						sm.StateMgmt.UpdateState(model.ID, model.State)
 					}
 				}(model.State.StopLossAt)
