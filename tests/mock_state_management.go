@@ -98,6 +98,3 @@ func (sm *MockStateMgmt) InitOrdersWatch() {
 	panic("implement me")
 }
 
-func (sm *MockStateMgmt) InitPositionsWatch() {
-	panic("implement me")
-}
