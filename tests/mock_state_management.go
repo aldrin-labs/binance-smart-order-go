@@ -97,3 +97,7 @@ func (sm *MockStateMgmt) AnyActiveStrats(strategy *models.MongoStrategy) bool {
 func (sm *MockStateMgmt) InitOrdersWatch() {
 	panic("implement me")
 }
+
+func (sm *MockStateMgmt) InitPositionsWatch() {
+	panic("implement me")
+}

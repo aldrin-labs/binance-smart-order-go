@@ -2,6 +2,7 @@ package models
 
 import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"time"
 )
 
 type MongoStrategyUpdateEvent struct {
@@ -10,6 +11,10 @@ type MongoStrategyUpdateEvent struct {
 
 type MongoOrderUpdateEvent struct {
 	FullDocument MongoOrder `json:"fullDocument" bson:"fullDocument"`
+}
+
+type MongoPositionUpdateEvent struct {
+	FullDocument MongoPosition `json:"fullDocument" bson:"fullDocument"`
 }
 
 type MongoStrategyEvent struct {
@@ -60,6 +65,16 @@ type MongoOrder struct {
 	ReduceOnly bool               `json:"reduceOnly,omitempty" bson:"reduceOnly"`
 	StopPrice  float64            `json:"stopPrice,omitempty" bson:"stopPrice"`
 }
+type MongoPosition struct {
+	ID          primitive.ObjectID `json:"_id" bson:"_id"`
+	KeyId       primitive.ObjectID `json:"keyId" bson:"keyId"`
+	EntryPrice  float64            `json:"entryPrice,omitempty" bson:"entryPrice"`
+	MarkPrice   float64            `json:"markPrice,omitempty" bson:"markPrice"`
+	PositionAmt float64            `json:"positionAmt,omitempty" bson:"positionAmt"`
+	Symbol      string             `json:"symbol,omitempty" bson:"symbol"`
+	Leverage    float64            `json:"leverage,omitempty" bson:"leverage"`
+	UpdatedAt   time.Time          `json:"updatedAt,omitempty" bson:"updatedAt"`
+}
 
 type MongoStrategy struct {
 	ID              *primitive.ObjectID     `json:"_id" bson:"_id"`
@@ -76,6 +91,7 @@ type MongoStrategy struct {
 	WaitForOrderIds []primitive.ObjectID `bson:"waitForOrderIds,omitempty"`
 	OwnerId         primitive.ObjectID
 	Social          MongoSocial `bson:"social"` // {sharedWith: [RBAC]}
+	CreatedAt   time.Time             `json:"createdAt,omitempty" bson:"createdAt"`
 }
 
 type MongoStrategyType struct {
