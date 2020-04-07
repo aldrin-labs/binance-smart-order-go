@@ -191,7 +191,7 @@ func (ss *StrategyService) InitPositionsWatch() {
 					// if SM created before last position update
 					// then we caught position event before actual update
 					if ss.strategies[strategyEventDecoded.ID.String()].GetModel().CreatedAt.Before(event.FullDocument.UpdatedAt) {
-						ss.strategies[strategyEventDecoded.ID.String()].GetModel().Enabled = false
+						collStrategies.FindOneAndUpdate(ctx, bson.D{{"_id", strategyEventDecoded.ID}}, bson.M{"$set": bson.M{"enabled": false}})
 					}
 				}
 			}(positionEventDecoded)
