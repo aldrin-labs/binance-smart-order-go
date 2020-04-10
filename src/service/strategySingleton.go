@@ -76,7 +76,7 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 		GetStrategyService().strategies[strategy.Model.ID.String()] = strategy
 		go strategy.Start()
 	}
-	go ss.InitPositionsWatch()
+	//go ss.InitPositionsWatch()
 	ss.WatchStrategies(isLocalBuild, accountId)
 	//ss.WatchStrategies()
 	if err := cur.Err(); err != nil {
@@ -163,10 +163,14 @@ func (ss *StrategyService) InitPositionsWatch() {
 		if err != nil {
 			println("event decode", err.Error())
 		}
+
+		println("positionEventDecoded", positionEventDecoded.FullDocument.Symbol, positionEventDecoded.FullDocument.KeyId.Hex(), positionEventDecoded.FullDocument.PositionAmt)
 		if positionEventDecoded.FullDocument.PositionAmt == 0 {
+
 			go func(event models.MongoPositionUpdateEvent) {
 				var collStrategies = mongodb.GetCollection(CollStrategiesName)
 
+				println("event.FullDocument.Symbol", event.FullDocument.Symbol)
 				cur, err := collStrategies.Find(ctx, bson.D{
 					{"conditions.marketType", 1},
 					{"enabled", true},
@@ -188,9 +192,11 @@ func (ss *StrategyService) InitPositionsWatch() {
 						println("event decode", err.Error())
 					}
 
+					println("strategyEventDecoded", strategyEventDecoded.ID.Hex())
 					// if SM created before last position update
 					// then we caught position event before actual update
 					if ss.strategies[strategyEventDecoded.ID.String()].GetModel().CreatedAt.Before(event.FullDocument.UpdatedAt) {
+						println("disabled by position close")
 						collStrategies.FindOneAndUpdate(ctx, bson.D{{"_id", strategyEventDecoded.ID}}, bson.M{"$set": bson.M{"enabled": false}})
 					}
 				}
