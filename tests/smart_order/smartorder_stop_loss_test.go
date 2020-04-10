@@ -198,7 +198,7 @@ func TestSmartExitAfterTimeoutLoss(t *testing.T) {
 		t.Error("There were " + strconv.Itoa(sellCallCount.(int)) + " trading api calls with buy params and " + strconv.Itoa(btcUsdtCallCount.(int)) + " with BTC_USDT params while timeoutLoss working")
 	}
 
-	time.Sleep(1000 * time.Millisecond)
+	time.Sleep(2000 * time.Millisecond)
 
 	sellCallCount, sellFound = tradingApi.CallCount.Load("sell")
 	btcUsdtCallCount, usdtBtcFound = tradingApi.CallCount.Load("BTC_USDT")

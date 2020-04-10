@@ -382,7 +382,7 @@ func (sm *SmartOrder) checkLoss(ctx context.Context, args ...interface{}) bool {
 
 	switch model.Conditions.EntryOrder.Side {
 	case "buy":
-		if (1-currentOHLCV.Close/model.State.EntryPrice)*100 >= forcedLoss {
+		if forcedLoss > 0 && (1-currentOHLCV.Close/model.State.EntryPrice)*100 >= forcedLoss {
 			sm.placeOrder(currentOHLCV.Close, Stoploss)
 			model.State.State = End
 			sm.StateMgmt.UpdateState(model.ID, model.State)
@@ -411,7 +411,7 @@ func (sm *SmartOrder) checkLoss(ctx context.Context, args ...interface{}) bool {
 		}
 		break
 	case "sell":
-		if (currentOHLCV.Close/model.State.EntryPrice-1)*100 >= forcedLoss  {
+		if forcedLoss > 0 && (currentOHLCV.Close/model.State.EntryPrice-1)*100 >= forcedLoss  {
 			sm.placeOrder(currentOHLCV.Close, Stoploss)
 			model.State.State = End
 			sm.StateMgmt.UpdateState(model.ID, model.State)
