@@ -383,7 +383,6 @@ func (sm *SmartOrder) checkLoss(ctx context.Context, args ...interface{}) bool {
 	switch model.Conditions.EntryOrder.Side {
 	case "buy":
 		if (1-currentOHLCV.Close/model.State.EntryPrice)*100 >= forcedLoss {
-			println("close by forcedLoss")
 			sm.placeOrder(currentOHLCV.Close, Stoploss)
 			model.State.State = End
 			sm.StateMgmt.UpdateState(model.ID, model.State)
