@@ -105,13 +105,13 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 		reduceOnly = true
 		baseAmount = model.Conditions.EntryOrder.Amount - model.State.ExecutedAmount
 		side = "buy"
+		if model.Conditions.EntryOrder.Side == side {
+			side = "sell"
+		}
 
 		isTrailingHedgeOrder := model.Conditions.HedgeStrategyId != nil || model.Conditions.HedgeKeyId != nil
 		if isTrailingHedgeOrder {
 			return
-		}
-		if model.Conditions.EntryOrder.Side == side {
-			side = "sell"
 		}
 		// try exit on timeoutWhenLoss
 		if model.Conditions.TimeoutWhenLoss > 0 && price < 0 {
