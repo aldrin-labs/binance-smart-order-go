@@ -148,8 +148,6 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 					currentState := sm.Strategy.GetModel().State.State
 					if currentState == Stoploss && model.State.StopLossAt == lastTimestamp {
 						sm.placeOrder(price, step)
-						model.State.State = End
-						sm.StateMgmt.UpdateState(model.ID, model.State)
 					} else {
 						model.State.StopLossAt = -1
 						sm.StateMgmt.UpdateState(model.ID, model.State)

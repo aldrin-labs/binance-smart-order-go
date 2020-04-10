@@ -82,9 +82,6 @@ func (sm *SmartOrder) exit(ctx context.Context, args ...interface{}) (stateless.
 		break
 	case Stoploss:
 		switch model.State.State {
-		case Stoploss:
-			nextState = Stoploss
-			break
 		case InEntry:
 			nextState = InEntry
 			break

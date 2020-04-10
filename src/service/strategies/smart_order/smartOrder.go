@@ -386,7 +386,7 @@ func (sm *SmartOrder) checkLoss(ctx context.Context, args ...interface{}) bool {
 			sm.placeOrder(currentOHLCV.Close, Stoploss)
 			model.State.State = End
 			sm.StateMgmt.UpdateState(model.ID, model.State)
-			return true
+			return false
 		}
 
 		if (1-currentOHLCV.Close/model.State.EntryPrice)*100 >= stopLoss {
@@ -415,7 +415,7 @@ func (sm *SmartOrder) checkLoss(ctx context.Context, args ...interface{}) bool {
 			sm.placeOrder(currentOHLCV.Close, Stoploss)
 			model.State.State = End
 			sm.StateMgmt.UpdateState(model.ID, model.State)
-			return true
+			return false
 		}
 
 		if (currentOHLCV.Close/model.State.EntryPrice-1)*100 >= stopLoss {

@@ -21,7 +21,17 @@ func (sm *SmartOrder) orderCallback(order *models.MongoOrder) {
 		return
 	}
 	sm.OrdersMux.Unlock()
+	currentState, _ := sm.State.State(context.Background())
 	err := sm.State.Fire(CheckExistingOrders, *order)
+	// when checkExisitingOrders wasn't called
+	if (currentState == Stoploss || currentState == End) && order.Status == "filled" {
+		model := sm.Strategy.GetModel()
+		if order.Filled > 0 {
+			model.State.ExecutedAmount += order.Filled
+		}
+		model.State.ExitPrice = order.Average
+		sm.StateMgmt.UpdateExecutedAmount(model.ID, model.State)
+	}
 	if err != nil {
 		// println(err.Error())
 	}
