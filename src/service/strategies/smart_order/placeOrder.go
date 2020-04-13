@@ -162,6 +162,36 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 			}
 		}
 		break
+	case "ForcedLoss":
+		reduceOnly = true
+		side = "buy"
+		if model.Conditions.EntryOrder.Side == side {
+			side = "sell"
+		}
+		isTrailingHedgeOrder := model.Conditions.HedgeStrategyId != nil || model.Conditions.HedgeKeyId != nil
+		if isTrailingHedgeOrder {
+			return
+		}
+
+		isSpotMarketOrder := model.Conditions.EntryOrder.OrderType == "market" && isSpot
+		if isSpotMarketOrder {
+			return
+		}
+
+		baseAmount = model.Conditions.EntryOrder.Amount
+		orderType = model.Conditions.EntryOrder.OrderType
+
+		if !isSpot {
+			orderType = prefix + orderType
+		}
+
+		if side == "sell" {
+			orderPrice = model.State.EntryPrice * (1 - model.Conditions.ForcedLoss/100/leverage)
+		} else {
+			orderPrice = model.State.EntryPrice * (1 + model.Conditions.ForcedLoss/100/leverage)
+		}
+
+		break
 	case TakeProfit:
 		prefix := "take-profit-"
 		reduceOnly = true
