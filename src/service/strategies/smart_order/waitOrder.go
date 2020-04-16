@@ -82,12 +82,16 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 				model.State.ExecutedAmount += order.Filled
 			}
 			model.State.ExitPrice = order.Average
-			if model.State.ExecutedAmount >= model.Conditions.EntryOrder.Amount {
+			amount := model.Conditions.EntryOrder.Amount
+			if model.Conditions.MarketType == 0 {
+				amount = amount * 0.99
+			}
+			if model.State.ExecutedAmount >= amount {
 			} else {
 				go sm.placeOrder(0, Stoploss)
 			}
 			sm.StateMgmt.UpdateExecutedAmount(model.ID, model.State)
-			if model.State.ExecutedAmount >= model.Conditions.EntryOrder.Amount {
+			if model.State.ExecutedAmount >= amount {
 				isTrailingHedgeOrder := model.Conditions.HedgeStrategyId != nil || model.Conditions.HedgeKeyId != nil
 
 				if isTrailingHedgeOrder {
@@ -101,11 +105,34 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 				model.State.ExecutedAmount += order.Filled
 			}
 			model.State.ExitPrice = order.Average
+			amount := model.Conditions.EntryOrder.Amount
+			if model.Conditions.MarketType == 0 {
+				amount = amount * 0.99
+			}
 			sm.StateMgmt.UpdateExecutedAmount(model.ID, model.State)
-			if model.State.ExecutedAmount >= model.Conditions.EntryOrder.Amount {
+			println("model.State.ExecutedAmount stopLoss", model.State.ExecutedAmount, amount)
+			if model.State.ExecutedAmount >= amount {
+				return true
+			}
+		case Canceled:
+			println("canceled check exisiting")
+			if order.Filled > 0 {
+				model.State.ExecutedAmount += order.Filled
+			}
+			model.State.ExitPrice = order.Average
+			amount := model.Conditions.EntryOrder.Amount
+			if model.Conditions.MarketType == 0 {
+				amount = amount * 0.99
+			}
+			sm.StateMgmt.UpdateExecutedAmount(model.ID, model.State)
+			println("model.State.ExecutedAmount", model.State.ExecutedAmount, amount)
+			if model.State.ExecutedAmount >= amount {
+				model.State.State = End
+				sm.StateMgmt.UpdateState(model.ID, model.State)
 				return true
 			}
 		}
+
 		break
 	//case "canceled":
 	//	switch step {

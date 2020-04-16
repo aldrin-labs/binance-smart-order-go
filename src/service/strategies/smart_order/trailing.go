@@ -185,6 +185,7 @@ func (sm *SmartOrder) placeTrailingOrder(newTrailingPrice float64, trailingCheck
 		if sm.Lock == false {
 			sm.Lock = true
 			model.State.TrailingEntryPrice = newTrailingPrice
+			println("place trailing order")
 			sm.placeOrder(-1, step)
 			time.Sleep(3000 * time.Millisecond) // it will give some time for order execution, to avoid double send of orders
 			sm.Lock = false

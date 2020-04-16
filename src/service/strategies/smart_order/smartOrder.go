@@ -237,6 +237,11 @@ func (sm *SmartOrder) enterEntry(ctx context.Context, args ...interface{}) error
 	if sm.Strategy.GetModel().State.StopLossAt == -1 {
 		sm.Strategy.GetModel().State.StopLossAt = 0
 		sm.StateMgmt.UpdateState(sm.Strategy.GetModel().ID, sm.Strategy.GetModel().State)
+
+		if sm.Strategy.GetModel().Conditions.MarketType == 0 {
+			sm.tryCancelAllOrders()
+			defer sm.placeOrder(0, TakeProfit)
+		}
 		return nil
 	}
 	if currentOHLCV, ok := args[0].(interfaces.OHLCV); ok {
@@ -340,18 +345,21 @@ func (sm *SmartOrder) checkProfit(ctx context.Context, args ...interface{}) bool
 }
 
 func (sm *SmartOrder) checkLoss(ctx context.Context, args ...interface{}) bool {
+
 	isWaitingForOrder, ok := sm.IsWaitingForOrder.Load(Stoploss)
 	model := sm.Strategy.GetModel()
-	if ok && isWaitingForOrder.(bool) && model.Conditions.TimeoutWhenLoss == 0 && model.Conditions.TimeoutLoss == 0 {
+	existTimeout := model.Conditions.TimeoutWhenLoss != 0 || model.Conditions.TimeoutLoss != 0
+	isSpot := model.Conditions.MarketType == 0
+	if ok && isWaitingForOrder.(bool) && !existTimeout && !isSpot  {
 		return false
 	}
-
+	println("checkLoss")
 	currentOHLCV := args[0].(interfaces.OHLCV)
 	isTrailingHedgeOrder := model.Conditions.HedgeStrategyId != nil || model.Conditions.HedgeKeyId != nil
 	if isTrailingHedgeOrder {
 		return false
 	}
-	isSpotMarketOrder := model.Conditions.EntryOrder.OrderType == "market" && model.Conditions.MarketType == 0
+	isSpotMarketOrder := model.Conditions.EntryOrder.OrderType == "market" && isSpot
 	stopLoss := model.Conditions.StopLoss / model.Conditions.Leverage
 	forcedLoss := model.Conditions.ForcedLoss / model.Conditions.Leverage
 	currentState := model.State.State
@@ -389,8 +397,11 @@ func (sm *SmartOrder) checkLoss(ctx context.Context, args ...interface{}) bool {
 	case "buy":
 		if isSpotMarketOrder && forcedLoss > 0 && (1-currentOHLCV.Close/model.State.EntryPrice)*100 >= forcedLoss {
 			sm.placeOrder(currentOHLCV.Close, Stoploss)
-			model.State.State = End
-			sm.StateMgmt.UpdateState(model.ID, model.State)
+			// on spot if we go to end it'll cancel all orders, includes the order above
+			if !isSpot {
+				model.State.State = End
+				sm.StateMgmt.UpdateState(model.ID, model.State)
+			}
 			return false
 		}
 
@@ -418,8 +429,11 @@ func (sm *SmartOrder) checkLoss(ctx context.Context, args ...interface{}) bool {
 	case "sell":
 		if isSpotMarketOrder && forcedLoss > 0 && (currentOHLCV.Close/model.State.EntryPrice-1)*100 >= forcedLoss  {
 			sm.placeOrder(currentOHLCV.Close, Stoploss)
-			model.State.State = End
-			sm.StateMgmt.UpdateState(model.ID, model.State)
+			// on spot if we go to end it'll cancel all orders, includes the order above
+			if !isSpot {
+				model.State.State = End
+				sm.StateMgmt.UpdateState(model.ID, model.State)
+			}
 			return false
 		}
 
@@ -487,8 +501,11 @@ func (sm *SmartOrder) enterStopLoss(ctx context.Context, args ...interface{}) er
 				return nil
 			}
 			sm.Lock = true
+			if sm.Strategy.GetModel().Conditions.MarketType == 0 {
+				sm.tryCancelAllOrders()
+			}
 			// sm.cancelOpenOrders(sm.Strategy.GetModel().Conditions.Pair)
-			sm.placeOrder(currentOHLCV.Close, Stoploss)
+			defer sm.placeOrder(currentOHLCV.Close, Stoploss)
 		}
 		// if timeout specified then do this sell on timeout
 		sm.Lock = false
@@ -501,7 +518,7 @@ func (sm *SmartOrder) tryCancelAllOrders() {
 	orderIds := sm.Strategy.GetModel().State.Orders
 	for _, orderId := range orderIds {
 		if orderId != "0" {
-			go sm.ExchangeApi.CancelOrder(trading.CancelOrderRequest{
+			sm.ExchangeApi.CancelOrder(trading.CancelOrderRequest{
 				KeyId: sm.KeyId,
 				KeyParams: trading.CancelOrderRequestParams{
 					OrderId:    orderId,
@@ -525,17 +542,28 @@ func (sm *SmartOrder) Start() {
 		time.Sleep(200 * time.Millisecond)
 		state, _ = sm.State.State(ctx)
 	}
+	println("execute stop from start")
 	sm.Stop()
 	println("STOPPED")
 }
 
 func (sm *SmartOrder) Stop() {
+	println("start stop func")
+	if sm.Lock {
+		return
+	}
+	sm.Lock = true
 	state, _ := sm.State.State(context.Background())
+	if sm.Strategy.GetModel().Conditions.MarketType == 0 {
+		sm.tryCancelAllOrders()
+	} else {
+		go sm.tryCancelAllOrders()
+	}
 	if state != End {
 		sm.placeOrder(0, Canceled)
 	}
-	sm.tryCancelAllOrders()
 	sm.StateMgmt.DisableStrategy(sm.Strategy.GetModel().ID)
+	sm.Lock = false
 }
 
 func (sm *SmartOrder) processEventLoop() {
