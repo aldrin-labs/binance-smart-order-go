@@ -28,6 +28,8 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 	isTrailingEntry := model.Conditions.EntryOrder.ActivatePrice != 0
 	ifShouldCancelPreviousOrder := false
 	leverage := model.Conditions.Leverage
+	isTrailingHedgeOrder := model.Conditions.HedgeStrategyId != nil || model.Conditions.Hedging == true
+
 	if isSpot {
 		leverage = 1
 	}
@@ -109,7 +111,6 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 			side = "sell"
 		}
 
-		isTrailingHedgeOrder := model.Conditions.HedgeStrategyId != nil || model.Conditions.HedgeKeyId != nil
 		if isTrailingHedgeOrder {
 			return
 		}
@@ -276,7 +277,7 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 				Side:       side,
 				Amount:     baseAmount,
 				Price:      orderPrice,
-				ReduceOnly: reduceOnly,
+				ReduceOnly: &reduceOnly,
 				StopPrice:  stopPrice,
 			},
 		}
@@ -298,6 +299,13 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 			})
 			if response.Status == "ERR" { // looks like order was already executed or canceled in other thread
 				return
+			}
+		}
+		if isTrailingHedgeOrder {
+			if model.Conditions.EntryOrder.Side == "sell" {
+				request.KeyParams.PositionSide = "SHORT"
+			} else {
+				request.KeyParams.PositionSide = "LONG"
 			}
 		}
 		response := sm.ExchangeApi.CreateOrder(request)

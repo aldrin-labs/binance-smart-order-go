@@ -343,7 +343,7 @@ func (sm *SmartOrder) checkLoss(ctx context.Context, args ...interface{}) bool {
 	}
 
 	currentOHLCV := args[0].(interfaces.OHLCV)
-	isTrailingHedgeOrder := model.Conditions.HedgeStrategyId != nil || model.Conditions.HedgeKeyId != nil
+	isTrailingHedgeOrder := model.Conditions.HedgeStrategyId != nil || model.Conditions.Hedging == true
 	if isTrailingHedgeOrder {
 		return false
 	}
