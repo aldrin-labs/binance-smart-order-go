@@ -291,7 +291,7 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 			reduceOnly = true
 			baseAmount = model.Conditions.EntryOrder.Amount
 			if isSpot {
-				sm.tryCancelAllOrders()
+				sm.tryCancelAllOrdersConsistently()
 				//baseAmount = baseAmount * 0.99
 				println("canceled")
 			}

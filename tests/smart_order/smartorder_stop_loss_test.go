@@ -295,7 +295,7 @@ func TestSmartOrderReturnToInEntryAfterTimeoutLoss(t *testing.T) {
 	if strategy.Model.State.StopLossAt == 0 {
 		t.Error("Timeout didn't started")
 	}
-	time.Sleep(4000 * time.Millisecond)
+	time.Sleep(5000 * time.Millisecond)
 	// check that one call with 'sell' and one with 'BTC_USDT' should be done
 	sellCallCount, sellFound := tradingApi.CallCount.Load("sell")
 	btcUsdtCallCount, usdtBtcFound := tradingApi.CallCount.Load("BTC_USDT")

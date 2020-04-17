@@ -79,7 +79,7 @@ func (mt MockTrading) CreateOrder(req trading.CreateOrderRequest) trading.OrderR
 		Side:       req.KeyParams.Side,
 		Symbol:     req.KeyParams.Symbol,
 		StopPrice:  req.KeyParams.StopPrice,
-		ReduceOnly: req.KeyParams.ReduceOnly,
+		ReduceOnly: *req.KeyParams.ReduceOnly,
 	}
 	if order.Average == 0 {
 		lent := len(mt.Feed.tickerData)
@@ -136,5 +136,9 @@ func (mt MockTrading) PlaceHedge(parentSmarOrder *models.MongoStrategy) trading.
 }
 
 func (mt MockTrading) Transfer(request trading.TransferRequest) trading.OrderResponse {
+	panic("implement me")
+}
+
+func (mt MockTrading) EnableHedge(keyId *primitive.ObjectID) {
 	panic("implement me")
 }

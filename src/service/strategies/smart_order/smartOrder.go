@@ -239,7 +239,7 @@ func (sm *SmartOrder) enterEntry(ctx context.Context, args ...interface{}) error
 		sm.StateMgmt.UpdateState(sm.Strategy.GetModel().ID, sm.Strategy.GetModel().State)
 
 		if sm.Strategy.GetModel().Conditions.MarketType == 0 {
-			sm.tryCancelAllOrders()
+			sm.tryCancelAllOrdersConsistently()
 			defer sm.placeOrder(0, TakeProfit)
 		}
 		return nil
@@ -353,7 +353,7 @@ func (sm *SmartOrder) checkLoss(ctx context.Context, args ...interface{}) bool {
 	if ok && isWaitingForOrder.(bool) && !existTimeout && !isSpot  {
 		return false
 	}
-	println("checkLoss")
+
 	currentOHLCV := args[0].(interfaces.OHLCV)
 	isTrailingHedgeOrder := model.Conditions.HedgeStrategyId != nil || model.Conditions.Hedging == true
 	if isTrailingHedgeOrder {
@@ -502,7 +502,7 @@ func (sm *SmartOrder) enterStopLoss(ctx context.Context, args ...interface{}) er
 			}
 			sm.Lock = true
 			if sm.Strategy.GetModel().Conditions.MarketType == 0 {
-				sm.tryCancelAllOrders()
+				sm.tryCancelAllOrdersConsistently()
 			}
 			// sm.cancelOpenOrders(sm.Strategy.GetModel().Conditions.Pair)
 			defer sm.placeOrder(currentOHLCV.Close, Stoploss)
@@ -514,7 +514,7 @@ func (sm *SmartOrder) enterStopLoss(ctx context.Context, args ...interface{}) er
 	return nil
 }
 
-func (sm *SmartOrder) tryCancelAllOrders() {
+func (sm *SmartOrder) tryCancelAllOrdersConsistently() {
 	orderIds := sm.Strategy.GetModel().State.Orders
 	for _, orderId := range orderIds {
 		if orderId != "0" {
@@ -529,6 +529,23 @@ func (sm *SmartOrder) tryCancelAllOrders() {
 		}
 	}
 }
+
+func (sm *SmartOrder) tryCancelAllOrders() {
+	orderIds := sm.Strategy.GetModel().State.Orders
+	for _, orderId := range orderIds {
+		if orderId != "0" {
+			go sm.ExchangeApi.CancelOrder(trading.CancelOrderRequest{
+				KeyId: sm.KeyId,
+				KeyParams: trading.CancelOrderRequestParams{
+					OrderId:    orderId,
+					MarketType: sm.Strategy.GetModel().Conditions.MarketType,
+					Pair:       sm.Strategy.GetModel().Conditions.Pair,
+				},
+			})
+		}
+	}
+}
+
 func (sm *SmartOrder) Start() {
 	ctx := context.TODO()
 	state, _ := sm.State.State(ctx)
@@ -555,7 +572,7 @@ func (sm *SmartOrder) Stop() {
 	sm.Lock = true
 	state, _ := sm.State.State(context.Background())
 	if sm.Strategy.GetModel().Conditions.MarketType == 0 {
-		sm.tryCancelAllOrders()
+		sm.tryCancelAllOrdersConsistently()
 	} else {
 		go sm.tryCancelAllOrders()
 	}
