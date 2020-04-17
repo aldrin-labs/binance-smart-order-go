@@ -2,6 +2,7 @@ package mongodb
 
 import (
 	"context"
+	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"os"
 	"sync"
 	"time"
@@ -413,6 +414,23 @@ func (sm *StateMgmt) UpdateEntryPrice(strategyId *primitive.ObjectID, state *mod
 	}
 	println("updated entryPrice state", updated.ModifiedCount, state.State)
 }
+
+func (sm *StateMgmt) SwitchToHedgeMode(keyId *primitive.ObjectID, trading trading.ITrading){
+	col := GetCollection("core_keys")
+	var request bson.D
+	request = bson.D{
+		{"_id", keyId},
+	}
+	var keyFound models.MongoKey
+	err := col.FindOne(context.TODO(), request).Decode(&keyFound)
+	if err != nil {
+		println("no such key found: error in arg", err.Error())
+		return
+	}
+	if keyFound.HedgeMode {
+	}
+}
+
 func (sm *StateMgmt) UpdateHedgeExitPrice(strategyId *primitive.ObjectID, state *models.MongoStrategyState) {
 	col := GetCollection("core_strategies")
 	var request bson.D

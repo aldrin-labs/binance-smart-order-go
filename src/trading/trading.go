@@ -45,6 +45,7 @@ type ITrading interface {
 
 	UpdateLeverage(keyId *primitive.ObjectID, leverage float64, symbol string) interface{}
 	Transfer(request TransferRequest) OrderResponse
+	EnableHedge(keyId *primitive.ObjectID)
 }
 
 type Trading struct {
@@ -117,25 +118,26 @@ func Request(method string, data interface{}) interface{} {
 */
 
 type OrderParams struct {
-	StopPrice      float64                       `json:"stopPrice,omitempty" bson:"stopPrice"`
-	Type           string                        `json:"type,omitempty" bson:"type"`
-	MaxIfNotEnough int                           `json:"maxIfNotEnough,omitempty"`
-	Update         bool                          `json:"update,omitempty"`
+	StopPrice      float64                        `json:"stopPrice,omitempty" bson:"stopPrice"`
+	Type           string                         `json:"type,omitempty" bson:"type"`
+	MaxIfNotEnough int                            `json:"maxIfNotEnough,omitempty"`
+	Update         bool                           `json:"update,omitempty"`
 	SmartOrder     *models.MongoStrategyCondition `json:"smartOrder,omitempty"`
 }
 
 type Order struct {
-	TargetPrice float64     `json:"targetPrice,omitempty" bson:"targetPrice"`
-	Symbol      string      `json:"symbol" bson:"symbol"`
-	MarketType  int64       `json:"marketType" bson:"marketType"`
-	Side        string      `json:"side"`
-	Amount      float64     `json:"amount"`
-	ReduceOnly  bool        `json:"reduceOnly" bson:"reduceOnly"`
-	TimeInForce string      `json:"timeInForce,omitempty" bson:"timeInForce"`
-	Type        string      `json:"type" bson:"type"`
-	Price       float64     `json:"price,omitempty" bson:"price"`
-	StopPrice   float64     `json:"stopPrice,omitempty" bson:"stopPrice"`
-	Params      OrderParams `json:"params,omitempty" bson:"params"`
+	TargetPrice  float64     `json:"targetPrice,omitempty" bson:"targetPrice"`
+	Symbol       string      `json:"symbol" bson:"symbol"`
+	MarketType   int64       `json:"marketType" bson:"marketType"`
+	Side         string      `json:"side"`
+	Amount       float64     `json:"amount"`
+	ReduceOnly   *bool        `json:"reduceOnly,omitempty" bson:"reduceOnly"`
+	TimeInForce  string      `json:"timeInForce,omitempty" bson:"timeInForce"`
+	Type         string      `json:"type" bson:"type"`
+	Price        float64     `json:"price,omitempty" bson:"price"`
+	StopPrice    float64     `json:"stopPrice,omitempty" bson:"stopPrice"`
+	PositionSide string      `json:"positionSide,omitempty" bson:"positionSide"`
+	Params       OrderParams `json:"params,omitempty" bson:"params"`
 }
 
 type CreateOrderRequest struct {
@@ -154,6 +156,11 @@ type CancelOrderRequest struct {
 	KeyParams CancelOrderRequestParams `json:"keyParams"`
 }
 
+type HedgeRequest struct {
+	KeyId     *primitive.ObjectID `json:"keyId"`
+	HedgeMode bool                `json:"hedgeMode"`
+}
+
 func round(num float64) int {
 	return int(num + math.Copysign(0.5, num))
 }
@@ -170,6 +177,9 @@ func (t *Trading) CreateOrder(order CreateOrderRequest) OrderResponse {
 	}
 	if strings.Contains(order.KeyParams.Type, "market") || strings.Contains(order.KeyParams.Params.Type, "market") {
 		order.KeyParams.Price = 0.0
+	}
+	if order.KeyParams.ReduceOnly != nil && *order.KeyParams.ReduceOnly == false {
+		order.KeyParams.ReduceOnly = nil
 	}
 	rawResponse := Request("createOrder", order)
 	var response OrderResponse
@@ -214,9 +224,10 @@ func (t *Trading) PlaceHedge(parentSmarOrder *models.MongoStrategy) OrderRespons
 	_ = json.Unmarshal(jsonStr, &hedgedStrategy)
 
 	hedgedStrategy.Conditions.HedgeStrategyId = parentSmarOrder.ID
-	accountId, _ := primitive.ObjectIDFromHex(hedgedStrategy.Conditions.HedgeKeyId.Hex())
-	hedgedStrategy.Conditions.AccountId = &accountId
-	hedgedStrategy.Conditions.HedgeKeyId = nil
+	// dont need it for now i guess
+	//accountId, _ := primitive.ObjectIDFromHex(hedgedStrategy.Conditions.HedgeKeyId.Hex())
+	hedgedStrategy.Conditions.AccountId = parentSmarOrder.AccountId
+	hedgedStrategy.Conditions.Hedging = false
 	oppositeSide := hedgedStrategy.Conditions.EntryOrder.Side
 	if oppositeSide == "buy" {
 		oppositeSide = "sell"
@@ -248,4 +259,12 @@ func (t *Trading) Transfer(request TransferRequest) OrderResponse {
 	var response OrderResponse
 	_ = mapstructure.Decode(rawResponse, &response)
 	return response
+}
+
+func (t *Trading) EnableHedge(keyId *primitive.ObjectID) {
+	request := HedgeRequest{
+		KeyId:     keyId,
+		HedgeMode: true,
+	}
+	_ = Request("changePositionMode", request)
 }
