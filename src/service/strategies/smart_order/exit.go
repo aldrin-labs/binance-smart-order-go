@@ -12,8 +12,8 @@ func (sm *SmartOrder) exit(ctx context.Context, args ...interface{}) (stateless.
 	model := sm.Strategy.GetModel()
 	if model.State.State != WaitLossHedge && model.State.ExecutedAmount >= model.Conditions.EntryOrder.Amount { // all trades executed, nothing more to trade
 		if model.Conditions.ContinueIfEnded {
-			isParentHedge := model.Conditions.HedgeKeyId != nil
-			isTrailingHedgeOrder := model.Conditions.HedgeStrategyId != nil || model.Conditions.HedgeKeyId != nil
+			isParentHedge := model.Conditions.Hedging == true
+			isTrailingHedgeOrder := model.Conditions.HedgeStrategyId != nil || isParentHedge
 
 			if isTrailingHedgeOrder && !isParentHedge {
 				return End, nil

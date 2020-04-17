@@ -343,11 +343,12 @@ func (sm *SmartOrder) checkLoss(ctx context.Context, args ...interface{}) bool {
 	}
 
 	currentOHLCV := args[0].(interfaces.OHLCV)
-	isTrailingHedgeOrder := model.Conditions.HedgeStrategyId != nil || model.Conditions.HedgeKeyId != nil
+	isTrailingHedgeOrder := model.Conditions.HedgeStrategyId != nil || model.Conditions.Hedging == true
 	if isTrailingHedgeOrder {
 		return false
 	}
 	stopLoss := model.Conditions.StopLoss / model.Conditions.Leverage
+	forcedLoss := model.Conditions.ForcedLoss / model.Conditions.Leverage
 	currentState := model.State.State
 	stateFromStateMachine, _ := sm.State.State(ctx)
 
@@ -381,6 +382,13 @@ func (sm *SmartOrder) checkLoss(ctx context.Context, args ...interface{}) bool {
 
 	switch model.Conditions.EntryOrder.Side {
 	case "buy":
+		if (1-currentOHLCV.Close/model.State.EntryPrice)*100 >= forcedLoss {
+			sm.placeOrder(currentOHLCV.Close, Stoploss)
+			model.State.State = End
+			sm.StateMgmt.UpdateState(model.ID, model.State)
+			return true
+		}
+
 		if (1-currentOHLCV.Close/model.State.EntryPrice)*100 >= stopLoss {
 			if model.State.ExecutedAmount < model.Conditions.EntryOrder.Amount {
 				model.State.Amount = model.Conditions.EntryOrder.Amount - model.State.ExecutedAmount
@@ -403,6 +411,13 @@ func (sm *SmartOrder) checkLoss(ctx context.Context, args ...interface{}) bool {
 		}
 		break
 	case "sell":
+		if (currentOHLCV.Close/model.State.EntryPrice-1)*100 >= forcedLoss  {
+			sm.placeOrder(currentOHLCV.Close, Stoploss)
+			model.State.State = End
+			sm.StateMgmt.UpdateState(model.ID, model.State)
+			return true
+		}
+
 		if (currentOHLCV.Close/model.State.EntryPrice-1)*100 >= stopLoss {
 			if model.State.ExecutedAmount < model.Conditions.EntryOrder.Amount {
 				model.State.Amount = model.Conditions.EntryOrder.Amount - model.State.ExecutedAmount
