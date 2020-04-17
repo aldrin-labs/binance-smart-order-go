@@ -302,6 +302,7 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 			}
 		}
 		if isTrailingHedgeOrder {
+			request.KeyParams.ReduceOnly = nil
 			if model.Conditions.EntryOrder.Side == "sell" {
 				request.KeyParams.PositionSide = "SHORT"
 			} else {
