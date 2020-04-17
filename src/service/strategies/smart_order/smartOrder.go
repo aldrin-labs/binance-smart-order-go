@@ -233,14 +233,15 @@ func (sm *SmartOrder) checkWaitEntry(ctx context.Context, args ...interface{}) b
 }
 
 func (sm *SmartOrder) enterEntry(ctx context.Context, args ...interface{}) error {
+	isSpot := sm.Strategy.GetModel().Conditions.MarketType == 0
 	// if we returned to InEntry from Stoploss timeout
 	if sm.Strategy.GetModel().State.StopLossAt == -1 {
 		sm.Strategy.GetModel().State.StopLossAt = 0
 		sm.StateMgmt.UpdateState(sm.Strategy.GetModel().ID, sm.Strategy.GetModel().State)
 
-		if sm.Strategy.GetModel().Conditions.MarketType == 0 {
+		if isSpot {
 			sm.tryCancelAllOrdersConsistently()
-			defer sm.placeOrder(0, TakeProfit)
+			sm.placeOrder(0, TakeProfit)
 		}
 		return nil
 	}
@@ -252,11 +253,17 @@ func (sm *SmartOrder) enterEntry(ctx context.Context, args ...interface{}) error
 	sm.Strategy.GetModel().State.ExecutedOrders = []string{}
 	go sm.StateMgmt.UpdateState(sm.Strategy.GetModel().ID, sm.Strategy.GetModel().State)
 
-	go sm.placeOrder(sm.Strategy.GetModel().State.EntryPrice, InEntry)
-	go sm.placeOrder(0, TakeProfit)
+	if isSpot {
+		sm.placeOrder(sm.Strategy.GetModel().State.EntryPrice, InEntry)
+		sm.placeOrder(0, TakeProfit)
+	} else {
+		go sm.placeOrder(sm.Strategy.GetModel().State.EntryPrice, InEntry)
+		go sm.placeOrder(0, TakeProfit)
+	}
+
 	go sm.placeOrder(0, Stoploss)
 
-	if sm.Strategy.GetModel().Conditions.ForcedLoss > 0 {
+	if sm.Strategy.GetModel().Conditions.ForcedLoss > 0 && !isSpot {
 		go sm.placeOrder(0, "ForcedLoss")
 	}
 
@@ -559,13 +566,11 @@ func (sm *SmartOrder) Start() {
 		time.Sleep(200 * time.Millisecond)
 		state, _ = sm.State.State(ctx)
 	}
-	println("execute stop from start")
 	sm.Stop()
 	println("STOPPED")
 }
 
 func (sm *SmartOrder) Stop() {
-	println("start stop func")
 	if sm.Lock {
 		return
 	}

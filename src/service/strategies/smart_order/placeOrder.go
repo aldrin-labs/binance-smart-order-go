@@ -292,8 +292,6 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 			baseAmount = model.Conditions.EntryOrder.Amount
 			if isSpot {
 				sm.tryCancelAllOrdersConsistently()
-				//baseAmount = baseAmount * 0.99
-				println("canceled")
 			}
 			break
 		}
@@ -330,9 +328,7 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 			}
 		}
 		if isSpot {
-			request.KeyParams.Params = trading.OrderParams{
-				MaxIfNotEnough: 1,
-			}
+			request.KeyParams.Params.MaxIfNotEnough = 1
 		}
 		if step == TrailingEntry && orderType != "market" && ifShouldCancelPreviousOrder && len(model.State.ExecutedOrders) > 0 {
 			count := len(model.State.ExecutedOrders)
