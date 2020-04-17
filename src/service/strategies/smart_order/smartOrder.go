@@ -233,6 +233,12 @@ func (sm *SmartOrder) checkWaitEntry(ctx context.Context, args ...interface{}) b
 }
 
 func (sm *SmartOrder) enterEntry(ctx context.Context, args ...interface{}) error {
+	// if we returned to InEntry from Stoploss timeout
+	if sm.Strategy.GetModel().State.StopLossAt == -1 {
+		sm.Strategy.GetModel().State.StopLossAt = 0
+		sm.StateMgmt.UpdateState(sm.Strategy.GetModel().ID, sm.Strategy.GetModel().State)
+		return nil
+	}
 	if currentOHLCV, ok := args[0].(interfaces.OHLCV); ok {
 		sm.Strategy.GetModel().State.EntryPrice = currentOHLCV.Close
 	}
@@ -245,6 +251,11 @@ func (sm *SmartOrder) enterEntry(ctx context.Context, args ...interface{}) error
 	go sm.placeOrder(0, TakeProfit)
 	go sm.placeOrder(0, Stoploss)
 
+	// wait for creating hedgeStrategy
+	if sm.Strategy.GetModel().Conditions.Hedging && sm.Strategy.GetModel().Conditions.HedgeStrategyId == nil {
+		time.Sleep(8 * time.Second)
+	}
+
 	if sm.Strategy.GetModel().Conditions.HedgeStrategyId != nil {
 		go sm.waitForHedge()
 	}
@@ -253,11 +264,11 @@ func (sm *SmartOrder) enterEntry(ctx context.Context, args ...interface{}) error
 
 func (sm *SmartOrder) checkProfit(ctx context.Context, args ...interface{}) bool {
 	isWaitingForOrder, ok := sm.IsWaitingForOrder.Load(TakeProfit)
-	if ok && isWaitingForOrder.(bool) {
+	model := sm.Strategy.GetModel()
+	if ok && isWaitingForOrder.(bool) && model.Conditions.TimeoutIfProfitable == 0 && model.Conditions.TimeoutLoss == 0 {
 		return false
 	}
 	currentOHLCV := args[0].(interfaces.OHLCV)
-	model := sm.Strategy.GetModel()
 	if model.Conditions.TimeoutIfProfitable > 0 {
 		isProfitable := (model.Conditions.EntryOrder.Side == "buy" && model.State.EntryPrice < currentOHLCV.Close) ||
 			(model.Conditions.EntryOrder.Side == "sell" && model.State.EntryPrice > currentOHLCV.Close)
@@ -331,16 +342,30 @@ func (sm *SmartOrder) checkProfit(ctx context.Context, args ...interface{}) bool
 
 func (sm *SmartOrder) checkLoss(ctx context.Context, args ...interface{}) bool {
 	isWaitingForOrder, ok := sm.IsWaitingForOrder.Load(Stoploss)
-	if ok && isWaitingForOrder.(bool) {
+	model := sm.Strategy.GetModel()
+	if ok && isWaitingForOrder.(bool) && model.Conditions.TimeoutWhenLoss == 0 && model.Conditions.TimeoutLoss == 0 {
 		return false
 	}
+
 	currentOHLCV := args[0].(interfaces.OHLCV)
-	model := sm.Strategy.GetModel()
-	isTrailingHedgeOrder := model.Conditions.HedgeStrategyId != nil || model.Conditions.HedgeKeyId != nil
+	isTrailingHedgeOrder := model.Conditions.HedgeStrategyId != nil || model.Conditions.Hedging == true
 	if isTrailingHedgeOrder {
 		return false
 	}
 	stopLoss := model.Conditions.StopLoss / model.Conditions.Leverage
+	forcedLoss := model.Conditions.ForcedLoss / model.Conditions.Leverage
+	currentState := model.State.State
+	stateFromStateMachine, _ := sm.State.State(ctx)
+
+	// if we did not have time to go out to check existing orders (market)
+	if currentState == End {
+		return true
+	}
+
+	// after return from Stoploss state to InEntry we should change state in machine
+	if stateFromStateMachine == Stoploss && model.State.StopLossAt == -1 && model.Conditions.TimeoutLoss > 0 {
+		return true
+	}
 
 	// try exit on timeout
 	if model.Conditions.TimeoutWhenLoss > 0 {
@@ -359,25 +384,63 @@ func (sm *SmartOrder) checkLoss(ctx context.Context, args ...interface{}) bool {
 		}
 		return false
 	}
+
 	switch model.Conditions.EntryOrder.Side {
 	case "buy":
+		if (1-currentOHLCV.Close/model.State.EntryPrice)*100 >= forcedLoss {
+			sm.placeOrder(currentOHLCV.Close, Stoploss)
+			model.State.State = End
+			sm.StateMgmt.UpdateState(model.ID, model.State)
+			return true
+		}
+
 		if (1-currentOHLCV.Close/model.State.EntryPrice)*100 >= stopLoss {
 			if model.State.ExecutedAmount < model.Conditions.EntryOrder.Amount {
 				model.State.Amount = model.Conditions.EntryOrder.Amount - model.State.ExecutedAmount
 			}
-			model.State.State = Stoploss
-			sm.StateMgmt.UpdateState(model.ID, model.State)
-			return true
+
+			// if order go to StopLoss from InEntry state or returned to Stoploss while timeout
+			if currentState == InEntry {
+				model.State.State = Stoploss
+				sm.StateMgmt.UpdateState(model.ID, model.State)
+
+				if model.State.StopLossAt == 0 {
+					return true
+				}
+			}
+		} else {
+			if currentState == Stoploss {
+				model.State.State = InEntry
+				sm.StateMgmt.UpdateState(model.ID, model.State)
+			}
 		}
 		break
 	case "sell":
+		if (currentOHLCV.Close/model.State.EntryPrice-1)*100 >= forcedLoss  {
+			sm.placeOrder(currentOHLCV.Close, Stoploss)
+			model.State.State = End
+			sm.StateMgmt.UpdateState(model.ID, model.State)
+			return true
+		}
+
 		if (currentOHLCV.Close/model.State.EntryPrice-1)*100 >= stopLoss {
 			if model.State.ExecutedAmount < model.Conditions.EntryOrder.Amount {
 				model.State.Amount = model.Conditions.EntryOrder.Amount - model.State.ExecutedAmount
 			}
-			model.State.State = Stoploss
-			sm.StateMgmt.UpdateState(model.ID, model.State)
-			return true
+
+			if currentState == InEntry {
+				model.State.State = Stoploss
+				sm.StateMgmt.UpdateState(model.ID, model.State)
+
+				if model.State.StopLossAt == 0 {
+					return true
+				}
+			}
+		} else {
+			if currentState == Stoploss {
+				model.State.State = InEntry
+				sm.StateMgmt.UpdateState(model.ID, model.State)
+			}
 		}
 		break
 	}
@@ -424,7 +487,6 @@ func (sm *SmartOrder) enterStopLoss(ctx context.Context, args ...interface{}) er
 				return nil
 			}
 			sm.Lock = true
-
 			// sm.cancelOpenOrders(sm.Strategy.GetModel().Conditions.Pair)
 			sm.placeOrder(currentOHLCV.Close, Stoploss)
 		}

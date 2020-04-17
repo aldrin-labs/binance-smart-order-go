@@ -127,6 +127,7 @@ type MongoEntryPoint struct {
 type MongoStrategyCondition struct {
 	AccountId *primitive.ObjectID `json:"accountId,omitempty" bson:"accountId"`
 
+	Hedging         bool                `json:"hedging,omitempty" bson:"hedging"`
 	HedgeKeyId      *primitive.ObjectID `json:"hedgeKeyId,omitempty" bson:"hedgeKeyId"`
 	HedgeStrategyId *primitive.ObjectID `json:"hedgeStrategyId,omitempty" bson:"hedgeStrategyId"`
 
@@ -154,7 +155,7 @@ type MongoStrategyCondition struct {
 	MoveStopCloser        bool    `json:"moveStopClose,omitempty" bson:"moveStopCloser"`
 	MoveForcedStopAtEntry bool    `json:"moveForcedStopAtEntry,omitempty" bson:"moveForcedStopAtEntry"`
 	TimeoutWhenLoss       float64 `json:"timeoutWhenLoss,omitempty" bson:"timeoutWhenLoss"` // wait after hit SL and gives it a chance to grow back
-	TimeoutLoss           float64 `json:"timeoutLoss,omitempty" bson:"timeoutLoss"` // if ROE negative it counts down and if still negative then exit
+	TimeoutLoss           float64 `json:"timeoutLoss,omitempty" bson:"timeoutLoss"`         // if ROE negative it counts down and if still negative then exit
 	StopLoss              float64 `json:"stopLoss,omitempty" bson:"stopLoss"`
 	StopLossType          string  `json:"stopLossType,omitempty" bson:"stopLossType"`
 	ForcedLoss            float64 `json:"forcedLoss,omitempty" bson:"forcedLoss"`

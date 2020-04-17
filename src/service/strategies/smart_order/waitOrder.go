@@ -78,7 +78,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			}
 			sm.StateMgmt.UpdateExecutedAmount(model.ID, model.State)
 			if model.State.ExecutedAmount >= model.Conditions.EntryOrder.Amount {
-				isTrailingHedgeOrder := model.Conditions.HedgeStrategyId != nil || model.Conditions.HedgeKeyId != nil
+				isTrailingHedgeOrder := model.Conditions.HedgeStrategyId != nil || model.Conditions.Hedging == true
 
 				if isTrailingHedgeOrder {
 					model.State.State = WaitLossHedge

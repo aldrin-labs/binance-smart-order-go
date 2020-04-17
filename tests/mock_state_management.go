@@ -93,3 +93,7 @@ func (sm *MockStateMgmt) DisableStrategy(strategyId *primitive.ObjectID) {
 func (sm *MockStateMgmt) AnyActiveStrats(strategy *models.MongoStrategy) bool {
 	panic("implement me")
 }
+
+func (sm *MockStateMgmt) InitOrdersWatch() {
+	panic("implement me")
+}

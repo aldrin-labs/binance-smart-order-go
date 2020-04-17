@@ -138,11 +138,34 @@ func GetTestSmartOrderStrategy(scenario string) models.MongoStrategy {
 		}
 		smartOrder.Conditions = &models.MongoStrategyCondition{
 			Pair:            "BTC_USDT",
-			EntryOrder:      &models.MongoEntryPoint{Side: "buy", OrderType: "limit", ActivatePrice: 7000, Price: 6999, Amount: 0.05},
+			EntryOrder:      &models.MongoEntryPoint{Side: "buy", OrderType: "limit", Price: 7000, Amount: 0.05},
 			TimeoutWhenLoss: 5,
 			//TimeoutLoss: 100,
 			StopLoss:     5,
 			StopLossType: "market",
+			Leverage:     1,
+			ExitLevels: []*models.MongoEntryPoint{
+				{
+					Type:      1,
+					OrderType: "limit",
+					Price:     10,
+					Amount:    100,
+				},
+			},
+		}
+	case "stopLossMarketTimeoutLoss":
+		smartOrder.State = &models.MongoStrategyState{
+			State:      "InEntry",
+			EntryPrice: 7000,
+			Amount:     0.05,
+		}
+		smartOrder.Conditions = &models.MongoStrategyCondition{
+			Pair:            "BTC_USDT",
+			EntryOrder:      &models.MongoEntryPoint{Side: "buy", OrderType: "limit", ActivatePrice: 7000, EntryDeviation: 1, Amount: 0.05},
+			//TimeoutWhenLoss: 5,
+			TimeoutLoss: 5,
+			StopLoss:     2,
+			StopLossType: "limit",
 			Leverage:     1,
 			ExitLevels: []*models.MongoEntryPoint{
 				{

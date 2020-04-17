@@ -2,6 +2,7 @@ package mongodb
 
 import (
 	"context"
+	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"os"
 	"sync"
 	"time"
@@ -25,9 +26,11 @@ func GetCollection(colName string) *mongo.Collection {
 func GetMongoClientInstance() *mongo.Client {
 	if mongoClient == nil {
 		url := os.Getenv("MONGODB")
+		isLocalBuild := os.Getenv("LOCAL") == "true"
 		timeout := 10 * time.Second
 		ctx, _ := context.WithTimeout(context.Background(), timeout)
-		client, _ := mongo.Connect(ctx, options.Client().SetDirect(false).
+		client, _ := mongo.Connect(ctx, options.Client().SetDirect(isLocalBuild).
+		//client, _ := mongo.Connect(ctx, options.Client().SetDirect(false).
 			SetReadPreference(readpref.Primary()).
 			SetWriteConcern(writeconcern.New(writeconcern.WMajority())).
 			SetRetryWrites(true).
@@ -41,7 +44,9 @@ func GetMongoClientInstance() *mongo.Client {
 func Connect(url string, connectTimeout time.Duration) (*mongo.Client, error) {
 	ctx, _ := context.WithTimeout(context.Background(), connectTimeout)
 	timeout := 10 * time.Second
-	mongoClient, err := mongo.Connect(ctx, options.Client().SetDirect(false).
+	isLocalBuild := os.Getenv("LOCAL") == "true"
+	mongoClient, err := mongo.Connect(ctx, options.Client().SetDirect(isLocalBuild).
+	// mongoClient, err := mongo.Connect(ctx, options.Client().SetDirect(false).
 		SetReadPreference(readpref.Primary()).
 		SetWriteConcern(writeconcern.New(writeconcern.WMajority())).
 		SetRetryWrites(true).
@@ -354,7 +359,7 @@ func (sm *StateMgmt) UpdateExecutedAmount(strategyId *primitive.ObjectID, state 
 		println("error in arg", err.Error())
 		return
 	}
-	println("updated state", updated.ModifiedCount, state.State)
+	println("updated executed amount state", updated.ModifiedCount, state.State)
 }
 func (sm *StateMgmt) UpdateOrders(strategyId *primitive.ObjectID, state *models.MongoStrategyState) {
 	col := GetCollection("core_strategies")
@@ -384,7 +389,7 @@ func (sm *StateMgmt) UpdateOrders(strategyId *primitive.ObjectID, state *models.
 		println("error in arg", err.Error())
 		return
 	}
-	println("updated state", updated.ModifiedCount, state.State)
+	println("updated orders state", updated.ModifiedCount, state.State)
 }
 func (sm *StateMgmt) UpdateEntryPrice(strategyId *primitive.ObjectID, state *models.MongoStrategyState) {
 	col := GetCollection("core_strategies")
@@ -407,8 +412,25 @@ func (sm *StateMgmt) UpdateEntryPrice(strategyId *primitive.ObjectID, state *mod
 		println("error in arg", err.Error())
 		return
 	}
-	println("updated state", updated.ModifiedCount, state.State)
+	println("updated entryPrice state", updated.ModifiedCount, state.State)
 }
+
+func (sm *StateMgmt) SwitchToHedgeMode(keyId *primitive.ObjectID, trading trading.ITrading){
+	col := GetCollection("core_keys")
+	var request bson.D
+	request = bson.D{
+		{"_id", keyId},
+	}
+	var keyFound models.MongoKey
+	err := col.FindOne(context.TODO(), request).Decode(&keyFound)
+	if err != nil {
+		println("no such key found: error in arg", err.Error())
+		return
+	}
+	if keyFound.HedgeMode {
+	}
+}
+
 func (sm *StateMgmt) UpdateHedgeExitPrice(strategyId *primitive.ObjectID, state *models.MongoStrategyState) {
 	col := GetCollection("core_strategies")
 	var request bson.D
@@ -433,5 +455,5 @@ func (sm *StateMgmt) UpdateHedgeExitPrice(strategyId *primitive.ObjectID, state 
 		println("error in arg", err.Error())
 		return
 	}
-	println("updated state", updated.ModifiedCount, state.State)
+	println("updated hedgeExitPrice state", updated.ModifiedCount, state.State)
 }

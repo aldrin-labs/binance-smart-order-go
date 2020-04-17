@@ -28,6 +28,8 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 	isTrailingEntry := model.Conditions.EntryOrder.ActivatePrice != 0
 	ifShouldCancelPreviousOrder := false
 	leverage := model.Conditions.Leverage
+	isTrailingHedgeOrder := model.Conditions.HedgeStrategyId != nil || model.Conditions.Hedging == true
+
 	if isSpot {
 		leverage = 1
 	}
@@ -105,14 +107,19 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 		reduceOnly = true
 		baseAmount = model.Conditions.EntryOrder.Amount - model.State.ExecutedAmount
 		side = "buy"
-
-		isTrailingHedgeOrder := model.Conditions.HedgeStrategyId != nil || model.Conditions.HedgeKeyId != nil
-		if isTrailingHedgeOrder {
-			return
-		}
 		if model.Conditions.EntryOrder.Side == side {
 			side = "sell"
 		}
+
+		if isTrailingHedgeOrder {
+			return
+		}
+		// try exit on timeoutWhenLoss
+		if model.Conditions.TimeoutWhenLoss > 0 && price < 0 {
+			orderType = "market"
+			break
+		}
+
 		if model.Conditions.TimeoutLoss == 0 {
 			orderType = model.Conditions.StopLossType
 			isStopOrdersSupport := isFutures // || orderType == "limit"
@@ -139,15 +146,20 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 				model.State.StopLossAt = time.Now().Unix()
 				go func(lastTimestamp int64) {
 					time.Sleep(time.Duration(model.Conditions.TimeoutLoss) * time.Second)
-					currentState, _ := sm.State.State(context.TODO())
+					currentState := sm.Strategy.GetModel().State.State
 					if currentState == Stoploss && model.State.StopLossAt == lastTimestamp {
 						sm.placeOrder(price, step)
+						model.State.State = End
+						sm.StateMgmt.UpdateState(model.ID, model.State)
+					} else {
+						model.State.StopLossAt = -1
+						sm.StateMgmt.UpdateState(model.ID, model.State)
 					}
 				}(model.State.StopLossAt)
 				return
 			} else if price > 0 && model.State.StopLossAt > 0 {
-				orderType = "market"
-				break
+				orderType = model.Conditions.StopLossType
+				orderPrice = price
 			} else {
 				return // cant do anything here
 			}
@@ -168,6 +180,12 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 		}
 		if price > 0 && !isSpotMarketOrder {
 			return // order was placed before, exit
+		}
+
+		// try exit on timeoutIfProfitable
+		if model.Conditions.TimeoutIfProfitable > 0 && price < 0 {
+			orderType = "market"
+			break
 		}
 
 		side = oppositeSide
@@ -259,7 +277,7 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 				Side:       side,
 				Amount:     baseAmount,
 				Price:      orderPrice,
-				ReduceOnly: reduceOnly,
+				ReduceOnly: &reduceOnly,
 				StopPrice:  stopPrice,
 			},
 		}
@@ -281,6 +299,14 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 			})
 			if response.Status == "ERR" { // looks like order was already executed or canceled in other thread
 				return
+			}
+		}
+		if isTrailingHedgeOrder {
+			request.KeyParams.ReduceOnly = nil
+			if model.Conditions.EntryOrder.Side == "sell" {
+				request.KeyParams.PositionSide = "SHORT"
+			} else {
+				request.KeyParams.PositionSide = "LONG"
 			}
 		}
 		response := sm.ExchangeApi.CreateOrder(request)

@@ -4,7 +4,6 @@ import (
 	"context"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
-	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"time"
 )
@@ -54,7 +53,8 @@ func (sm *SmartOrder) waitForHedge() {
 
 
 func (sm *SmartOrder) hedge() {
-	if sm.Strategy.GetModel().Conditions.HedgeKeyId != nil {
+	if sm.Strategy.GetModel().Conditions.Hedging {
+		sm.ExchangeApi.EnableHedge(sm.Strategy.GetModel().AccountId)
 		hedgedOrder := sm.ExchangeApi.PlaceHedge(sm.Strategy.GetModel())
 		if hedgedOrder.Data.OrderId != "" {
 			objId, _ := primitive.ObjectIDFromHex(hedgedOrder.Data.OrderId)
@@ -99,6 +99,8 @@ func (sm *SmartOrder) checkLossHedge(ctx context.Context, args ...interface{}) b
 }
 
 func (sm *SmartOrder) shareProfits() {
+/*
+	no sharing for now ;)
 	state, _ := sm.State.State(context.Background())
 	if state != HedgeLoss {
 		model := sm.Strategy.GetModel()
@@ -124,5 +126,5 @@ func (sm *SmartOrder) shareProfits() {
 			Amount:     profitsToShare,
 		}
 		sm.ExchangeApi.Transfer(transfer)
-	}
+	}*/
 }
