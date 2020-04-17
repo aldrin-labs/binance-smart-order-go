@@ -195,9 +195,6 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 		} else {
 			orderPrice = model.State.EntryPrice * (1 + model.Conditions.ForcedLoss/100/leverage)
 		}
-		//if isSpot {
-		//	baseAmount = baseAmount * 0.99
-		//}
 		break
 	case TakeProfit:
 		prefix := "take-profit-"
@@ -251,6 +248,7 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 		isNewTrailingMaximum := price == -1
 		if isNewTrailingMaximum && isTrailingTarget {
 			prefix = "stop-"
+			orderType = target.OrderType
 			ifShouldCancelPreviousOrder = true
 			if isFutures {
 				orderType = prefix + target.OrderType
@@ -275,9 +273,6 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 			baseAmount = sm.getLastTargetAmount()
 		}
 
-		//if isSpot {
-		//	baseAmount = baseAmount * 0.99
-		//}
 		// model.State.ExecutedAmount += amount
 		break
 	case Canceled:
@@ -330,7 +325,8 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 		if isSpot {
 			request.KeyParams.Params.MaxIfNotEnough = 1
 		}
-		if step == TrailingEntry && orderType != "market" && ifShouldCancelPreviousOrder && len(model.State.ExecutedOrders) > 0 {
+		isSpotTAP := isSpot && step == TakeProfit && model.Conditions.ExitLevels[sm.SelectedExitTarget].ActivatePrice != 0
+		if (step == TrailingEntry || isSpotTAP) && orderType != "market" && ifShouldCancelPreviousOrder && len(model.State.ExecutedOrders) > 0 {
 			count := len(model.State.ExecutedOrders)
 			existingOrderId := model.State.ExecutedOrders[count-1]
 			response := sm.ExchangeApi.CancelOrder(trading.CancelOrderRequest{

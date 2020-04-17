@@ -92,7 +92,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			}
 			sm.StateMgmt.UpdateExecutedAmount(model.ID, model.State)
 
-			if model.State.ExecutedAmount >= model.Conditions.EntryOrder.Amount {
+			if model.State.ExecutedAmount >= amount {
 				isTrailingHedgeOrder := model.Conditions.HedgeStrategyId != nil || model.Conditions.Hedging == true
 
 				if isTrailingHedgeOrder {
@@ -111,12 +111,10 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 				amount = amount * 0.99
 			}
 			sm.StateMgmt.UpdateExecutedAmount(model.ID, model.State)
-			println("model.State.ExecutedAmount stopLoss", model.State.ExecutedAmount, amount)
 			if model.State.ExecutedAmount >= amount {
 				return true
 			}
 		case Canceled:
-			println("canceled check exisiting")
 			if order.Filled > 0 {
 				model.State.ExecutedAmount += order.Filled
 			}
@@ -126,7 +124,6 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 				amount = amount * 0.99
 			}
 			sm.StateMgmt.UpdateExecutedAmount(model.ID, model.State)
-			println("model.State.ExecutedAmount", model.State.ExecutedAmount, amount)
 			if model.State.ExecutedAmount >= amount {
 				model.State.State = End
 				sm.StateMgmt.UpdateState(model.ID, model.State)

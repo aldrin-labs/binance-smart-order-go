@@ -186,9 +186,6 @@ func (sm *SmartOrder) placeTrailingOrder(newTrailingPrice float64, trailingCheck
 			sm.Lock = true
 			model.State.TrailingEntryPrice = newTrailingPrice
 			sm.placeOrder(-1, step)
-			if model.Conditions.MarketType == 0 {
-				time.Sleep(5 * time.Second)
-			}
 			time.Sleep(3000 * time.Millisecond) // it will give some time for order execution, to avoid double send of orders
 			sm.Lock = false
 		}

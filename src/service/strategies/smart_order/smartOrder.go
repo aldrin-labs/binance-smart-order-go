@@ -366,7 +366,6 @@ func (sm *SmartOrder) checkLoss(ctx context.Context, args ...interface{}) bool {
 	if isTrailingHedgeOrder {
 		return false
 	}
-	isSpotMarketOrder := model.Conditions.EntryOrder.OrderType == "market" && isSpot
 	stopLoss := model.Conditions.StopLoss / model.Conditions.Leverage
 	forcedLoss := model.Conditions.ForcedLoss / model.Conditions.Leverage
 	currentState := model.State.State
@@ -402,13 +401,8 @@ func (sm *SmartOrder) checkLoss(ctx context.Context, args ...interface{}) bool {
 
 	switch model.Conditions.EntryOrder.Side {
 	case "buy":
-		if isSpotMarketOrder && forcedLoss > 0 && (1-currentOHLCV.Close/model.State.EntryPrice)*100 >= forcedLoss {
+		if isSpot && forcedLoss > 0 && (1-currentOHLCV.Close/model.State.EntryPrice)*100 >= forcedLoss {
 			sm.placeOrder(currentOHLCV.Close, Stoploss)
-			// on spot if we go to end it'll cancel all orders, includes the order above
-			if !isSpot {
-				model.State.State = End
-				sm.StateMgmt.UpdateState(model.ID, model.State)
-			}
 			return false
 		}
 
@@ -434,13 +428,8 @@ func (sm *SmartOrder) checkLoss(ctx context.Context, args ...interface{}) bool {
 		}
 		break
 	case "sell":
-		if isSpotMarketOrder && forcedLoss > 0 && (currentOHLCV.Close/model.State.EntryPrice-1)*100 >= forcedLoss  {
+		if isSpot && forcedLoss > 0 && (currentOHLCV.Close/model.State.EntryPrice-1)*100 >= forcedLoss  {
 			sm.placeOrder(currentOHLCV.Close, Stoploss)
-			// on spot if we go to end it'll cancel all orders, includes the order above
-			if !isSpot {
-				model.State.State = End
-				sm.StateMgmt.UpdateState(model.ID, model.State)
-			}
 			return false
 		}
 
@@ -572,11 +561,14 @@ func (sm *SmartOrder) Start() {
 
 func (sm *SmartOrder) Stop() {
 	if sm.Lock {
+		if sm.Strategy.GetModel().Conditions.MarketType == 0 {
+			sm.StateMgmt.DisableStrategy(sm.Strategy.GetModel().ID)
+		}
 		return
 	}
 	sm.Lock = true
 	state, _ := sm.State.State(context.Background())
-	if sm.Strategy.GetModel().Conditions.MarketType == 0 {
+	if sm.Strategy.GetModel().Conditions.MarketType == 0 && state != End {
 		sm.tryCancelAllOrdersConsistently()
 	} else {
 		go sm.tryCancelAllOrders()
