@@ -115,6 +115,7 @@ type MongoStrategyState struct {
 	ExitPrice          float64   `json:"exitPrice,omitempty" bson:"exitPrice"`
 	Amount             float64   `json:"amount,omitempty" bson:"amount"`
 	Orders             []string  `json:"orders,omitempty" bson:"orders"`
+	PositionWasPlaced  bool      `json:"positionWasPlaced, omitempty" bson:"positionWasPlaced"`
 	ExecutedOrders     []string  `json:"executedOrders,omitempty" bson:"executedOrders"`
 	ExecutedAmount     float64   `json:"executedAmount,omitempty" bson:"executedAmount"`
 	ReachedTargetCount int       `json:"reachedTargetCount,omitempty" bson:"reachedTargetCount"`

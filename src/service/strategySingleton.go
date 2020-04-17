@@ -165,42 +165,46 @@ func (ss *StrategyService) InitPositionsWatch() {
 		}
 
 		println("positionEventDecoded", positionEventDecoded.FullDocument.Symbol, positionEventDecoded.FullDocument.KeyId.Hex(), positionEventDecoded.FullDocument.PositionAmt)
-		if positionEventDecoded.FullDocument.PositionAmt == 0 {
 
-			go func(event models.MongoPositionUpdateEvent) {
-				var collStrategies = mongodb.GetCollection(CollStrategiesName)
 
-				println("event.FullDocument.Symbol", event.FullDocument.Symbol)
-				cur, err := collStrategies.Find(ctx, bson.D{
-					{"conditions.marketType", 1},
-					{"enabled", true},
-					{"accountId", event.FullDocument.KeyId},
-					{"conditions.pair", event.FullDocument.Symbol},
-				})
+		go func(event models.MongoPositionUpdateEvent) {
+			var collStrategies = mongodb.GetCollection(CollStrategiesName)
+
+			println("event.FullDocument.Symbol", event.FullDocument.Symbol)
+			cur, err := collStrategies.Find(ctx, bson.D{
+				{"conditions.marketType", 1},
+				{"enabled", true},
+				{"accountId", event.FullDocument.KeyId},
+				{"conditions.pair", event.FullDocument.Symbol},})
+
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			defer cur.Close(ctx)
+
+			for cur.Next(ctx) {
+				var strategyEventDecoded models.MongoStrategy
+				err := cur.Decode(&strategyEventDecoded)
 
 				if err != nil {
-					log.Fatal(err)
+					println("event decode", err.Error())
 				}
 
-				defer cur.Close(ctx)
-
-				for cur.Next(ctx) {
-					var strategyEventDecoded models.MongoStrategy
-					err := cur.Decode(&strategyEventDecoded)
-
-					if err != nil {
-						println("event decode", err.Error())
-					}
-
-					println("strategyEventDecoded", strategyEventDecoded.ID.Hex())
-					// if SM created before last position update
-					// then we caught position event before actual update
-					if ss.strategies[strategyEventDecoded.ID.String()].GetModel().CreatedAt.Before(event.FullDocument.UpdatedAt) {
+				println("strategyEventDecoded", strategyEventDecoded.ID.Hex())
+				// if SM created before last position update
+				// then we caught position event before actual update
+				if positionEventDecoded.FullDocument.PositionAmt == 0 {
+					if ss.strategies[strategyEventDecoded.ID.String()].GetModel().State.PositionWasPlaced {
 						println("disabled by position close")
 						collStrategies.FindOneAndUpdate(ctx, bson.D{{"_id", strategyEventDecoded.ID}}, bson.M{"$set": bson.M{"enabled": false}})
+					} else {
+						ss.strategies[strategyEventDecoded.ID.String()].GetModel().State.PositionWasPlaced = true
 					}
+				} else {
+					ss.strategies[strategyEventDecoded.ID.String()].GetModel().State.PositionWasPlaced = true
 				}
-			}(positionEventDecoded)
-		}
+			}
+		}(positionEventDecoded)
 	}
 }
