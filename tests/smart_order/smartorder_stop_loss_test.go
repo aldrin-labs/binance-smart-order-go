@@ -198,7 +198,7 @@ func TestSmartExitAfterTimeoutLoss(t *testing.T) {
 		t.Error("There were " + strconv.Itoa(sellCallCount.(int)) + " trading api calls with buy params and " + strconv.Itoa(btcUsdtCallCount.(int)) + " with BTC_USDT params while timeoutLoss working")
 	}
 
-	time.Sleep(1000 * time.Millisecond)
+	time.Sleep(2000 * time.Millisecond)
 
 	sellCallCount, sellFound = tradingApi.CallCount.Load("sell")
 	btcUsdtCallCount, usdtBtcFound = tradingApi.CallCount.Load("BTC_USDT")
@@ -295,7 +295,7 @@ func TestSmartOrderReturnToInEntryAfterTimeoutLoss(t *testing.T) {
 	if strategy.Model.State.StopLossAt == 0 {
 		t.Error("Timeout didn't started")
 	}
-	time.Sleep(4000 * time.Millisecond)
+	time.Sleep(5000 * time.Millisecond)
 	// check that one call with 'sell' and one with 'BTC_USDT' should be done
 	sellCallCount, sellFound := tradingApi.CallCount.Load("sell")
 	btcUsdtCallCount, usdtBtcFound := tradingApi.CallCount.Load("BTC_USDT")

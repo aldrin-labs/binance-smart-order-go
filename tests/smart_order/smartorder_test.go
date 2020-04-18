@@ -163,6 +163,7 @@ func GetTestSmartOrderStrategy(scenario string) models.MongoStrategy {
 			Pair:            "BTC_USDT",
 			EntryOrder:      &models.MongoEntryPoint{Side: "buy", OrderType: "limit", ActivatePrice: 7000, EntryDeviation: 1, Amount: 0.05},
 			//TimeoutWhenLoss: 5,
+			MarketType: 1,
 			TimeoutLoss: 5,
 			StopLoss:     2,
 			StopLossType: "limit",
