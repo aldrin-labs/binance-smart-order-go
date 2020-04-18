@@ -265,6 +265,10 @@ func (sm *SmartOrder) enterEntry(ctx context.Context, args ...interface{}) error
 
 	if sm.Strategy.GetModel().Conditions.ForcedLoss > 0 && !isSpot {
 		go sm.placeOrder(0, "ForcedLoss")
+		
+	// wait for creating hedgeStrategy
+	if sm.Strategy.GetModel().Conditions.Hedging && sm.Strategy.GetModel().Conditions.HedgeStrategyId == nil {
+		time.Sleep(8 * time.Second)
 	}
 
 	if sm.Strategy.GetModel().Conditions.HedgeStrategyId != nil {
