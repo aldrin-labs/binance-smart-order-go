@@ -2,6 +2,7 @@ package mongodb
 
 import (
 	"context"
+	"log"
 	"os"
 	"sync"
 	"time"
@@ -459,5 +460,28 @@ func (sm *StateMgmt) UpdateHedgeExitPrice(strategyId *primitive.ObjectID, state 
 }
 
 func (sm *StateMgmt) SavePNL(templateStrategyId *primitive.ObjectID, profitAmount float64) {
-	panic("Implement me")
+
+	col := GetCollection("core_strategies")
+	var request bson.D
+	request = bson.D{
+		{"_id", templateStrategyId},
+	}
+
+	var update bson.D
+	update = bson.D{
+		{
+			"$inc", bson.D{
+				{
+					"conditions.templatePnl", profitAmount,
+				},
+			},
+		},
+	}
+	_, err := col.UpdateOne(context.TODO(), request, update)
+	if err != nil {
+		println("error in arg", err.Error())
+		return
+	}
+
+	log.Printf("Updated template strategy with id %v , pnl changed %f", templateStrategyId, profitAmount)
 }
