@@ -2,12 +2,12 @@ package mongodb
 
 import (
 	"context"
-	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"os"
 	"sync"
 	"time"
 
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
+	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -30,7 +30,7 @@ func GetMongoClientInstance() *mongo.Client {
 		timeout := 10 * time.Second
 		ctx, _ := context.WithTimeout(context.Background(), timeout)
 		client, _ := mongo.Connect(ctx, options.Client().SetDirect(isLocalBuild).
-		//client, _ := mongo.Connect(ctx, options.Client().SetDirect(false).
+			//client, _ := mongo.Connect(ctx, options.Client().SetDirect(false).
 			SetReadPreference(readpref.Primary()).
 			SetWriteConcern(writeconcern.New(writeconcern.WMajority())).
 			SetRetryWrites(true).
@@ -46,7 +46,7 @@ func Connect(url string, connectTimeout time.Duration) (*mongo.Client, error) {
 	timeout := 10 * time.Second
 	isLocalBuild := os.Getenv("LOCAL") == "true"
 	mongoClient, err := mongo.Connect(ctx, options.Client().SetDirect(isLocalBuild).
-	// mongoClient, err := mongo.Connect(ctx, options.Client().SetDirect(false).
+		// mongoClient, err := mongo.Connect(ctx, options.Client().SetDirect(false).
 		SetReadPreference(readpref.Primary()).
 		SetWriteConcern(writeconcern.New(writeconcern.WMajority())).
 		SetRetryWrites(true).
@@ -86,7 +86,7 @@ func (sm *StateMgmt) InitOrdersWatch() {
 		if err != nil {
 			println("event decode", err.Error())
 		}
-		go func(event models.MongoOrderUpdateEvent){
+		go func(event models.MongoOrderUpdateEvent) {
 			if event.FullDocument.Status == "filled" || event.FullDocument.Status == "canceled" {
 				getCallBackRaw, ok := sm.OrderCallbacks.Load(event.FullDocument.OrderId)
 				if ok {
@@ -415,7 +415,7 @@ func (sm *StateMgmt) UpdateEntryPrice(strategyId *primitive.ObjectID, state *mod
 	println("updated entryPrice state", updated.ModifiedCount, state.State)
 }
 
-func (sm *StateMgmt) SwitchToHedgeMode(keyId *primitive.ObjectID, trading trading.ITrading){
+func (sm *StateMgmt) SwitchToHedgeMode(keyId *primitive.ObjectID, trading trading.ITrading) {
 	col := GetCollection("core_keys")
 	var request bson.D
 	request = bson.D{
@@ -456,4 +456,8 @@ func (sm *StateMgmt) UpdateHedgeExitPrice(strategyId *primitive.ObjectID, state 
 		return
 	}
 	println("updated hedgeExitPrice state", updated.ModifiedCount, state.State)
+}
+
+func (sm *StateMgmt) SavePNL(templateStrategyId *primitive.ObjectID, profitAmount float64) {
+	panic("Implement me")
 }
