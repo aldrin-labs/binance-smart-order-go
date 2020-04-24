@@ -161,6 +161,9 @@ type MongoStrategyCondition struct {
 	ForcedLoss            float64 `json:"forcedLoss,omitempty" bson:"forcedLoss"`
 	HedgeLossDeviation    float64 `json:"hedgeLossDeviation,omitempty" bson:"hedgeLossDeviation"`
 
+	CreatedByTemplate  bool                `json:"createdByTemplate,omitempty" bson:"createdByTemplate"`
+	TemplateStrategyId *primitive.ObjectID `json:"templateStrategyId,omitempty" bson:"templateStrategyId"`
+
 	Leverage    float64            `json:"leverage,omitempty" bson:"leverage"`
 	EntryLevels []*MongoEntryPoint `json:"entryLevels,omitempty" bson:"entryLevels"`
 	ExitLevels  []*MongoEntryPoint `json:"exitLevels,omitempty" bson:"exitLevels"`

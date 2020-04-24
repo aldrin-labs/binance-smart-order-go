@@ -2,6 +2,8 @@ package smart_order
 
 import (
 	"context"
+
+	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
 )
 
@@ -30,6 +32,7 @@ func (sm *SmartOrder) orderCallback(order *models.MongoOrder) {
 			model.State.ExecutedAmount += order.Filled
 		}
 		model.State.ExitPrice = order.Average
+		calculateAndSavePNL(model, sm.StateMgmt)
 		sm.StateMgmt.UpdateExecutedAmount(model.ID, model.State)
 	}
 	if err != nil {
@@ -57,6 +60,8 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 		case HedgeLoss:
 			model.State.ExecutedAmount += order.Filled
 			model.State.ExitPrice = order.Average
+
+			calculateAndSavePNL(model, sm.StateMgmt)
 			sm.StateMgmt.UpdateExecutedAmount(model.ID, model.State)
 			if model.State.ExecutedAmount >= model.Conditions.EntryOrder.Amount {
 				return true
@@ -90,6 +95,8 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			} else {
 				go sm.placeOrder(0, Stoploss)
 			}
+
+			calculateAndSavePNL(model, sm.StateMgmt)
 			sm.StateMgmt.UpdateExecutedAmount(model.ID, model.State)
 
 			if model.State.ExecutedAmount >= amount {
@@ -110,6 +117,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			if model.Conditions.MarketType == 0 {
 				amount = amount * 0.99
 			}
+			calculateAndSavePNL(model, sm.StateMgmt)
 			sm.StateMgmt.UpdateExecutedAmount(model.ID, model.State)
 			if model.State.ExecutedAmount >= amount {
 				return true
@@ -123,6 +131,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			if model.Conditions.MarketType == 0 {
 				amount = amount * 0.99
 			}
+			calculateAndSavePNL(model, sm.StateMgmt)
 			sm.StateMgmt.UpdateExecutedAmount(model.ID, model.State)
 			if model.State.ExecutedAmount >= amount {
 				model.State.State = End
@@ -132,16 +141,40 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 		}
 
 		break
-	//case "canceled":
-	//	switch step {
-	//	case WaitForEntry:
-	//		model.State.State = Canceled
-	//		return true
-	//	case InEntry:
-	//		model.State.State = Canceled
-	//		return true
-	//	}
-	//	break
+		//case "canceled":
+		//	switch step {
+		//	case WaitForEntry:
+		//		model.State.State = Canceled
+		//		return true
+		//	case InEntry:
+		//		model.State.State = Canceled
+		//		return true
+		//	}
+		//	break
 	}
 	return false
+}
+
+func calculateAndSavePNL(model *models.MongoStrategy, stateMgmt interfaces.IStateMgmt) float64 {
+
+	leverage := model.Conditions.Leverage
+	if leverage == 0 {
+		leverage = 1.0
+	}
+
+	sideCoefficient := 1.0
+	side := model.Conditions.EntryOrder.Side
+	if side == "sell" {
+		sideCoefficient = -1.0
+	}
+
+	profitPercentage := ((model.State.ExitPrice/model.State.EntryPrice)*100 - 100) * leverage * sideCoefficient
+
+	profitAmount := (model.State.Amount / leverage) * model.State.EntryPrice * (profitPercentage / 100)
+
+	if model.Conditions.CreatedByTemplate {
+		go stateMgmt.SavePNL(model.Conditions.TemplateStrategyId, profitAmount)
+	}
+
+	return profitAmount
 }
