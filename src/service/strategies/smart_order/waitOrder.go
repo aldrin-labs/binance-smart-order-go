@@ -32,6 +32,7 @@ func (sm *SmartOrder) orderCallback(order *models.MongoOrder) {
 			model.State.ExecutedAmount += order.Filled
 		}
 		model.State.ExitPrice = order.Average
+		calculateAndSavePNL(model, sm.StateMgmt)
 		sm.StateMgmt.UpdateExecutedAmount(model.ID, model.State)
 	}
 	if err != nil {
@@ -59,6 +60,8 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 		case HedgeLoss:
 			model.State.ExecutedAmount += order.Filled
 			model.State.ExitPrice = order.Average
+
+			calculateAndSavePNL(model, sm.StateMgmt)
 			sm.StateMgmt.UpdateExecutedAmount(model.ID, model.State)
 			if model.State.ExecutedAmount >= model.Conditions.EntryOrder.Amount {
 				return true
@@ -92,6 +95,8 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			} else {
 				go sm.placeOrder(0, Stoploss)
 			}
+
+			calculateAndSavePNL(model, sm.StateMgmt)
 			sm.StateMgmt.UpdateExecutedAmount(model.ID, model.State)
 
 			if model.State.ExecutedAmount >= amount {
@@ -112,6 +117,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			if model.Conditions.MarketType == 0 {
 				amount = amount * 0.99
 			}
+			calculateAndSavePNL(model, sm.StateMgmt)
 			sm.StateMgmt.UpdateExecutedAmount(model.ID, model.State)
 			if model.State.ExecutedAmount >= amount {
 				return true
@@ -125,6 +131,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			if model.Conditions.MarketType == 0 {
 				amount = amount * 0.99
 			}
+			calculateAndSavePNL(model, sm.StateMgmt)
 			sm.StateMgmt.UpdateExecutedAmount(model.ID, model.State)
 			if model.State.ExecutedAmount >= amount {
 				model.State.State = End
