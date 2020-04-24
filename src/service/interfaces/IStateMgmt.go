@@ -20,4 +20,5 @@ type IStateMgmt interface {
 	GetMarketPrecision(pair string, marketType int64) (int64, int64)
 	AnyActiveStrats(strategy *models.MongoStrategy) bool
 	InitOrdersWatch()
+	SavePNL(templateStrategyId *primitive.ObjectID, profitAmount float64)
 }
