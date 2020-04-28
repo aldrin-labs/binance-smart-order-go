@@ -55,13 +55,18 @@ func (sm *SmartOrder) waitForHedge() {
 func (sm *SmartOrder) hedge() {
 	if sm.Strategy.GetModel().Conditions.Hedging {
 		sm.ExchangeApi.SetHedgeMode(sm.Strategy.GetModel().AccountId, true)
-		hedgedOrder := sm.ExchangeApi.PlaceHedge(sm.Strategy.GetModel())
-		if hedgedOrder.Data.OrderId != "" {
-			objId, _ := primitive.ObjectIDFromHex(hedgedOrder.Data.OrderId)
-			sm.Strategy.GetModel().Conditions.HedgeStrategyId = &objId
-			sm.StateMgmt.UpdateConditions(sm.Strategy.GetModel().ID, sm.Strategy.GetModel().Conditions)
+		if sm.Strategy.GetModel().Conditions.HedgeStrategyId == nil || sm.Strategy.GetModel().Conditions.ContinueIfEnded {
+			hedgedOrder := sm.ExchangeApi.PlaceHedge(sm.Strategy.GetModel())
+			if hedgedOrder.Data.OrderId != "" {
+				objId, _ := primitive.ObjectIDFromHex(hedgedOrder.Data.OrderId)
+				sm.Strategy.GetModel().Conditions.HedgeStrategyId = &objId
+				sm.StateMgmt.UpdateConditions(sm.Strategy.GetModel().ID, sm.Strategy.GetModel().Conditions)
+			}
 		}
+		return
 	}
+
+	sm.ExchangeApi.SetHedgeMode(sm.Strategy.GetModel().AccountId, false)
 }
 
 func (sm *SmartOrder) hedgeCallback(winStrategy *models.MongoStrategy) {

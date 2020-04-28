@@ -155,7 +155,7 @@ func (sm *SmartOrder) checkIfShouldCancelIfAnyActive(){
 
 func (sm *SmartOrder) onStart(ctx context.Context, args ...interface{}) error {
 	sm.checkIfShouldCancelIfAnyActive()
-	go sm.hedge()
+	sm.hedge()
 	sm.checkIfPlaceOrderInstantlyOnStart()
 	go sm.checkTimeouts()
 	return nil
@@ -569,9 +569,7 @@ func (sm *SmartOrder) Start() {
 
 func (sm *SmartOrder) Stop() {
 	if sm.Lock {
-		if sm.Strategy.GetModel().Conditions.MarketType == 0 {
-			sm.StateMgmt.DisableStrategy(sm.Strategy.GetModel().ID)
-		}
+		sm.StateMgmt.DisableStrategy(sm.Strategy.GetModel().ID)
 		return
 	}
 	sm.Lock = true
