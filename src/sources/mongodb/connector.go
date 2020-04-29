@@ -485,3 +485,10 @@ func (sm *StateMgmt) SavePNL(templateStrategyId *primitive.ObjectID, profitAmoun
 
 	log.Printf("Updated template strategy with id %v , pnl changed %f", templateStrategyId, profitAmount)
 }
+
+func (sm *StateMgmt) SaveStrategyConditions(strategy *models.MongoStrategy) {
+	strategy.State.StopLoss = strategy.Conditions.StopLoss
+	strategy.State.ForcedLoss = strategy.Conditions.ForcedLoss
+	strategy.State.TakeProfit = strategy.Conditions.ExitLevels
+	println("saved strategy conditions")
+}

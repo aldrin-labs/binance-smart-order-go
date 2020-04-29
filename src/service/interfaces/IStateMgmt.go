@@ -21,4 +21,5 @@ type IStateMgmt interface {
 	AnyActiveStrats(strategy *models.MongoStrategy) bool
 	InitOrdersWatch()
 	SavePNL(templateStrategyId *primitive.ObjectID, profitAmount float64)
+	SaveStrategyConditions(strategy *models.MongoStrategy)
 }

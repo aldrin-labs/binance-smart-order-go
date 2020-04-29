@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func (sm *SmartOrder) placeOrder(price float64, step string) {
+func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 	baseAmount := 0.0
 	orderType := "market"
 	stopPrice := 0.0
@@ -29,7 +29,7 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 	ifShouldCancelPreviousOrder := false
 	leverage := model.Conditions.Leverage
 	isTrailingHedgeOrder := model.Conditions.HedgeStrategyId != nil || model.Conditions.Hedging == true
-
+	println("place order")
 	if isSpot {
 		leverage = 1
 	}
@@ -127,7 +127,6 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 		if model.Conditions.TimeoutLoss == 0 {
 			orderType = model.Conditions.StopLossType
 			isStopOrdersSupport := isFutures // || orderType == "limit"
-
 			stopLoss := model.Conditions.StopLoss
 			if side == "sell" {
 				orderPrice = model.State.EntryPrice * (1 - stopLoss/100/leverage)
@@ -152,7 +151,7 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 					time.Sleep(time.Duration(model.Conditions.TimeoutLoss) * time.Second)
 					currentState := sm.Strategy.GetModel().State.State
 					if currentState == Stoploss && model.State.StopLossAt == lastTimestamp {
-						sm.placeOrder(price, step)
+						sm.PlaceOrder(price, step)
 					} else {
 						model.State.StopLossAt = -1
 						sm.StateMgmt.UpdateState(model.ID, model.State)
@@ -184,7 +183,7 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 		}
 
 		baseAmount = model.Conditions.EntryOrder.Amount
-		orderType = model.Conditions.EntryOrder.OrderType
+		orderType = model.Conditions.StopLossType
 
 		if !isSpot {
 			orderType = prefix + orderType
@@ -286,7 +285,7 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 			reduceOnly = true
 			baseAmount = model.Conditions.EntryOrder.Amount
 			if isSpot {
-				sm.tryCancelAllOrdersConsistently()
+				sm.TryCancelAllOrdersConsistently(sm.Strategy.GetModel().State.Orders)
 			}
 			break
 		}
@@ -370,14 +369,27 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 			}
 			if response.Data.Id != "0" {
 				sm.OrdersMux.Lock()
+				println("OrdersMap", len(sm.OrdersMap))
+				println("order id add", response.Data.Id)
 				sm.OrdersMap[response.Data.OrderId] = true
 				sm.OrdersMux.Unlock()
 				go sm.waitForOrder(response.Data.Id, step)
+
+				// save placed orders id to state SL/TAP
+				if step == Stoploss {
+					model.State.StopLossOrderIds = append(model.State.StopLossOrderIds, response.Data.Id)
+				} else if step == "ForcedLoss" {
+					model.State.ForcedLossOrderIds = append(model.State.ForcedLossOrderIds, response.Data.Id)
+				} else if step == TakeProfit {
+					model.State.TakeProfitOrderIds = append(model.State.TakeProfitOrderIds, response.Data.Id)
+				}
 			} else {
 				println("order 0")
 			}
-			model.State.Orders = append(model.State.Orders, response.Data.Id)
-			sm.StateMgmt.UpdateOrders(model.ID, model.State)
+			if step != Canceled {
+				model.State.Orders = append(model.State.Orders, response.Data.Id)
+				sm.StateMgmt.UpdateOrders(model.ID, model.State)
+			}
 			break
 		} else {
 			println(response.Status)
@@ -397,6 +409,6 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 	canPlaceAnotherOrderForNextTarget := sm.SelectedExitTarget+1 < len(model.Conditions.ExitLevels)
 	if recursiveCall && canPlaceAnotherOrderForNextTarget {
 		sm.SelectedExitTarget += 1
-		sm.placeOrder(price, step)
+		sm.PlaceOrder(price, step)
 	}
 }

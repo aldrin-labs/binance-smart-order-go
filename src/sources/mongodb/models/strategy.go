@@ -87,9 +87,14 @@ type MongoStrategyState struct {
 	State                  string  `json:"state,omitempty" bson:"state"`
 	Msg                    string  `json:"msg,omitempty" bson:"msg"`
 	EntryOrderId           string  `json:"entryOrderId,omitempty" bson:"entryOrderId"`
-	TakeProfitOrderIds     string  `json:"takeProfitOrderIds,omitempty" bson:"takeProfitOrderIds"`
-	StopLossOrderIds       string  `json:"StopLossOrderIds,omitempty" bson:"StopLossOrderIds"`
-	StopLoss               string  `json:"stopLoss,omitempty" bson:"stopLoss"`
+	// we save params to understand which was changed
+	StopLoss               float64  `json:"stopLoss,omitempty" bson:"stopLoss"`
+	StopLossOrderIds       []string  `json:"stopLossOrderIds,omitempty" bson:"stopLossOrderIds"`
+	ForcedLoss             float64  `json:"forcedLoss,omitempty" bson:"forcedLoss"`
+	ForcedLossOrderIds     []string `json:"forcedLossOrderIds,omitempty" bson:"forcedLossOrderIds"`
+	TakeProfit  		   []*MongoEntryPoint `json:"takeProfit,omitempty" bson:"takeProfit"`
+	TakeProfitOrderIds     []string `json:"takeProfitOrderIds,omitempty" bson:"takeProfitOrderIds"`
+
 	TrailingEntryPrice     float64 `json:"trailingEntryPrice,omitempty" bson:"trailingEntryPrice"`
 	HedgeExitPrice         float64 `json:"hedgeExitPrice,omitempty" bson:"hedgeExitPrice"`
 	TrailingHedgeExitPrice float64 `json:"trailingHedgeExitPrice,omitempty" bson:"trailingHedgeExitPrice"`
