@@ -98,9 +98,9 @@ func GetTestSmartOrderStrategy(scenario string) models.MongoStrategy {
 		smartOrder.State = &models.MongoStrategyState{
 			State:              "InEntry",
 			EntryOrderId:       "",
-			TakeProfitOrderIds: "",
-			StopLossOrderIds:   "",
-			StopLoss:           "",
+			TakeProfitOrderIds: make([]string, 0),
+			StopLossOrderIds:   make([]string, 0),
+			StopLoss:           5,
 			TrailingEntryPrice: 0,
 			TrailingExitPrices: nil,
 			EntryPrice:         7000,
