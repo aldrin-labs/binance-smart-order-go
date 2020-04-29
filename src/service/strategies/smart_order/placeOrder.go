@@ -29,7 +29,6 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 	ifShouldCancelPreviousOrder := false
 	leverage := model.Conditions.Leverage
 	isTrailingHedgeOrder := model.Conditions.HedgeStrategyId != nil || model.Conditions.Hedging == true
-	println("place order")
 	if isSpot {
 		leverage = 1
 	}
@@ -259,6 +258,9 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 			} else {
 				orderPrice = model.State.TrailingEntryPrice * (1 + target.EntryDeviation/100/leverage)
 			}
+			if model.Conditions.TrailingExitExternal {
+				orderPrice = model.Conditions.TrailingExitPrice
+			}
 		}
 		if sm.SelectedExitTarget < len(model.Conditions.ExitLevels)-1 {
 			baseAmount = target.Amount
@@ -290,7 +292,6 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 			break
 		}
 	}
-
 	baseAmount = sm.toFixed(baseAmount, sm.QuantityAmountPrecision)
 	orderPrice = sm.toFixed(orderPrice, sm.QuantityPricePrecision)
 
@@ -369,8 +370,6 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 			}
 			if response.Data.Id != "0" {
 				sm.OrdersMux.Lock()
-				println("OrdersMap", len(sm.OrdersMap))
-				println("order id add", response.Data.Id)
 				sm.OrdersMap[response.Data.OrderId] = true
 				sm.OrdersMux.Unlock()
 				go sm.waitForOrder(response.Data.Id, step)

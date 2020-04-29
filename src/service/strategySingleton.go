@@ -126,7 +126,6 @@ func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) 
 		if isLocalBuild && event.FullDocument.AccountId.Hex() != accountId {
 			return nil
 		}
-		println("subsc strategy")
 		if ss.strategies[event.FullDocument.ID.String()] != nil {
 			ss.strategies[event.FullDocument.ID.String()].HotReload(event.FullDocument)
 			ss.EditConditions(ss.strategies[event.FullDocument.ID.String()])
@@ -147,7 +146,7 @@ func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
 	model := strategy.GetModel()
 	isSpot := model.Conditions.MarketType == 0
 	sm := strategy.StrategyRuntime
-	isInEntry := model.State.State != smart_order.TrailingEntry && model.State.State != smart_order.WaitForEntry
+	isInEntry := model.State != nil && model.State.State != smart_order.TrailingEntry && model.State.State != smart_order.WaitForEntry
 
 	if model.State == nil { return }
 	if !isInEntry { return }
@@ -168,9 +167,15 @@ func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
 	if model.Conditions.ForcedLoss != model.State.ForcedLoss {
 		if isSpot {
 		} else {
-			go sm.TryCancelAllOrders(model.State.ForcedLossOrderIds)
+			sm.TryCancelAllOrders(model.State.ForcedLossOrderIds)
 			sm.PlaceOrder(0, "ForcedLoss")
 		}
+	}
+
+	println("change TrailingExitPrice", strategy.GetModel().Conditions.TrailingExitPrice, strategy.GetModel().State.TrailingExitPrice)
+	if model.Conditions.TrailingExitExternal && strategy.GetModel().Conditions.TrailingExitPrice != strategy.GetModel().State.TrailingExitPrice {
+		sm.PlaceOrder(-1, smart_order.TakeProfit)
+		model.State.TrailingExitPrice = strategy.GetModel().Conditions.TrailingExitPrice
 	}
 	// TAP change
 	// split targets

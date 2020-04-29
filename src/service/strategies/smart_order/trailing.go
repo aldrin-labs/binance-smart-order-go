@@ -59,6 +59,11 @@ func (sm *SmartOrder) checkTrailingProfit(ctx context.Context, args ...interface
 	currentOHLCV := args[0].(interfaces.OHLCV)
 	model := sm.Strategy.GetModel()
 	side := model.Conditions.EntryOrder.Side
+
+	if model.Conditions.TrailingExitExternal {
+		return false
+	}
+
 	switch side {
 	case "buy":
 		for i, target := range model.Conditions.ExitLevels {

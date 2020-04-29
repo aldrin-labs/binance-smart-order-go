@@ -523,13 +523,9 @@ func (sm *SmartOrder) SetSelectedExitTarget(selectedExitTarget int) {
 }
 
 func (sm *SmartOrder) IsOrderExistsInMap(orderId string) bool {
-	println("orders map length", len(sm.OrdersMap))
-	println("id", orderId)
 	sm.OrdersMux.Lock()
-	smth, ok := sm.OrdersMap[orderId]
+	_, ok := sm.OrdersMap[orderId]
 	sm.OrdersMux.Unlock()
-	println("smth", smth)
-	println("ok", ok)
 	if ok {
 		return true
 	}

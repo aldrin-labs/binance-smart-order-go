@@ -99,6 +99,7 @@ type MongoStrategyState struct {
 	HedgeExitPrice         float64 `json:"hedgeExitPrice,omitempty" bson:"hedgeExitPrice"`
 	TrailingHedgeExitPrice float64 `json:"trailingHedgeExitPrice,omitempty" bson:"trailingHedgeExitPrice"`
 
+	TrailingExitPrice  float64   `json:"trailingExitPrice,omitempty" bson:"trailingExitPrice"`
 	TrailingExitPrices []float64 `json:"trailingExitPrices,omitempty" bson:"trailingExitPrices"`
 	EntryPrice         float64   `json:"entryPrice,omitempty" bson:"entryPrice"`
 	ExitPrice          float64   `json:"exitPrice,omitempty" bson:"exitPrice"`
@@ -137,6 +138,8 @@ type MongoStrategyCondition struct {
 	HedgeStrategyId *primitive.ObjectID `json:"hedgeStrategyId,omitempty" bson:"hedgeStrategyId"`
 
 	CancelIfAnyActive bool `json:"cancelIfAnyActive,omitempty" bson:"cancelIfAnyActive"`
+	TrailingExitExternal bool `json:"trailingExitExternal,omitempty" bson:"trailingExitExternal"`
+	TrailingExitPrice  float64   `json:"trailingExitPrice,omitempty" bson:"trailingExitPrice"`
 
 	KeyAssetId *primitive.ObjectID `json:"keyAssetId,omitempty" bson:"keyAssetId"`
 	Pair       string              `json:"pair,omitempty" bson:"pair"`
