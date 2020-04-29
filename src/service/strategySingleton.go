@@ -16,6 +16,7 @@ import (
 	"log"
 	"os"
 	"sync"
+	"time"
 )
 
 // StrategyService strategy service type
@@ -158,6 +159,7 @@ func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
 		// for this we'll need currentOHLCV in price field
 		if isSpot {
 			sm.TryCancelAllOrdersConsistently(model.State.StopLossOrderIds)
+			time.Sleep(5 * time.Second)
 		} else {
 			go sm.TryCancelAllOrders(model.State.StopLossOrderIds)
 		}
@@ -172,7 +174,6 @@ func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
 		}
 	}
 
-	println("change TrailingExitPrice", strategy.GetModel().Conditions.TrailingExitPrice, strategy.GetModel().State.TrailingExitPrice)
 	if model.Conditions.TrailingExitExternal && strategy.GetModel().Conditions.TrailingExitPrice != strategy.GetModel().State.TrailingExitPrice {
 		sm.PlaceOrder(-1, smart_order.TakeProfit)
 		model.State.TrailingExitPrice = strategy.GetModel().Conditions.TrailingExitPrice
@@ -208,6 +209,7 @@ func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
 			idsToCancel := ids[lastExecutedTarget:]
 			if isSpot {
 				sm.TryCancelAllOrdersConsistently(idsToCancel)
+				time.Sleep(5 * time.Second)
 			} else {
 				sm.TryCancelAllOrdersConsistently(idsToCancel)
 			}
@@ -226,6 +228,7 @@ func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
 		ids := model.State.TakeProfitOrderIds[:]
 		if isSpot {
 			sm.TryCancelAllOrdersConsistently(ids)
+			time.Sleep(5 * time.Second)
 		} else {
 			go sm.TryCancelAllOrders(ids)
 		}
@@ -235,6 +238,7 @@ func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
 		ids := model.State.TakeProfitOrderIds[:]
 		if isSpot {
 			sm.TryCancelAllOrdersConsistently(ids)
+			time.Sleep(5 * time.Second)
 		} else {
 			go sm.TryCancelAllOrders(ids)
 		}
