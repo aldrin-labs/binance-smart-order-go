@@ -255,15 +255,21 @@ func (sm *SmartOrder) enterEntry(ctx context.Context, args ...interface{}) error
 
 	if isSpot {
 		sm.PlaceOrder(sm.Strategy.GetModel().State.EntryPrice, InEntry)
-		sm.PlaceOrder(0, TakeProfit)
+		if !sm.Strategy.GetModel().Conditions.TakeProfitExternal {
+			sm.PlaceOrder(0, TakeProfit)
+		}
 	} else {
 		go sm.PlaceOrder(sm.Strategy.GetModel().State.EntryPrice, InEntry)
-		go sm.PlaceOrder(0, TakeProfit)
+		if !sm.Strategy.GetModel().Conditions.TakeProfitExternal {
+			sm.PlaceOrder(0, TakeProfit)
+		}
 	}
 
-	go sm.PlaceOrder(0, Stoploss)
+	if !sm.Strategy.GetModel().Conditions.StopLossExternal {
+		go sm.PlaceOrder(0, Stoploss)
+	}
 
-	if sm.Strategy.GetModel().Conditions.ForcedLoss > 0 && !isSpot {
+	if sm.Strategy.GetModel().Conditions.ForcedLoss > 0 && !isSpot && !sm.Strategy.GetModel().Conditions.StopLossExternal {
 		go sm.PlaceOrder(0, "ForcedLoss")
 	}
 	// wait for creating hedgeStrategy
@@ -287,6 +293,11 @@ func (sm *SmartOrder) checkProfit(ctx context.Context, args ...interface{}) bool
 	if ok && isWaitingForOrder.(bool) && model.Conditions.TimeoutIfProfitable == 0 && model.Conditions.TimeoutLoss == 0 {
 		return false
 	}
+
+	if model.Conditions.TakeProfitExternal {
+		return false
+	}
+
 	currentOHLCV := args[0].(interfaces.OHLCV)
 	if model.Conditions.TimeoutIfProfitable > 0 {
 		isProfitable := (model.Conditions.EntryOrder.Side == "buy" && model.State.EntryPrice < currentOHLCV.Close) ||
@@ -366,6 +377,9 @@ func (sm *SmartOrder) checkLoss(ctx context.Context, args ...interface{}) bool {
 	existTimeout := model.Conditions.TimeoutWhenLoss != 0 || model.Conditions.TimeoutLoss != 0
 	isSpot := model.Conditions.MarketType == 0
 	if ok && isWaitingForOrder.(bool) && !existTimeout && !isSpot  {
+		return false
+	}
+	if model.Conditions.StopLossExternal {
 		return false
 	}
 
