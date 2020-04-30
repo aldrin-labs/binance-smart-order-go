@@ -153,8 +153,6 @@ func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
 	if !isInEntry { return }
 
 	// SL change
-	println("model.Conditions.TakeProfitPrice", model.Conditions.TakeProfitPrice)
-	println("model.State.TakeProfitPrice", model.State.TakeProfitPrice)
 	if model.Conditions.StopLoss != model.State.StopLoss || model.Conditions.StopLossPrice != model.State.StopLossPrice {
 		// we should also think about case when SL was placed by timeout, but didn't executed coz of limit order for example
 		// with this we'll cancel it, and new order wont placed
@@ -177,8 +175,6 @@ func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
 		}
 	}
 
-	println("model.Conditions.TrailingExitPrice", model.Conditions.TrailingExitPrice)
-	println("model.State.TrailingExitPrice", model.State.TrailingExitPrice)
 	if model.Conditions.TrailingExitPrice != model.State.TrailingExitPrice {
 		sm.PlaceOrder(-1, smart_order.TakeProfit)
 	}
