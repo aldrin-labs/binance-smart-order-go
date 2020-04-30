@@ -2,10 +2,11 @@ package smart_order
 
 import (
 	"context"
+	"time"
+
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"time"
 )
 
 func (sm *SmartOrder) checkTrailingHedgeLoss(ctx context.Context, args ...interface{}) bool {
@@ -51,17 +52,21 @@ func (sm *SmartOrder) waitForHedge() {
 	_ = sm.StateMgmt.SubscribeToHedge(sm.Strategy.GetModel().Conditions.HedgeStrategyId, sm.hedgeCallback)
 }
 
-
 func (sm *SmartOrder) hedge() {
 	if sm.Strategy.GetModel().Conditions.Hedging {
-		sm.ExchangeApi.EnableHedge(sm.Strategy.GetModel().AccountId)
-		hedgedOrder := sm.ExchangeApi.PlaceHedge(sm.Strategy.GetModel())
-		if hedgedOrder.Data.OrderId != "" {
-			objId, _ := primitive.ObjectIDFromHex(hedgedOrder.Data.OrderId)
-			sm.Strategy.GetModel().Conditions.HedgeStrategyId = &objId
-			sm.StateMgmt.UpdateConditions(sm.Strategy.GetModel().ID, sm.Strategy.GetModel().Conditions)
+		sm.ExchangeApi.SetHedgeMode(sm.Strategy.GetModel().AccountId, true)
+		if sm.Strategy.GetModel().Conditions.HedgeStrategyId == nil || sm.Strategy.GetModel().Conditions.ContinueIfEnded {
+			hedgedOrder := sm.ExchangeApi.PlaceHedge(sm.Strategy.GetModel())
+			if hedgedOrder.Data.OrderId != "" {
+				objId, _ := primitive.ObjectIDFromHex(hedgedOrder.Data.OrderId)
+				sm.Strategy.GetModel().Conditions.HedgeStrategyId = &objId
+				sm.StateMgmt.UpdateConditions(sm.Strategy.GetModel().ID, sm.Strategy.GetModel().Conditions)
+			}
 		}
+		return
 	}
+
+	sm.ExchangeApi.SetHedgeMode(sm.Strategy.GetModel().AccountId, false)
 }
 
 func (sm *SmartOrder) hedgeCallback(winStrategy *models.MongoStrategy) {
@@ -72,7 +77,6 @@ func (sm *SmartOrder) hedgeCallback(winStrategy *models.MongoStrategy) {
 		}
 	}
 }
-
 
 func (sm *SmartOrder) enterWaitLossHedge(ctx context.Context, args ...interface{}) error {
 	// go sm.shareProfits()
@@ -99,32 +103,32 @@ func (sm *SmartOrder) checkLossHedge(ctx context.Context, args ...interface{}) b
 }
 
 func (sm *SmartOrder) shareProfits() {
-/*
-	no sharing for now ;)
-	state, _ := sm.State.State(context.Background())
-	if state != HedgeLoss {
-		model := sm.Strategy.GetModel()
-		entryPrice := model.State.EntryPrice
-		exitPrice := model.State.ExitPrice
-		leverage := model.Conditions.Leverage
-		amount := (model.State.ExecutedAmount * model.State.EntryPrice) / leverage
-		biggerPrice := exitPrice
-		smallerPrice := entryPrice
-		if smallerPrice < biggerPrice {
-			biggerPrice = entryPrice
-			smallerPrice = exitPrice
-		}
-		profitRatio := (biggerPrice/smallerPrice-1)*leverage
-		profitAmount := amount * profitRatio
-		profitsToShare := (profitAmount - amount) / 2
+	/*
+		no sharing for now ;)
+		state, _ := sm.State.State(context.Background())
+		if state != HedgeLoss {
+			model := sm.Strategy.GetModel()
+			entryPrice := model.State.EntryPrice
+			exitPrice := model.State.ExitPrice
+			leverage := model.Conditions.Leverage
+			amount := (model.State.ExecutedAmount * model.State.EntryPrice) / leverage
+			biggerPrice := exitPrice
+			smallerPrice := entryPrice
+			if smallerPrice < biggerPrice {
+				biggerPrice = entryPrice
+				smallerPrice = exitPrice
+			}
+			profitRatio := (biggerPrice/smallerPrice-1)*leverage
+			profitAmount := amount * profitRatio
+			profitsToShare := (profitAmount - amount) / 2
 
-		transfer := trading.TransferRequest{
-			FromKeyId:  sm.KeyId,
-			ToKeyId:    sm.Strategy.GetModel().Conditions.HedgeKeyId,
-			Symbol:     "USDT",
-			MarketType: 1,
-			Amount:     profitsToShare,
-		}
-		sm.ExchangeApi.Transfer(transfer)
-	}*/
+			transfer := trading.TransferRequest{
+				FromKeyId:  sm.KeyId,
+				ToKeyId:    sm.Strategy.GetModel().Conditions.HedgeKeyId,
+				Symbol:     "USDT",
+				MarketType: 1,
+				Amount:     profitsToShare,
+			}
+			sm.ExchangeApi.Transfer(transfer)
+		}*/
 }

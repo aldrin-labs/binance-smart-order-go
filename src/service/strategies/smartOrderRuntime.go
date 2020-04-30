@@ -44,6 +44,7 @@ func RunSmartOrder(strategy *Strategy, df interfaces.IDataFeed, td trading.ITrad
 	if strategy.Model.State == nil {
 		strategy.Model.State = &models.MongoStrategyState{}
 	}
+	strategy.StateMgmt.SaveStrategyConditions(strategy.Model)
 	runtime := smart_order.NewSmartOrder(strategy, df, td, keyId, strategy.StateMgmt)
 	go runtime.Start()
 
