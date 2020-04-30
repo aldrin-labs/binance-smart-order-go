@@ -139,6 +139,6 @@ func (mt MockTrading) Transfer(request trading.TransferRequest) trading.OrderRes
 	panic("implement me")
 }
 
-func (mt MockTrading) EnableHedge(keyId *primitive.ObjectID) {
-	panic("implement me")
+func (mt MockTrading) SetHedgeMode(keyId *primitive.ObjectID, hedgeMode bool) {
+	return
 }

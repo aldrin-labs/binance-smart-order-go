@@ -33,7 +33,7 @@ func (sm *SmartOrder) exit(ctx context.Context, args ...interface{}) (stateless.
 				model.Conditions.EntryOrder.ActivatePrice = model.State.ExitPrice
 			}
 			go sm.StateMgmt.UpdateConditions(model.ID, model.Conditions)
-			go sm.tryCancelAllOrders()
+			go sm.TryCancelAllOrders(sm.Strategy.GetModel().State.Orders)
 
 			newState := models.MongoStrategyState{
 				State: "",

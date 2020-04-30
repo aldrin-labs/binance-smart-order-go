@@ -4,14 +4,15 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/mitchellh/mapstructure"
-	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"io/ioutil"
 	"math"
 	"net/http"
 	"os"
 	"strings"
+
+	"github.com/mitchellh/mapstructure"
+	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type OrderResponseData struct {
@@ -45,7 +46,7 @@ type ITrading interface {
 
 	UpdateLeverage(keyId *primitive.ObjectID, leverage float64, symbol string) interface{}
 	Transfer(request TransferRequest) OrderResponse
-	EnableHedge(keyId *primitive.ObjectID)
+	SetHedgeMode(keyId *primitive.ObjectID, hedgeMode bool)
 }
 
 type Trading struct {
@@ -131,7 +132,7 @@ type Order struct {
 	MarketType   int64       `json:"marketType" bson:"marketType"`
 	Side         string      `json:"side"`
 	Amount       float64     `json:"amount"`
-	ReduceOnly   *bool        `json:"reduceOnly,omitempty" bson:"reduceOnly"`
+	ReduceOnly   *bool       `json:"reduceOnly,omitempty" bson:"reduceOnly"`
 	TimeInForce  string      `json:"timeInForce,omitempty" bson:"timeInForce"`
 	Type         string      `json:"type" bson:"type"`
 	Price        float64     `json:"price,omitempty" bson:"price"`
@@ -261,10 +262,10 @@ func (t *Trading) Transfer(request TransferRequest) OrderResponse {
 	return response
 }
 
-func (t *Trading) EnableHedge(keyId *primitive.ObjectID) {
+func (t *Trading) SetHedgeMode(keyId *primitive.ObjectID, hedgeMode bool) {
 	request := HedgeRequest{
 		KeyId:     keyId,
-		HedgeMode: true,
+		HedgeMode: hedgeMode,
 	}
 	_ = Request("changePositionMode", request)
 }
