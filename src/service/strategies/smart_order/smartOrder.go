@@ -604,7 +604,6 @@ func (sm *SmartOrder) processEventLoop() {
 	currentOHLCVp := sm.DataFeed.GetPriceForPairAtExchange(sm.Strategy.GetModel().Conditions.Pair, sm.ExchangeName, sm.Strategy.GetModel().Conditions.MarketType)
 	if currentOHLCVp != nil {
 		currentOHLCV := *currentOHLCVp
-		// println("new trade", currentOHLCV.Close)
 		state, err := sm.State.State(context.TODO())
 		err = sm.State.FireCtx(context.TODO(), TriggerTrade, currentOHLCV)
 		if err == nil {

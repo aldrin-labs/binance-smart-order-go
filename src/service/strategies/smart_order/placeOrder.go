@@ -392,6 +392,11 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 			break
 		} else {
 			println(response.Status)
+			if len(response.Data.Msg) > 0 && strings.Contains(response.Data.Msg, "invalid json") {
+				time.Sleep(2 * time.Second)
+				sm.PlaceOrder(price, step)
+				break
+			}
 			if len(response.Data.Msg) > 0 && step != Canceled && step != End && step != Timeout {
 				model.Enabled = false
 				model.State.State = Error

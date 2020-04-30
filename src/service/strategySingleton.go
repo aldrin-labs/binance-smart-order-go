@@ -124,7 +124,7 @@ func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) 
 			println("event decode", err.Error())
 		}
 
-		if isLocalBuild && event.FullDocument.AccountId.Hex() != accountId {
+		if isLocalBuild && (event.FullDocument.AccountId == nil || event.FullDocument.AccountId.Hex() != accountId) {
 			return nil
 		}
 		if ss.strategies[event.FullDocument.ID.String()] != nil {
@@ -166,6 +166,7 @@ func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
 
 		sm.PlaceOrder(0, smart_order.Stoploss)
 	}
+
 	if model.Conditions.ForcedLoss != model.State.ForcedLoss {
 		if isSpot {
 		} else {
