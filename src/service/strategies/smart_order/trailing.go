@@ -60,7 +60,7 @@ func (sm *SmartOrder) checkTrailingProfit(ctx context.Context, args ...interface
 	model := sm.Strategy.GetModel()
 	side := model.Conditions.EntryOrder.Side
 
-	if model.Conditions.TrailingExitExternal {
+	if model.Conditions.TakeProfitExternal {
 		return false
 	}
 

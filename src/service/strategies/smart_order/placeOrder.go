@@ -114,11 +114,21 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 			side = "sell"
 		}
 
+		if model.Conditions.StopLossPrice > 0 {
+			orderPrice = model.Conditions.StopLossPrice
+			if isFutures {
+				orderType = prefix + model.Conditions.StopLossType
+			} else {
+				orderType = model.Conditions.StopLossType
+			}
+			break
+		}
+
 		if isTrailingHedgeOrder {
 			return
 		}
 		// try exit on timeoutWhenLoss
-		if model.Conditions.TimeoutWhenLoss > 0 && price < 0 {
+		if model.Conditions.TimeoutWhenLoss > 0 && price < 0 || model.Conditions.StopLossPrice == -1 {
 			orderType = "market"
 			break
 		}
@@ -168,6 +178,9 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 	case "ForcedLoss":
 		reduceOnly = true
 		side = "buy"
+		baseAmount = model.Conditions.EntryOrder.Amount
+		orderType = model.Conditions.StopLossType
+
 		if model.Conditions.EntryOrder.Side == side {
 			side = "sell"
 		}
@@ -176,13 +189,20 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 			return
 		}
 
-		isSpotMarketOrder := model.Conditions.EntryOrder.OrderType == "market" && isSpot
+		if model.Conditions.ForcedLossPrice > 0 {
+			orderPrice = model.Conditions.ForcedLossPrice
+			if isFutures {
+				orderType = prefix + model.Conditions.StopLossType
+			} else {
+				orderType = model.Conditions.StopLossType
+			}
+			break
+		}
+
+		isSpotMarketOrder := model.Conditions.StopLossType == "market" && isSpot
 		if isSpotMarketOrder {
 			return
 		}
-
-		baseAmount = model.Conditions.EntryOrder.Amount
-		orderType = model.Conditions.StopLossType
 
 		if !isSpot {
 			orderType = prefix + orderType
@@ -203,6 +223,8 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 		target := model.Conditions.ExitLevels[sm.SelectedExitTarget]
 		isTrailingTarget := target.ActivatePrice != 0
 		isSpotMarketOrder := target.OrderType == "market" && isSpot
+		side = oppositeSide
+
 		if price == 0 && isTrailingTarget {
 			// trailing exit, we cant place exit order now
 			return
@@ -212,12 +234,23 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 		}
 
 		// try exit on timeoutIfProfitable
-		if model.Conditions.TimeoutIfProfitable > 0 && price < 0 {
+		if (model.Conditions.TimeoutIfProfitable > 0 && price < 0) || model.Conditions.TakeProfitPrice == -1 {
+			baseAmount = model.Conditions.EntryOrder.Amount
 			orderType = "market"
 			break
 		}
 
-		side = oppositeSide
+		if model.Conditions.TakeProfitPrice > 0 && !isTrailingTarget {
+			orderPrice = model.Conditions.TakeProfitPrice
+			baseAmount = model.Conditions.EntryOrder.Amount
+			if isFutures {
+				orderType = prefix + model.Conditions.ExitLevels[0].OrderType
+			} else {
+				orderType = model.Conditions.ExitLevels[0].OrderType
+			}
+			break
+		}
+
 		if price == 0 && !isTrailingTarget {
 			orderType = target.OrderType
 			if target.OrderType == "market" {
@@ -258,7 +291,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 			} else {
 				orderPrice = model.State.TrailingEntryPrice * (1 + target.EntryDeviation/100/leverage)
 			}
-			if model.Conditions.TrailingExitExternal {
+			if model.Conditions.TakeProfitExternal {
 				orderPrice = model.Conditions.TrailingExitPrice
 			}
 		}
