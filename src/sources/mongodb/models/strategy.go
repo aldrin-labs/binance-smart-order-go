@@ -89,10 +89,13 @@ type MongoStrategyState struct {
 	EntryOrderId           string  `json:"entryOrderId,omitempty" bson:"entryOrderId"`
 	// we save params to understand which was changed
 	StopLoss               float64  `json:"stopLoss,omitempty" bson:"stopLoss"`
+	StopLossPrice          float64  `json:"stopLossPrice, omitempty" bson:"stopLossPrice"`
 	StopLossOrderIds       []string  `json:"stopLossOrderIds,omitempty" bson:"stopLossOrderIds"`
 	ForcedLoss             float64  `json:"forcedLoss,omitempty" bson:"forcedLoss"`
+	ForcedLossPrice        float64  `json:"forcedLossPrice, omitempty" bson:"forcedLossPrice"`
 	ForcedLossOrderIds     []string `json:"forcedLossOrderIds,omitempty" bson:"forcedLossOrderIds"`
 	TakeProfit  		   []*MongoEntryPoint `json:"takeProfit,omitempty" bson:"takeProfit"`
+	TakeProfitPrice        float64  `json:"takeProfitPrice, omitempty" bson:"takeProfitPrice"`
 	TakeProfitOrderIds     []string `json:"takeProfitOrderIds,omitempty" bson:"takeProfitOrderIds"`
 
 	TrailingEntryPrice     float64 `json:"trailingEntryPrice,omitempty" bson:"trailingEntryPrice"`
@@ -140,6 +143,11 @@ type MongoStrategyCondition struct {
 	CancelIfAnyActive bool `json:"cancelIfAnyActive,omitempty" bson:"cancelIfAnyActive"`
 	TrailingExitExternal bool `json:"trailingExitExternal,omitempty" bson:"trailingExitExternal"`
 	TrailingExitPrice  float64   `json:"trailingExitPrice,omitempty" bson:"trailingExitPrice"`
+	StopLossPrice          float64  `json:"stopLossPrice, omitempty" bson:"stopLossPrice"`
+	ForcedLossPrice        float64  `json:"forcedLossPrice, omitempty" bson:"forcedLossPrice"`
+	TakeProfitPrice        float64  `json:"takeProfitPrice, omitempty" bson:"takeProfitPrice"`
+	StopLossExternal       bool     `json:"stopLossExternal, omitempty" bson:"stopLossExternal"`
+	TakeProfitExternal     bool     `json:"takeProfitExternal, omitempty" bson:"takeProfitExternal"`
 
 	KeyAssetId *primitive.ObjectID `json:"keyAssetId,omitempty" bson:"keyAssetId"`
 	Pair       string              `json:"pair,omitempty" bson:"pair"`
