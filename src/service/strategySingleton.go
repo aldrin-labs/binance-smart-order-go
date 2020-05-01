@@ -124,7 +124,7 @@ func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) 
 			println("event decode", err.Error())
 		}
 
-		if isLocalBuild && event.FullDocument.AccountId.Hex() != accountId {
+		if isLocalBuild && (event.FullDocument.AccountId == nil || event.FullDocument.AccountId.Hex() != accountId) {
 			return nil
 		}
 		if ss.strategies[event.FullDocument.ID.String()] != nil {
@@ -153,7 +153,7 @@ func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
 	if !isInEntry { return }
 
 	// SL change
-	if model.Conditions.StopLoss != model.State.StopLoss {
+	if model.Conditions.StopLoss != model.State.StopLoss || model.Conditions.StopLossPrice != model.State.StopLossPrice {
 		// we should also think about case when SL was placed by timeout, but didn't executed coz of limit order for example
 		// with this we'll cancel it, and new order wont placed
 		// for this we'll need currentOHLCV in price field
@@ -166,7 +166,8 @@ func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
 
 		sm.PlaceOrder(0, smart_order.Stoploss)
 	}
-	if model.Conditions.ForcedLoss != model.State.ForcedLoss {
+
+	if model.Conditions.ForcedLoss != model.State.ForcedLoss || model.Conditions.ForcedLossPrice != model.State.ForcedLossPrice {
 		if isSpot {
 		} else {
 			sm.TryCancelAllOrders(model.State.ForcedLossOrderIds)
@@ -174,9 +175,8 @@ func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
 		}
 	}
 
-	if model.Conditions.TrailingExitExternal && strategy.GetModel().Conditions.TrailingExitPrice != strategy.GetModel().State.TrailingExitPrice {
+	if model.Conditions.TrailingExitPrice != model.State.TrailingExitPrice {
 		sm.PlaceOrder(-1, smart_order.TakeProfit)
-		model.State.TrailingExitPrice = strategy.GetModel().Conditions.TrailingExitPrice
 	}
 	// TAP change
 	// split targets
@@ -234,7 +234,7 @@ func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
 		}
 
 		sm.PlaceOrder(-1, smart_order.TakeProfit)
-	} else if model.Conditions.ExitLevels[0].Price != model.State.TakeProfit[0].Price { // simple TAP
+	} else if model.Conditions.ExitLevels[0].Price != model.State.TakeProfit[0].Price || model.Conditions.TakeProfitPrice != model.State.TakeProfitPrice { // simple TAP
 		ids := model.State.TakeProfitOrderIds[:]
 		if isSpot {
 			sm.TryCancelAllOrdersConsistently(ids)

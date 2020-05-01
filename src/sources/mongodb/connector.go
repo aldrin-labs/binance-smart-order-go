@@ -490,5 +490,8 @@ func (sm *StateMgmt) SaveStrategyConditions(strategy *models.MongoStrategy) {
 	strategy.State.StopLoss = strategy.Conditions.StopLoss
 	strategy.State.ForcedLoss = strategy.Conditions.ForcedLoss
 	strategy.State.TakeProfit = strategy.Conditions.ExitLevels
-	println("saved strategy conditions")
+	strategy.State.StopLossPrice = strategy.Conditions.StopLossPrice
+	strategy.State.ForcedLossPrice = strategy.Conditions.ForcedLossPrice
+	strategy.State.TrailingExitPrice = strategy.Conditions.TrailingExitPrice
+	strategy.State.TakeProfitPrice = strategy.Conditions.TakeProfitPrice
 }
