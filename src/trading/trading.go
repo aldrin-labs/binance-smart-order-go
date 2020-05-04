@@ -237,6 +237,7 @@ func (t *Trading) PlaceHedge(parentSmarOrder *models.MongoStrategy) OrderRespons
 	}
 	hedgedStrategy.Conditions.ContinueIfEnded = false
 	hedgedStrategy.Conditions.EntryOrder.Side = oppositeSide
+	hedgedStrategy.Conditions.TemplateToken = ""
 
 	createRequest := CreateOrderRequest{
 		KeyId: hedgedStrategy.Conditions.AccountId,

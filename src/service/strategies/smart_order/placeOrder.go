@@ -87,7 +87,6 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 		reduceOnly = true
 		baseAmount = model.Conditions.EntryOrder.Amount - model.State.ExecutedAmount
 		side = "buy"
-
 		if model.Conditions.EntryOrder.Side == side {
 			side = "sell"
 		}
@@ -100,6 +99,10 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 		} else {
 			orderPrice = model.State.TrailingHedgeExitPrice * (1 + stopLoss/100/leverage)
 		}
+		if model.Conditions.TakeProfitHedgePrice > 0 {
+			orderPrice = model.Conditions.TakeProfitHedgePrice
+		}
+
 		orderType = prefix + orderType // ok we are in futures and can place order before it happened
 		break
 	case Stoploss:
