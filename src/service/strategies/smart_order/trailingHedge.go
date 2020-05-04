@@ -55,7 +55,7 @@ func (sm *SmartOrder) waitForHedge() {
 func (sm *SmartOrder) hedge() {
 	if sm.Strategy.GetModel().Conditions.Hedging {
 		sm.ExchangeApi.SetHedgeMode(sm.Strategy.GetModel().AccountId, true)
-		time.Sleep(3 * time.Second)
+		time.Sleep(5 * time.Second)
 		if (sm.Strategy.GetModel().Conditions.HedgeStrategyId == nil || sm.Strategy.GetModel().Conditions.ContinueIfEnded) && sm.Strategy.GetModel().Enabled {
 			hedgedOrder := sm.ExchangeApi.PlaceHedge(sm.Strategy.GetModel())
 			if hedgedOrder.Data.OrderId != "" {
@@ -67,8 +67,14 @@ func (sm *SmartOrder) hedge() {
 		return
 	}
 
+	if sm.Strategy.GetModel().Conditions.HedgeMode {
+		sm.ExchangeApi.SetHedgeMode(sm.Strategy.GetModel().AccountId, true)
+		time.Sleep(5 * time.Second)
+		return
+	}
+
 	sm.ExchangeApi.SetHedgeMode(sm.Strategy.GetModel().AccountId, false)
-	time.Sleep(3 * time.Second)
+	time.Sleep(5 * time.Second)
 }
 
 func (sm *SmartOrder) hedgeCallback(winStrategy *models.MongoStrategy) {
