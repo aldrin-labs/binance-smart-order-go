@@ -137,6 +137,7 @@ type MongoStrategyCondition struct {
 	AccountId *primitive.ObjectID `json:"accountId,omitempty" bson:"accountId"`
 
 	Hedging         bool                `json:"hedging,omitempty" bson:"hedging"`
+	HedgeMode       bool                `json:"hedgeMode,omitempty" bson:"hedgeMode"`
 	HedgeKeyId      *primitive.ObjectID `json:"hedgeKeyId,omitempty" bson:"hedgeKeyId"`
 	HedgeStrategyId *primitive.ObjectID `json:"hedgeStrategyId,omitempty" bson:"hedgeStrategyId"`
 
