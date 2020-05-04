@@ -486,6 +486,29 @@ func (sm *StateMgmt) SavePNL(templateStrategyId *primitive.ObjectID, profitAmoun
 	log.Printf("Updated template strategy with id %v , pnl changed %f", templateStrategyId, profitAmount)
 }
 
+func (sm *StateMgmt) EnableHedgeLossStrategy(strategyId *primitive.ObjectID) {
+	col := GetCollection("core_strategies")
+	var request bson.D
+	request = bson.D{
+		{"_id", strategyId},
+	}
+	var update bson.D
+	update = bson.D{
+		{
+			"$set", bson.D{
+			{
+				"conditions.takeProfitExternal", false,
+			},
+		},
+		},
+	}
+	_, err := col.UpdateOne(context.TODO(), request, update)
+	if err != nil {
+		println("error in arg", err.Error())
+	}
+	// println(res)
+}
+
 func (sm *StateMgmt) SaveStrategyConditions(strategy *models.MongoStrategy) {
 	strategy.State.StopLoss = strategy.Conditions.StopLoss
 	strategy.State.ForcedLoss = strategy.Conditions.ForcedLoss
@@ -494,4 +517,5 @@ func (sm *StateMgmt) SaveStrategyConditions(strategy *models.MongoStrategy) {
 	strategy.State.ForcedLossPrice = strategy.Conditions.ForcedLossPrice
 	strategy.State.TrailingExitPrice = strategy.Conditions.TrailingExitPrice
 	strategy.State.TakeProfitPrice = strategy.Conditions.TakeProfitPrice
+	strategy.State.TakeProfitHedgePrice = strategy.Conditions.TakeProfitHedgePrice
 }
