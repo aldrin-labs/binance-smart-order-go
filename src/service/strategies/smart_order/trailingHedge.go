@@ -14,6 +14,9 @@ func (sm *SmartOrder) checkTrailingHedgeLoss(ctx context.Context, args ...interf
 	//if ok && isWaitingForOrder.(bool) {
 	//	return false
 	//}
+	if sm.Strategy.GetModel().Conditions.TakeProfitExternal {
+		return false
+	}
 	currentOHLCV := args[0].(interfaces.OHLCV)
 
 	side := sm.Strategy.GetModel().Conditions.EntryOrder.Side
@@ -98,6 +101,9 @@ func (sm *SmartOrder) checkLossHedge(ctx context.Context, args ...interface{}) b
 	strategy := args[0].(models.MongoStrategy)
 	if strategy.State.ExitPrice > 0 {
 		if sm.Strategy.GetModel().State.ExitPrice == 0 {
+			sm.StateMgmt.EnableHedgeLossStrategy(sm.Strategy.GetModel().ID)
+
+			sm.Strategy.GetModel().Conditions.TakeProfitExternal = false
 			sm.Strategy.GetModel().State.HedgeExitPrice = strategy.State.ExitPrice
 			sm.Strategy.GetModel().State.State = HedgeLoss
 			sm.StateMgmt.UpdateHedgeExitPrice(sm.Strategy.GetModel().ID, sm.Strategy.GetModel().State)

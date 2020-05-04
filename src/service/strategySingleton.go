@@ -178,6 +178,12 @@ func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
 	if model.Conditions.TrailingExitPrice != model.State.TrailingExitPrice {
 		sm.PlaceOrder(-1, smart_order.TakeProfit)
 	}
+
+	if model.Conditions.TakeProfitHedgePrice != model.State.TakeProfitHedgePrice {
+		strategy.GetModel().State.TrailingHedgeExitPrice = model.Conditions.TakeProfitHedgePrice
+		sm.PlaceOrder(-1, smart_order.HedgeLoss)
+	}
+
 	// TAP change
 	// split targets
 	if len(model.Conditions.ExitLevels) > 1 || (model.Conditions.ExitLevels[0].Amount > 0) {
