@@ -217,6 +217,44 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 			orderPrice = model.State.EntryPrice * (1 + model.Conditions.ForcedLoss/100/leverage)
 		}
 		break
+	case "WithoutLoss":
+		// entry price + commission
+		reduceOnly = true
+		side = "buy"
+		baseAmount = model.Conditions.EntryOrder.Amount
+		orderType = prefix + model.Conditions.StopLossType
+		fee := 0.12
+
+		if model.Conditions.EntryOrder.Side == side {
+			side = "sell"
+		}
+
+		// if price 0 then market price == entry price
+		if orderType == "market" && price != 0 {
+			return // we cant place market order on spot at exists before it happened, because there is no stop markets
+		}
+
+		if isFutures {
+			fee = 0.042
+		}
+
+		if model.Conditions.Hedging && model.Conditions.HedgeMode {
+			fee = fee * 4
+		} else {
+			fee = fee * 2
+		}
+
+		if side == "sell" {
+			orderPrice = model.State.EntryPrice * (1 + fee/100/leverage)
+		} else {
+			orderPrice = model.State.EntryPrice * (1 - fee/100/leverage)
+		}
+
+		if price > 0 {
+			orderPrice = price
+		}
+
+		break
 	case TakeProfit:
 		prefix := "take-profit-"
 		reduceOnly = true
@@ -377,7 +415,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 				return
 			}
 		}
-		if isTrailingHedgeOrder {
+		if isTrailingHedgeOrder || model.Conditions.HedgeMode {
 			request.KeyParams.ReduceOnly = nil
 			if model.Conditions.EntryOrder.Side == "sell" {
 				request.KeyParams.PositionSide = "SHORT"
