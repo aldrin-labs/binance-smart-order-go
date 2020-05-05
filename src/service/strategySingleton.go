@@ -78,6 +78,7 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 		GetStrategyService().strategies[strategy.Model.ID.String()] = strategy
 		go strategy.Start()
 	}
+	go ss.InitPositionsWatch()
 	ss.WatchStrategies(isLocalBuild, accountId)
 	//ss.WatchStrategies()
 	if err := cur.Err(); err != nil {
@@ -140,6 +141,65 @@ func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) 
 		}
 	}
 	return nil
+}
+
+func (ss *StrategyService) InitPositionsWatch() {
+	CollPositionsName := "core_positions"
+	CollStrategiesName := "core_strategies"
+	ctx := context.Background()
+	var collPositions = mongodb.GetCollection(CollPositionsName)
+	pipeline := mongo.Pipeline{}
+
+	cs, err := collPositions.Watch(ctx, pipeline, options.ChangeStream().SetFullDocument(options.UpdateLookup))
+	if err != nil {
+		panic(err.Error())
+	}
+	//require.NoError(cs, err)
+	defer cs.Close(ctx)
+	for cs.Next(ctx) {
+		var positionEventDecoded models.MongoPositionUpdateEvent
+		err := cs.Decode(&positionEventDecoded)
+		//	data := next.String()
+		// println(data)
+		//		err := json.Unmarshal([]byte(data), &event)
+		if err != nil {
+			println("event decode", err.Error())
+		}
+
+		go func(event models.MongoPositionUpdateEvent) {
+			var collStrategies = mongodb.GetCollection(CollStrategiesName)
+			cur, err := collStrategies.Find(ctx, bson.D{
+				{"conditions.marketType", 1},
+				{"enabled", true},
+				{"accountId", event.FullDocument.KeyId},
+				{"conditions.pair", event.FullDocument.Symbol}},
+			)
+
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			defer cur.Close(ctx)
+
+			for cur.Next(ctx) {
+				var strategyEventDecoded models.MongoStrategy
+				err := cur.Decode(&strategyEventDecoded)
+
+				if err != nil {
+					println("event decode", err.Error())
+				}
+
+				// if SM created before last position update
+				// then we caught position event before actual update
+				if positionEventDecoded.FullDocument.PositionAmt == 0 {
+					if ss.strategies[strategyEventDecoded.ID.String()].GetModel().Conditions.PositionWasClosed {
+						println("disabled by position close")
+						collStrategies.FindOneAndUpdate(ctx, bson.D{{"_id", strategyEventDecoded.ID}}, bson.M{"$set": bson.M{"enabled": false}})
+					}
+				}
+			}
+		}(positionEventDecoded)
+	}
 }
 
 func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
