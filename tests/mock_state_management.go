@@ -98,3 +98,11 @@ func (sm *MockStateMgmt) InitOrdersWatch() {
 	panic("implement me")
 }
 
+
+func (sm *MockStateMgmt) SavePNL(templateStrategyId *primitive.ObjectID, profitAmount float64) {
+	panic("implement me")
+}
+
+func (sm *MockStateMgmt) SaveStrategyConditions(strategy *models.MongoStrategy) {
+	panic("implement me")
+}

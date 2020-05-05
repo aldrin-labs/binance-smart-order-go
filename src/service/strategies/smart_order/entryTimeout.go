@@ -15,6 +15,7 @@ func (sm *SmartOrder) checkTimeouts() {
 				sm.Strategy.GetModel().Enabled = false
 				sm.Strategy.GetModel().State.State = Timeout
 				go sm.StateMgmt.UpdateState(sm.Strategy.GetModel().ID, sm.Strategy.GetModel().State)
+				sm.Lock = false
 			}
 		}()
 	}
@@ -23,7 +24,7 @@ func (sm *SmartOrder) checkTimeouts() {
 		sm.Strategy.GetModel().Conditions.ActivationMoveTimeout > 0 {
 		go func() {
 			currentState, _ := sm.State.State(context.TODO())
-			for currentState == WaitForEntry {
+			for currentState == WaitForEntry && sm.Strategy.GetModel().Enabled {
 				time.Sleep(time.Duration(sm.Strategy.GetModel().Conditions.ActivationMoveTimeout) * time.Second)
 				currentState, _ = sm.State.State(context.TODO())
 				if currentState == WaitForEntry && sm.Strategy.GetModel().Conditions.EntryOrder.ActivatePrice != 0 {

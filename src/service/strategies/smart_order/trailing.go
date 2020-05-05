@@ -59,6 +59,11 @@ func (sm *SmartOrder) checkTrailingProfit(ctx context.Context, args ...interface
 	currentOHLCV := args[0].(interfaces.OHLCV)
 	model := sm.Strategy.GetModel()
 	side := model.Conditions.EntryOrder.Side
+
+	if model.Conditions.TakeProfitExternal {
+		return false
+	}
+
 	switch side {
 	case "buy":
 		for i, target := range model.Conditions.ExitLevels {
@@ -95,7 +100,7 @@ func (sm *SmartOrder) checkTrailingProfit(ctx context.Context, args ...interface
 					isSpotMarketOrder := target.OrderType == "market" && isSpot
 					if isSpotMarketOrder {
 						model.State.State = TakeProfit
-						sm.placeOrder(edgePrice, TakeProfit)
+						sm.PlaceOrder(edgePrice, TakeProfit)
 
 						return true
 					}
@@ -139,7 +144,7 @@ func (sm *SmartOrder) checkTrailingProfit(ctx context.Context, args ...interface
 					isSpotMarketOrder := target.OrderType == "market" && isSpot
 					if isSpotMarketOrder {
 						sm.Strategy.GetModel().State.State = TakeProfit
-						sm.placeOrder(edgePrice, TakeProfit)
+						sm.PlaceOrder(edgePrice, TakeProfit)
 
 						return true
 					}
@@ -185,7 +190,7 @@ func (sm *SmartOrder) placeTrailingOrder(newTrailingPrice float64, trailingCheck
 		if sm.Lock == false {
 			sm.Lock = true
 			model.State.TrailingEntryPrice = newTrailingPrice
-			sm.placeOrder(-1, step)
+			sm.PlaceOrder(-1, step)
 			time.Sleep(3000 * time.Millisecond) // it will give some time for order execution, to avoid double send of orders
 			sm.Lock = false
 		}

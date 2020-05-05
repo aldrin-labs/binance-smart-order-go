@@ -4,6 +4,7 @@ import (
 	"context"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies"
+	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies/smart_order"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/redis"
@@ -15,6 +16,7 @@ import (
 	"log"
 	"os"
 	"sync"
+	"time"
 )
 
 // StrategyService strategy service type
@@ -123,12 +125,12 @@ func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) 
 			println("event decode", err.Error())
 		}
 
-		if isLocalBuild && event.FullDocument.AccountId.Hex() != accountId {
+		if isLocalBuild && (event.FullDocument.AccountId == nil || event.FullDocument.AccountId.Hex() != accountId) {
 			return nil
 		}
-
 		if ss.strategies[event.FullDocument.ID.String()] != nil {
 			ss.strategies[event.FullDocument.ID.String()].HotReload(event.FullDocument)
+			ss.EditConditions(ss.strategies[event.FullDocument.ID.String()])
 			if event.FullDocument.Enabled == false {
 				delete(ss.strategies, event.FullDocument.ID.String())
 			}
@@ -207,4 +209,117 @@ func (ss *StrategyService) InitPositionsWatch() {
 			}
 		}(positionEventDecoded)
 	}
+}
+
+func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
+	// here we should determine what was changed
+	model := strategy.GetModel()
+	isSpot := model.Conditions.MarketType == 0
+	sm := strategy.StrategyRuntime
+	isInEntry := model.State != nil && model.State.State != smart_order.TrailingEntry && model.State.State != smart_order.WaitForEntry
+
+	if model.State == nil { return }
+	if !isInEntry { return }
+
+	// SL change
+	if model.Conditions.StopLoss != model.State.StopLoss || model.Conditions.StopLossPrice != model.State.StopLossPrice {
+		// we should also think about case when SL was placed by timeout, but didn't executed coz of limit order for example
+		// with this we'll cancel it, and new order wont placed
+		// for this we'll need currentOHLCV in price field
+		if isSpot {
+			sm.TryCancelAllOrdersConsistently(model.State.StopLossOrderIds)
+			time.Sleep(5 * time.Second)
+		} else {
+			go sm.TryCancelAllOrders(model.State.StopLossOrderIds)
+		}
+
+		sm.PlaceOrder(0, smart_order.Stoploss)
+	}
+
+	if model.Conditions.ForcedLoss != model.State.ForcedLoss || model.Conditions.ForcedLossPrice != model.State.ForcedLossPrice {
+		if isSpot {
+		} else {
+			sm.TryCancelAllOrders(model.State.ForcedLossOrderIds)
+			sm.PlaceOrder(0, "ForcedLoss")
+		}
+	}
+
+	if model.Conditions.TrailingExitPrice != model.State.TrailingExitPrice {
+		sm.PlaceOrder(-1, smart_order.TakeProfit)
+	}
+
+	if model.Conditions.TakeProfitHedgePrice != model.State.TakeProfitHedgePrice {
+		strategy.GetModel().State.TrailingHedgeExitPrice = model.Conditions.TakeProfitHedgePrice
+		sm.PlaceOrder(-1, smart_order.HedgeLoss)
+	}
+
+	// TAP change
+	// split targets
+	if len(model.Conditions.ExitLevels) > 1 || (model.Conditions.ExitLevels[0].Amount > 0) {
+		wasChanged := false
+
+		if len(model.State.TakeProfit) != len(model.Conditions.ExitLevels) {
+			wasChanged = true
+		} else {
+			for i, target := range model.Conditions.ExitLevels {
+				if (target.Price != model.State.TakeProfit[i].Price || target.Amount != model.State.TakeProfit[i].Amount) && !wasChanged {
+					wasChanged = true
+				}
+			}
+		}
+
+		// add some logic if some of targets was executed
+		if wasChanged {
+			ids := model.State.TakeProfitOrderIds[:]
+			lastExecutedTarget := 0
+			for i, id := range ids {
+				orderStillOpen := sm.IsOrderExistsInMap(id)
+				if orderStillOpen {
+					sm.SetSelectedExitTarget(i)
+					lastExecutedTarget = i
+					break
+				}
+			}
+
+			idsToCancel := ids[lastExecutedTarget:]
+			if isSpot {
+				sm.TryCancelAllOrdersConsistently(idsToCancel)
+				time.Sleep(5 * time.Second)
+			} else {
+				sm.TryCancelAllOrdersConsistently(idsToCancel)
+			}
+
+			// here we delete canceled orders
+			if lastExecutedTarget - 1 >= 0 {
+				strategy.GetModel().State.TakeProfitOrderIds = ids[:lastExecutedTarget]
+			} else {
+				strategy.GetModel().State.TakeProfitOrderIds = make([]string, 0)
+			}
+
+			sm.PlaceOrder(0, smart_order.TakeProfit)
+		}
+	} else if model.Conditions.ExitLevels[0].ActivatePrice > 0 && (model.Conditions.ExitLevels[0].EntryDeviation != model.State.TakeProfit[0].EntryDeviation) {
+		// trailing TAP
+		ids := model.State.TakeProfitOrderIds[:]
+		if isSpot {
+			sm.TryCancelAllOrdersConsistently(ids)
+			time.Sleep(5 * time.Second)
+		} else {
+			go sm.TryCancelAllOrders(ids)
+		}
+
+		sm.PlaceOrder(-1, smart_order.TakeProfit)
+	} else if model.Conditions.ExitLevels[0].Price != model.State.TakeProfit[0].Price || model.Conditions.TakeProfitPrice != model.State.TakeProfitPrice { // simple TAP
+		ids := model.State.TakeProfitOrderIds[:]
+		if isSpot {
+			sm.TryCancelAllOrdersConsistently(ids)
+			time.Sleep(5 * time.Second)
+		} else {
+			go sm.TryCancelAllOrders(ids)
+		}
+
+		sm.PlaceOrder(0, smart_order.TakeProfit)
+	}
+
+	strategy.StateMgmt.SaveStrategyConditions(strategy.Model)
 }

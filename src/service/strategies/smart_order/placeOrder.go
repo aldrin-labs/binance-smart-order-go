@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func (sm *SmartOrder) placeOrder(price float64, step string) {
+func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 	baseAmount := 0.0
 	orderType := "market"
 	stopPrice := 0.0
@@ -29,7 +29,6 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 	ifShouldCancelPreviousOrder := false
 	leverage := model.Conditions.Leverage
 	isTrailingHedgeOrder := model.Conditions.HedgeStrategyId != nil || model.Conditions.Hedging == true
-
 	if isSpot {
 		leverage = 1
 	}
@@ -88,7 +87,6 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 		reduceOnly = true
 		baseAmount = model.Conditions.EntryOrder.Amount - model.State.ExecutedAmount
 		side = "buy"
-
 		if model.Conditions.EntryOrder.Side == side {
 			side = "sell"
 		}
@@ -101,21 +99,39 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 		} else {
 			orderPrice = model.State.TrailingHedgeExitPrice * (1 + stopLoss/100/leverage)
 		}
+		if model.Conditions.TakeProfitHedgePrice > 0 {
+			orderPrice = model.Conditions.TakeProfitHedgePrice
+		}
+
 		orderType = prefix + orderType // ok we are in futures and can place order before it happened
 		break
 	case Stoploss:
 		reduceOnly = true
 		baseAmount = model.Conditions.EntryOrder.Amount - model.State.ExecutedAmount
+		//if isSpot {
+		//	baseAmount = baseAmount * 0.99
+		//}
+
 		side = "buy"
 		if model.Conditions.EntryOrder.Side == side {
 			side = "sell"
+		}
+
+		if model.Conditions.StopLossPrice > 0 {
+			orderPrice = model.Conditions.StopLossPrice
+			if isFutures {
+				orderType = prefix + model.Conditions.StopLossType
+			} else {
+				orderType = model.Conditions.StopLossType
+			}
+			break
 		}
 
 		if isTrailingHedgeOrder {
 			return
 		}
 		// try exit on timeoutWhenLoss
-		if model.Conditions.TimeoutWhenLoss > 0 && price < 0 {
+		if model.Conditions.TimeoutWhenLoss > 0 && price < 0 || model.Conditions.StopLossPrice == -1 {
 			orderType = "market"
 			break
 		}
@@ -123,7 +139,6 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 		if model.Conditions.TimeoutLoss == 0 {
 			orderType = model.Conditions.StopLossType
 			isStopOrdersSupport := isFutures // || orderType == "limit"
-
 			stopLoss := model.Conditions.StopLoss
 			if side == "sell" {
 				orderPrice = model.State.EntryPrice * (1 - stopLoss/100/leverage)
@@ -148,9 +163,7 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 					time.Sleep(time.Duration(model.Conditions.TimeoutLoss) * time.Second)
 					currentState := sm.Strategy.GetModel().State.State
 					if currentState == Stoploss && model.State.StopLossAt == lastTimestamp {
-						sm.placeOrder(price, step)
-						model.State.State = End
-						sm.StateMgmt.UpdateState(model.ID, model.State)
+						sm.PlaceOrder(price, step)
 					} else {
 						model.State.StopLossAt = -1
 						sm.StateMgmt.UpdateState(model.ID, model.State)
@@ -165,6 +178,83 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 			}
 		}
 		break
+	case "ForcedLoss":
+		reduceOnly = true
+		side = "buy"
+		baseAmount = model.Conditions.EntryOrder.Amount
+		orderType = model.Conditions.StopLossType
+
+		if model.Conditions.EntryOrder.Side == side {
+			side = "sell"
+		}
+		isTrailingHedgeOrder := model.Conditions.HedgeStrategyId != nil || model.Conditions.HedgeKeyId != nil
+		if isTrailingHedgeOrder {
+			return
+		}
+
+		if model.Conditions.ForcedLossPrice > 0 {
+			orderPrice = model.Conditions.ForcedLossPrice
+			if isFutures {
+				orderType = prefix + model.Conditions.StopLossType
+			} else {
+				orderType = model.Conditions.StopLossType
+			}
+			break
+		}
+
+		isSpotMarketOrder := model.Conditions.StopLossType == "market" && isSpot
+		if isSpotMarketOrder {
+			return
+		}
+
+		if !isSpot {
+			orderType = prefix + orderType
+		}
+
+		if side == "sell" {
+			orderPrice = model.State.EntryPrice * (1 - model.Conditions.ForcedLoss/100/leverage)
+		} else {
+			orderPrice = model.State.EntryPrice * (1 + model.Conditions.ForcedLoss/100/leverage)
+		}
+		break
+	case "WithoutLoss":
+		// entry price + commission
+		reduceOnly = true
+		side = "buy"
+		baseAmount = model.Conditions.EntryOrder.Amount
+		orderType = prefix + model.Conditions.StopLossType
+		fee := 0.12
+
+		if model.Conditions.EntryOrder.Side == side {
+			side = "sell"
+		}
+
+		// if price 0 then market price == entry price
+		if orderType == "market" && price != 0 {
+			return // we cant place market order on spot at exists before it happened, because there is no stop markets
+		}
+
+		if isFutures {
+			fee = 0.042
+		}
+
+		if model.Conditions.Hedging && model.Conditions.HedgeMode {
+			fee = fee * 4
+		} else {
+			fee = fee * 2
+		}
+
+		if side == "sell" {
+			orderPrice = model.State.EntryPrice * (1 + fee/100/leverage)
+		} else {
+			orderPrice = model.State.EntryPrice * (1 - fee/100/leverage)
+		}
+
+		if price > 0 {
+			orderPrice = price
+		}
+
+		break
 	case TakeProfit:
 		prefix := "take-profit-"
 		reduceOnly = true
@@ -174,6 +264,8 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 		target := model.Conditions.ExitLevels[sm.SelectedExitTarget]
 		isTrailingTarget := target.ActivatePrice != 0
 		isSpotMarketOrder := target.OrderType == "market" && isSpot
+		side = oppositeSide
+
 		if price == 0 && isTrailingTarget {
 			// trailing exit, we cant place exit order now
 			return
@@ -183,12 +275,23 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 		}
 
 		// try exit on timeoutIfProfitable
-		if model.Conditions.TimeoutIfProfitable > 0 && price < 0 {
+		if (model.Conditions.TimeoutIfProfitable > 0 && price < 0) || model.Conditions.TakeProfitPrice == -1 {
+			baseAmount = model.Conditions.EntryOrder.Amount
 			orderType = "market"
 			break
 		}
 
-		side = oppositeSide
+		if model.Conditions.TakeProfitPrice > 0 && !isTrailingTarget {
+			orderPrice = model.Conditions.TakeProfitPrice
+			baseAmount = model.Conditions.EntryOrder.Amount
+			if isFutures {
+				orderType = prefix + model.Conditions.ExitLevels[0].OrderType
+			} else {
+				orderType = model.Conditions.ExitLevels[0].OrderType
+			}
+			break
+		}
+
 		if price == 0 && !isTrailingTarget {
 			orderType = target.OrderType
 			if target.OrderType == "market" {
@@ -217,6 +320,7 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 		isNewTrailingMaximum := price == -1
 		if isNewTrailingMaximum && isTrailingTarget {
 			prefix = "stop-"
+			orderType = target.OrderType
 			ifShouldCancelPreviousOrder = true
 			if isFutures {
 				orderType = prefix + target.OrderType
@@ -227,6 +331,9 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 				orderPrice = model.State.TrailingEntryPrice * (1 - target.EntryDeviation/100/leverage)
 			} else {
 				orderPrice = model.State.TrailingEntryPrice * (1 + target.EntryDeviation/100/leverage)
+			}
+			if model.Conditions.TakeProfitExternal {
+				orderPrice = model.Conditions.TrailingExitPrice
 			}
 		}
 		if sm.SelectedExitTarget < len(model.Conditions.ExitLevels)-1 {
@@ -240,6 +347,7 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 		} else {
 			baseAmount = sm.getLastTargetAmount()
 		}
+
 		// model.State.ExecutedAmount += amount
 		break
 	case Canceled:
@@ -252,10 +360,12 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 			side = oppositeSide
 			reduceOnly = true
 			baseAmount = model.Conditions.EntryOrder.Amount
+			if isSpot {
+				sm.TryCancelAllOrdersConsistently(sm.Strategy.GetModel().State.Orders)
+			}
 			break
 		}
 	}
-
 	baseAmount = sm.toFixed(baseAmount, sm.QuantityAmountPrecision)
 	orderPrice = sm.toFixed(orderPrice, sm.QuantityPricePrecision)
 
@@ -286,7 +396,11 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 				Type: advancedOrderType,
 			}
 		}
-		if step == TrailingEntry && orderType != "market" && ifShouldCancelPreviousOrder && len(model.State.ExecutedOrders) > 0 {
+		if isSpot {
+			request.KeyParams.Params.MaxIfNotEnough = 1
+		}
+		isSpotTAP := isSpot && step == TakeProfit && model.Conditions.ExitLevels[sm.SelectedExitTarget].ActivatePrice != 0
+		if (step == TrailingEntry || isSpotTAP) && orderType != "market" && ifShouldCancelPreviousOrder && len(model.State.ExecutedOrders) > 0 {
 			count := len(model.State.ExecutedOrders)
 			existingOrderId := model.State.ExecutedOrders[count-1]
 			response := sm.ExchangeApi.CancelOrder(trading.CancelOrderRequest{
@@ -301,7 +415,8 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 				return
 			}
 		}
-		if isTrailingHedgeOrder {
+		if isTrailingHedgeOrder || model.Conditions.HedgeMode {
+			request.KeyParams.ReduceOnly = nil
 			if model.Conditions.EntryOrder.Side == "sell" {
 				request.KeyParams.PositionSide = "SHORT"
 			} else {
@@ -332,14 +447,30 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 				sm.OrdersMap[response.Data.OrderId] = true
 				sm.OrdersMux.Unlock()
 				go sm.waitForOrder(response.Data.Id, step)
+
+				// save placed orders id to state SL/TAP
+				if step == Stoploss {
+					model.State.StopLossOrderIds = append(model.State.StopLossOrderIds, response.Data.Id)
+				} else if step == "ForcedLoss" {
+					model.State.ForcedLossOrderIds = append(model.State.ForcedLossOrderIds, response.Data.Id)
+				} else if step == TakeProfit {
+					model.State.TakeProfitOrderIds = append(model.State.TakeProfitOrderIds, response.Data.Id)
+				}
 			} else {
 				println("order 0")
 			}
-			model.State.Orders = append(model.State.Orders, response.Data.Id)
-			sm.StateMgmt.UpdateOrders(model.ID, model.State)
+			if step != Canceled {
+				model.State.Orders = append(model.State.Orders, response.Data.Id)
+				sm.StateMgmt.UpdateOrders(model.ID, model.State)
+			}
 			break
 		} else {
 			println(response.Status)
+			if len(response.Data.Msg) > 0 && strings.Contains(response.Data.Msg, "invalid json") {
+				time.Sleep(2 * time.Second)
+				sm.PlaceOrder(price, step)
+				break
+			}
 			if len(response.Data.Msg) > 0 && step != Canceled && step != End && step != Timeout {
 				model.Enabled = false
 				model.State.State = Error
@@ -356,6 +487,6 @@ func (sm *SmartOrder) placeOrder(price float64, step string) {
 	canPlaceAnotherOrderForNextTarget := sm.SelectedExitTarget+1 < len(model.Conditions.ExitLevels)
 	if recursiveCall && canPlaceAnotherOrderForNextTarget {
 		sm.SelectedExitTarget += 1
-		sm.placeOrder(price, step)
+		sm.PlaceOrder(price, step)
 	}
 }

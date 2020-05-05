@@ -10,7 +10,11 @@ func (sm *SmartOrder) exit(ctx context.Context, args ...interface{}) (stateless.
 	state, _ := sm.State.State(context.TODO())
 	nextState := End
 	model := sm.Strategy.GetModel()
-	if model.State.State != WaitLossHedge && model.State.ExecutedAmount >= model.Conditions.EntryOrder.Amount { // all trades executed, nothing more to trade
+	amount := model.Conditions.EntryOrder.Amount
+	if model.Conditions.MarketType == 0 {
+		amount = amount * 0.99
+	}
+	if model.State.State != WaitLossHedge && model.State.ExecutedAmount >= amount { // all trades executed, nothing more to trade
 		if model.Conditions.ContinueIfEnded {
 			isParentHedge := model.Conditions.Hedging == true
 			isTrailingHedgeOrder := model.Conditions.HedgeStrategyId != nil || isParentHedge
@@ -29,7 +33,7 @@ func (sm *SmartOrder) exit(ctx context.Context, args ...interface{}) (stateless.
 				model.Conditions.EntryOrder.ActivatePrice = model.State.ExitPrice
 			}
 			go sm.StateMgmt.UpdateConditions(model.ID, model.Conditions)
-			go sm.tryCancelAllOrders()
+			go sm.TryCancelAllOrders(sm.Strategy.GetModel().State.Orders)
 
 			newState := models.MongoStrategyState{
 				State: "",
@@ -82,9 +86,6 @@ func (sm *SmartOrder) exit(ctx context.Context, args ...interface{}) (stateless.
 		break
 	case Stoploss:
 		switch model.State.State {
-		case Stoploss:
-			nextState = Stoploss
-			break
 		case InEntry:
 			nextState = InEntry
 			break
