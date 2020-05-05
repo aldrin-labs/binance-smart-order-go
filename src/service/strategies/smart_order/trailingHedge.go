@@ -100,16 +100,31 @@ func (sm *SmartOrder) checkLossHedge(ctx context.Context, args ...interface{}) b
 	}
 	strategy := args[0].(models.MongoStrategy)
 	if strategy.State.ExitPrice > 0 {
-		if sm.Strategy.GetModel().State.ExitPrice == 0 {
-			sm.StateMgmt.EnableHedgeLossStrategy(sm.Strategy.GetModel().ID)
+		model := sm.Strategy.GetModel()
+		if model.State.ExitPrice == 0 {
+			sideCoefficient := 1.0
+			fee := 0.042 * 4
+			if strategy.Conditions.EntryOrder.Side == "sell" {
+				sideCoefficient = -1.0
+			}
 
-			sm.Strategy.GetModel().Conditions.TakeProfitExternal = false
-			sm.Strategy.GetModel().State.HedgeExitPrice = strategy.State.ExitPrice
-			sm.Strategy.GetModel().State.State = HedgeLoss
-			sm.StateMgmt.UpdateHedgeExitPrice(sm.Strategy.GetModel().ID, sm.Strategy.GetModel().State)
+			winStrategyProfitPercentage := ((strategy.State.ExitPrice / strategy.State.EntryPrice) * 100 - 100) * strategy.Conditions.Leverage * sideCoefficient
+			zeroProfitPrice := model.State.EntryPrice * (1 - winStrategyProfitPercentage/100/model.Conditions.Leverage) * (1 + fee/100/model.Conditions.Leverage)
+			if model.Conditions.EntryOrder.Side == "sell" {
+				zeroProfitPrice = model.State.EntryPrice * (1 + winStrategyProfitPercentage/100/model.Conditions.Leverage) * (1 - fee/100/model.Conditions.Leverage)
+			}
+
+			sm.StateMgmt.EnableHedgeLossStrategy(model.ID)
+			sm.PlaceOrder(-1, "WithoutLoss")
+			sm.PlaceOrder(zeroProfitPrice, "WithoutLoss")
+
+			model.Conditions.TakeProfitExternal = false
+			model.State.HedgeExitPrice = strategy.State.ExitPrice
+			model.State.State = HedgeLoss
+			sm.StateMgmt.UpdateHedgeExitPrice(model.ID, model.State)
 		} else {
-			sm.Strategy.GetModel().State.State = End
-			go sm.StateMgmt.UpdateState(sm.Strategy.GetModel().ID, sm.Strategy.GetModel().State)
+			model.State.State = End
+			go sm.StateMgmt.UpdateState(model.ID, model.State)
 		}
 		return true
 	}
