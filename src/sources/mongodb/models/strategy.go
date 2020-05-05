@@ -125,7 +125,6 @@ type MongoStrategyState struct {
 	ExitPrice          float64   `json:"exitPrice,omitempty" bson:"exitPrice"`
 	Amount             float64   `json:"amount,omitempty" bson:"amount"`
 	Orders             []string  `json:"orders,omitempty" bson:"orders"`
-	PositionWasPlaced  bool      `json:"positionWasPlaced, omitempty" bson:"positionWasPlaced"`
 	ExecutedOrders     []string  `json:"executedOrders,omitempty" bson:"executedOrders"`
 	ExecutedAmount     float64   `json:"executedAmount,omitempty" bson:"executedAmount"`
 	ReachedTargetCount int       `json:"reachedTargetCount,omitempty" bson:"reachedTargetCount"`
@@ -160,6 +159,7 @@ type MongoStrategyCondition struct {
 	HedgeStrategyId *primitive.ObjectID `json:"hedgeStrategyId,omitempty" bson:"hedgeStrategyId"`
 
 	TemplateToken     string `json:"templateToken,omitempty" bson:"templateToken"`
+	PositionWasClosed  bool      `json:"positionWasClosed, omitempty" bson:"positionWasClosed"`
 	CancelIfAnyActive bool `json:"cancelIfAnyActive,omitempty" bson:"cancelIfAnyActive"`
 	TrailingExitExternal bool `json:"trailingExitExternal,omitempty" bson:"trailingExitExternal"`
 	TrailingExitPrice  float64   `json:"trailingExitPrice,omitempty" bson:"trailingExitPrice"`
