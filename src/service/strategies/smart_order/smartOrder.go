@@ -290,7 +290,11 @@ func (sm *SmartOrder) enterEntry(ctx context.Context, args ...interface{}) error
 func (sm *SmartOrder) checkProfit(ctx context.Context, args ...interface{}) bool {
 	isWaitingForOrder, ok := sm.IsWaitingForOrder.Load(TakeProfit)
 	model := sm.Strategy.GetModel()
-	if ok && isWaitingForOrder.(bool) && model.Conditions.TimeoutIfProfitable == 0 && model.Conditions.TimeoutLoss == 0 {
+	if ok &&
+		isWaitingForOrder.(bool) &&
+		model.Conditions.TimeoutIfProfitable == 0 &&
+		model.Conditions.TimeoutLoss == 0 &&
+		model.Conditions.WithoutLossAfterProfit == 0 {
 		return false
 	}
 
@@ -332,6 +336,10 @@ func (sm *SmartOrder) checkProfit(ctx context.Context, args ...interface{}) bool
 						}
 					}
 				}
+
+				if currentOHLCV.Close >= model.State.EntryPrice * (1 + model.Conditions.WithoutLossAfterProfit/model.Conditions.Leverage/100){
+					sm.PlaceOrder(-1, "WithoutLoss")
+				}
 			}
 			break
 		case "sell":
@@ -345,6 +353,10 @@ func (sm *SmartOrder) checkProfit(ctx context.Context, args ...interface{}) bool
 						} else if level.Type == 1 {
 							amount += model.Conditions.EntryOrder.Amount * (level.Amount / 100)
 						}
+					}
+
+					if currentOHLCV.Close <= model.State.EntryPrice * (1 - model.Conditions.WithoutLossAfterProfit/model.Conditions.Leverage/100){
+						sm.PlaceOrder(-1, "WithoutLoss")
 					}
 				}
 			}
