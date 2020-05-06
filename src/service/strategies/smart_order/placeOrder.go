@@ -222,38 +222,51 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 		reduceOnly = true
 		side = "buy"
 		baseAmount = model.Conditions.EntryOrder.Amount
-		orderType = prefix + model.Conditions.StopLossType
+		orderType = prefix + "limit"
 		fee := 0.12
 
 		if model.Conditions.EntryOrder.Side == side {
 			side = "sell"
 		}
 
-		// if price 0 then market price == entry price
-		if orderType == "market" && price != 0 {
+		// if price 0 then market price == entry price for spot market order
+		if isSpot && price != 0 {
 			return // we cant place market order on spot at exists before it happened, because there is no stop markets
 		}
 
 		if isFutures {
-			fee = 0.042
+			fee = 0.04
 		}
 
-		if model.Conditions.Hedging && model.Conditions.HedgeMode {
+		if model.Conditions.Hedging || model.Conditions.HedgeMode {
 			fee = fee * 4
 		} else {
 			fee = fee * 2
 		}
 
+		if fee * model.Conditions.Leverage > model.Conditions.WithoutLossAfterProfit &&
+			model.Conditions.WithoutLossAfterProfit > 0 {
+			orderType = "take-profit-" + "limit"
+		}
+
 		if side == "sell" {
-			orderPrice = model.State.EntryPrice * (1 + fee/100/leverage)
+			orderPrice = model.State.EntryPrice * (1 + fee/100)
 		} else {
-			orderPrice = model.State.EntryPrice * (1 - fee/100/leverage)
+			orderPrice = model.State.EntryPrice * (1 - fee/100)
 		}
 
 		if price > 0 {
 			orderPrice = price
 		}
 
+		currentOHLCVp := sm.DataFeed.GetPriceForPairAtExchange(sm.Strategy.GetModel().Conditions.Pair, sm.ExchangeName, sm.Strategy.GetModel().Conditions.MarketType)
+		if currentOHLCVp != nil {
+			currentOHLCV := *currentOHLCVp
+			if currentOHLCV.Close < orderPrice && sm.Strategy.GetModel().Conditions.EntryOrder.Side == "buy" ||
+				currentOHLCV.Close > orderPrice && sm.Strategy.GetModel().Conditions.EntryOrder.Side == "sell" {
+					orderType = "take-profit-" + "limit"
+				}
+		}
 		break
 	case TakeProfit:
 		prefix := "take-profit-"

@@ -103,15 +103,20 @@ func (sm *SmartOrder) checkLossHedge(ctx context.Context, args ...interface{}) b
 		model := sm.Strategy.GetModel()
 		if model.State.ExitPrice == 0 {
 			sideCoefficient := 1.0
-			fee := 0.042 * 4
+			fee := 0.04 * 4
 			if strategy.Conditions.EntryOrder.Side == "sell" {
 				sideCoefficient = -1.0
 			}
 
 			winStrategyProfitPercentage := ((strategy.State.ExitPrice / strategy.State.EntryPrice) * 100 - 100) * strategy.Conditions.Leverage * sideCoefficient
-			zeroProfitPrice := model.State.EntryPrice * (1 - winStrategyProfitPercentage/100/model.Conditions.Leverage) * (1 + fee/100/model.Conditions.Leverage)
+			winStrategyProfitPercentage = winStrategyProfitPercentage - (fee * model.Conditions.Leverage)
+			if winStrategyProfitPercentage < 0 {
+				winStrategyProfitPercentage = winStrategyProfitPercentage * -1
+			}
+
+			zeroProfitPrice := model.State.EntryPrice * (1 - winStrategyProfitPercentage/100/model.Conditions.Leverage)
 			if model.Conditions.EntryOrder.Side == "sell" {
-				zeroProfitPrice = model.State.EntryPrice * (1 + winStrategyProfitPercentage/100/model.Conditions.Leverage) * (1 - fee/100/model.Conditions.Leverage)
+				zeroProfitPrice = model.State.EntryPrice * (1 + winStrategyProfitPercentage/100/model.Conditions.Leverage)
 			}
 
 			sm.StateMgmt.EnableHedgeLossStrategy(model.ID)
