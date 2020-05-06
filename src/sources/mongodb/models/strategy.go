@@ -169,6 +169,7 @@ type MongoStrategyCondition struct {
 	TakeProfitHedgePrice   float64  `json:"takeProfitHedgePrice,omitempty" bson:"takeProfitHedgePrice"`
 	StopLossExternal       bool     `json:"stopLossExternal,omitempty" bson:"stopLossExternal"`
 	TakeProfitExternal     bool     `json:"takeProfitExternal,omitempty" bson:"takeProfitExternal"`
+	WithoutLossAfterProfit float64  `json:"withoutLossAfterProfit,omitempty" bson:"withoutLossAfterProfit"`
 
 	KeyAssetId *primitive.ObjectID `json:"keyAssetId,omitempty" bson:"keyAssetId"`
 	Pair       string              `json:"pair,omitempty" bson:"pair"`
