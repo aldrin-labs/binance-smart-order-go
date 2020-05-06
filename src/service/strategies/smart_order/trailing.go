@@ -79,9 +79,9 @@ func (sm *SmartOrder) checkTrailingProfit(ctx context.Context, args ...interface
 				}
 				didCrossActivatePrice := currentOHLCV.Close >= activatePrice
 
-				if currentOHLCV.Close >= model.State.EntryPrice * (1 + model.Conditions.WithoutLossAfterProfit/model.Conditions.Leverage/100){
-					sm.PlaceOrder(-1, "WithoutLoss")
-				}
+				//if currentOHLCV.Close >= model.State.EntryPrice * (1 + model.Conditions.WithoutLossAfterProfit/model.Conditions.Leverage/100){
+				//	sm.PlaceOrder(-1, "WithoutLoss")
+				//}
 
 				if !isActivated && didCrossActivatePrice {
 					model.State.TrailingExitPrices = append(model.State.TrailingExitPrices, currentOHLCV.Close)
@@ -126,9 +126,9 @@ func (sm *SmartOrder) checkTrailingProfit(ctx context.Context, args ...interface
 				}
 				didCrossActivatePrice := currentOHLCV.Close <= activatePrice
 
-				if currentOHLCV.Close <= model.State.EntryPrice * (1 - model.Conditions.WithoutLossAfterProfit/model.Conditions.Leverage/100){
-					sm.PlaceOrder(-1, "WithoutLoss")
-				}
+				//if currentOHLCV.Close <= model.State.EntryPrice * (1 - model.Conditions.WithoutLossAfterProfit/model.Conditions.Leverage/100){
+				//	sm.PlaceOrder(-1, "WithoutLoss")
+				//}
 
 				if !isActivated && didCrossActivatePrice {
 					sm.Strategy.GetModel().State.TrailingExitPrices = append(sm.Strategy.GetModel().State.TrailingExitPrices, currentOHLCV.Close)
