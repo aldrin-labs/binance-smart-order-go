@@ -337,9 +337,9 @@ func (sm *SmartOrder) checkProfit(ctx context.Context, args ...interface{}) bool
 					}
 				}
 
-				if currentOHLCV.Close >= model.State.EntryPrice * (1 + model.Conditions.WithoutLossAfterProfit/model.Conditions.Leverage/100){
-					sm.PlaceOrder(-1, "WithoutLoss")
-				}
+				//if currentOHLCV.Close >= model.State.EntryPrice * (1 + model.Conditions.WithoutLossAfterProfit/model.Conditions.Leverage/100){
+				//	sm.PlaceOrder(-1, "WithoutLoss")
+				//}
 			}
 			break
 		case "sell":
@@ -354,10 +354,10 @@ func (sm *SmartOrder) checkProfit(ctx context.Context, args ...interface{}) bool
 							amount += model.Conditions.EntryOrder.Amount * (level.Amount / 100)
 						}
 					}
-
-					if currentOHLCV.Close <= model.State.EntryPrice * (1 - model.Conditions.WithoutLossAfterProfit/model.Conditions.Leverage/100){
-						sm.PlaceOrder(-1, "WithoutLoss")
-					}
+					//
+					//if currentOHLCV.Close <= model.State.EntryPrice * (1 - model.Conditions.WithoutLossAfterProfit/model.Conditions.Leverage/100){
+					//	sm.PlaceOrder(-1, "WithoutLoss")
+					//}
 				}
 			}
 			break
