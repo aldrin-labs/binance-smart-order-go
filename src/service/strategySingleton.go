@@ -192,7 +192,8 @@ func (ss *StrategyService) InitPositionsWatch() {
 				// if SM created before last position update
 				// then we caught position event before actual update
 				if positionEventDecoded.FullDocument.PositionAmt == 0 {
-					if ss.strategies[strategyEventDecoded.ID.String()].GetModel().Conditions.PositionWasClosed {
+					strategy := ss.strategies[strategyEventDecoded.ID.String()]
+					if strategy != nil && strategy.GetModel().Conditions.PositionWasClosed {
 						println("disabled by position close")
 						collStrategies.FindOneAndUpdate(ctx, bson.D{{"_id", strategyEventDecoded.ID}}, bson.M{"$set": bson.M{"enabled": false}})
 					}
