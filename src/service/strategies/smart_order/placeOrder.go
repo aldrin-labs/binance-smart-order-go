@@ -484,6 +484,10 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 				sm.PlaceOrder(price, step)
 				break
 			}
+			if len(response.Data.Msg) > 0 && strings.Contains(response.Data.Msg, "immediately trigger") {
+				sm.PlaceOrder(0, Canceled)
+				break
+			}
 			if len(response.Data.Msg) > 0 && step != Canceled && step != End && step != Timeout {
 				model.Enabled = false
 				model.State.State = Error

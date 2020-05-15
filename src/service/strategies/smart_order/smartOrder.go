@@ -56,6 +56,7 @@ type SmartOrder struct {
 	QuantityAmountPrecision int64
 	QuantityPricePrecision  int64
 	Lock                    bool
+	StopLock				bool
 	LastTrailingTimestamp   int64
 	SelectedExitTarget      int
 	OrdersMux sync.Mutex
@@ -607,12 +608,12 @@ func (sm *SmartOrder) Start() {
 }
 
 func (sm *SmartOrder) Stop() {
-	if sm.Lock {
+	if sm.StopLock {
 		sm.StateMgmt.DisableStrategy(sm.Strategy.GetModel().ID)
 		go sm.TryCancelAllOrders(sm.Strategy.GetModel().State.Orders)
 		return
 	}
-	sm.Lock = true
+	sm.StopLock = true
 	state, _ := sm.State.State(context.Background())
 	if sm.Strategy.GetModel().Conditions.MarketType == 0 && state != End {
 		sm.TryCancelAllOrdersConsistently(sm.Strategy.GetModel().State.Orders)
@@ -623,7 +624,7 @@ func (sm *SmartOrder) Stop() {
 		sm.PlaceOrder(0, Canceled)
 	}
 	sm.StateMgmt.DisableStrategy(sm.Strategy.GetModel().ID)
-	sm.Lock = false
+	sm.StopLock = false
 }
 
 func (sm *SmartOrder) processEventLoop() {
