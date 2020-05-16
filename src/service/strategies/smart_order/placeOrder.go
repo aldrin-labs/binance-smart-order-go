@@ -479,6 +479,19 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 			break
 		} else {
 			println(response.Status)
+
+			if len(response.Data.Msg) > 0 && strings.Contains(response.Data.Msg, "position side does not match") {
+				if model.Conditions.Hedging || model.Conditions.HedgeMode {
+					sm.ExchangeApi.SetHedgeMode(sm.Strategy.GetModel().AccountId, true)
+					time.Sleep(5 * time.Second)
+					sm.PlaceOrder(price, step)
+					break
+				} else {
+					sm.ExchangeApi.SetHedgeMode(sm.Strategy.GetModel().AccountId, false)
+					time.Sleep(5 * time.Second)
+					sm.PlaceOrder(price, step)
+				}
+			}
 			if len(response.Data.Msg) > 0 && strings.Contains(response.Data.Msg, "invalid json") {
 				time.Sleep(2 * time.Second)
 				sm.PlaceOrder(price, step)
