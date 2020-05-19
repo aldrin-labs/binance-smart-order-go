@@ -63,6 +63,7 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 	//cur, err := coll.Find(ctx, bson.D{{"enabled",true}})
 	cur, err := coll.Find(ctx, bson.D{{"enabled", true}, additionalCondition})
 	if err != nil {
+		println("log.Fatal on finding enabled strategies")
 		wg.Done()
 		log.Fatal(err)
 	}
@@ -72,6 +73,7 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 		// create a value into which the single document can be decoded
 		strategy, err := strategies.GetStrategy(cur, ss.dataFeed, ss.trading, ss.stateMgmt)
 		if err != nil {
+			println("log.Fatal on processing enabled strategy")
 			log.Fatal(err)
 		}
 		println("objid " + strategy.Model.ID.String())
@@ -82,6 +84,7 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 	ss.WatchStrategies(isLocalBuild, accountId)
 	//ss.WatchStrategies()
 	if err := cur.Err(); err != nil {
+		println("log.Fatal at the end of init func")
 		wg.Done()
 		log.Fatal(err)
 	}
@@ -109,6 +112,7 @@ func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) 
 	cs, err := coll.Watch(ctx, mongo.Pipeline{}, options.ChangeStream().SetFullDocument(options.UpdateLookup))
 	//cs, err := coll.Watch(ctx, mongo.Pipeline{}, options.ChangeStream().SetFullDocument(options.UpdateLookup))
 	if err != nil {
+		println("log.Fatal on watching strategies")
 		return err
 	}
 	//require.NoError(cs, err)
@@ -122,7 +126,7 @@ func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) 
 		// println(data)
 		//		err := json.Unmarshal([]byte(data), &event)
 		if err != nil {
-			println("event decode", err.Error())
+			println("event decode error on processing strategy", err.Error())
 		}
 
 		if isLocalBuild && (event.FullDocument.AccountId == nil || event.FullDocument.AccountId.Hex() != accountId) {
@@ -152,6 +156,7 @@ func (ss *StrategyService) InitPositionsWatch() {
 
 	cs, err := collPositions.Watch(ctx, pipeline, options.ChangeStream().SetFullDocument(options.UpdateLookup))
 	if err != nil {
+		println("panic error on watching positions")
 		panic(err.Error())
 	}
 	//require.NoError(cs, err)
@@ -163,7 +168,7 @@ func (ss *StrategyService) InitPositionsWatch() {
 		// println(data)
 		//		err := json.Unmarshal([]byte(data), &event)
 		if err != nil {
-			println("event decode", err.Error())
+			println("event decode in processing position", err.Error())
 		}
 
 		go func(event models.MongoPositionUpdateEvent) {
@@ -176,6 +181,7 @@ func (ss *StrategyService) InitPositionsWatch() {
 			)
 
 			if err != nil {
+				println("log.Fatal on finding enabled strategies by position")
 				log.Fatal(err)
 			}
 
@@ -186,7 +192,7 @@ func (ss *StrategyService) InitPositionsWatch() {
 				err := cur.Decode(&strategyEventDecoded)
 
 				if err != nil {
-					println("event decode", err.Error())
+					println("event decode on processing strategy found by position close", err.Error())
 				}
 
 				// if SM created before last position update
