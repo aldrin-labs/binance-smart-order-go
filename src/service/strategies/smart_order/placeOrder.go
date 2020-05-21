@@ -182,7 +182,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 		reduceOnly = true
 		side = "buy"
 		baseAmount = model.Conditions.EntryOrder.Amount
-		orderType = model.Conditions.StopLossType
+		orderType = "market"
 
 		if model.Conditions.EntryOrder.Side == side {
 			side = "sell"
@@ -195,14 +195,12 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 		if model.Conditions.ForcedLossPrice > 0 {
 			orderPrice = model.Conditions.ForcedLossPrice
 			if isFutures {
-				orderType = prefix + model.Conditions.StopLossType
-			} else {
-				orderType = model.Conditions.StopLossType
+				orderType = prefix + orderType
 			}
 			break
 		}
 
-		isSpotMarketOrder := model.Conditions.StopLossType == "market" && isSpot
+		isSpotMarketOrder := isSpot
 		if isSpotMarketOrder {
 			return
 		}
