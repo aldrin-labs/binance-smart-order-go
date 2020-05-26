@@ -182,7 +182,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 		reduceOnly = true
 		side = "buy"
 		baseAmount = model.Conditions.EntryOrder.Amount
-		orderType = model.Conditions.StopLossType
+		orderType = "market"
 
 		if model.Conditions.EntryOrder.Side == side {
 			side = "sell"
@@ -195,14 +195,12 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 		if model.Conditions.ForcedLossPrice > 0 {
 			orderPrice = model.Conditions.ForcedLossPrice
 			if isFutures {
-				orderType = prefix + model.Conditions.StopLossType
-			} else {
-				orderType = model.Conditions.StopLossType
+				orderType = prefix + orderType
 			}
 			break
 		}
 
-		isSpotMarketOrder := model.Conditions.StopLossType == "market" && isSpot
+		isSpotMarketOrder := isSpot
 		if isSpotMarketOrder {
 			return
 		}
@@ -482,14 +480,19 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 
 			if len(response.Data.Msg) > 0 && strings.Contains(response.Data.Msg, "position side does not match") {
 				if model.Conditions.Hedging || model.Conditions.HedgeMode {
-					sm.ExchangeApi.SetHedgeMode(sm.Strategy.GetModel().AccountId, true)
-					time.Sleep(5 * time.Second)
-					sm.PlaceOrder(price, step)
-					break
+					changeHedgeModeResponse := sm.ExchangeApi.SetHedgeMode(sm.Strategy.GetModel().AccountId, true)
+					if !strings.Contains(changeHedgeModeResponse.Data.Msg, "cannot be changed") {
+						time.Sleep(5 * time.Second)
+						sm.PlaceOrder(price, step)
+						break
+					}
 				} else {
-					sm.ExchangeApi.SetHedgeMode(sm.Strategy.GetModel().AccountId, false)
-					time.Sleep(5 * time.Second)
-					sm.PlaceOrder(price, step)
+					changeHedgeModeResponse := sm.ExchangeApi.SetHedgeMode(sm.Strategy.GetModel().AccountId, false)
+					if !strings.Contains(changeHedgeModeResponse.Data.Msg, "cannot be changed") {
+						time.Sleep(5 * time.Second)
+						sm.PlaceOrder(price, step)
+						break
+					}
 				}
 			}
 			if len(response.Data.Msg) > 0 && strings.Contains(response.Data.Msg, "invalid json") {

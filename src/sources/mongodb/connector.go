@@ -405,6 +405,9 @@ func (sm *StateMgmt) UpdateEntryPrice(strategyId *primitive.ObjectID, state *mod
 				{
 					"state.entryPrice", state.EntryPrice,
 				},
+				{
+					"state.state", state.State,
+				},
 			},
 		},
 	}

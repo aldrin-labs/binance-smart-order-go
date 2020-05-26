@@ -389,10 +389,14 @@ func (sm *SmartOrder) checkLoss(ctx context.Context, args ...interface{}) bool {
 	model := sm.Strategy.GetModel()
 	existTimeout := model.Conditions.TimeoutWhenLoss != 0 || model.Conditions.TimeoutLoss != 0
 	isSpot := model.Conditions.MarketType == 0
+
 	if ok && isWaitingForOrder.(bool) && !existTimeout && !isSpot  {
 		return false
 	}
 	if model.Conditions.StopLossExternal {
+		return false
+	}
+	if model.State.ExecutedAmount >= model.Conditions.EntryOrder.Amount {
 		return false
 	}
 
@@ -407,7 +411,7 @@ func (sm *SmartOrder) checkLoss(ctx context.Context, args ...interface{}) bool {
 	stateFromStateMachine, _ := sm.State.State(ctx)
 
 	// if we did not have time to go out to check existing orders (market)
-	if currentState == End {
+	if currentState == End || stateFromStateMachine == End {
 		return true
 	}
 
