@@ -25,6 +25,8 @@ func (sm *SmartOrder) orderCallback(order *models.MongoOrder) {
 	sm.OrdersMux.Unlock()
 	currentState, _ := sm.State.State(context.Background())
 	model := sm.Strategy.GetModel()
+
+	println("before firing CheckExistingOrders")
 	err := sm.State.Fire(CheckExistingOrders, *order)
 	// when checkExisitingOrders wasn't called
 	if (currentState == Stoploss || currentState == End || (currentState == InEntry && model.State.StopLossAt > 0)) && order.Status == "filled" {
@@ -36,17 +38,18 @@ func (sm *SmartOrder) orderCallback(order *models.MongoOrder) {
 		sm.StateMgmt.UpdateExecutedAmount(model.ID, model.State)
 	}
 	if err != nil {
-		// println(err.Error())
+		println(err.Error())
 	}
 }
 func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface{}) bool {
+	println("in function CheckExistingOrders")
 	if args == nil {
 		return false
 	}
 	order := args[0].(models.MongoOrder)
 	orderId := order.OrderId
 	step, ok := sm.StatusByOrderId.Load(orderId)
-	if order.Status == "filled" || order.Status == "canceled" {
+	if order.Status == "filled" || order.Status == "canceled" && (step == WaitForEntry || step == TrailingEntry) {
 		sm.StatusByOrderId.Delete(orderId)
 	}
 	if !ok {
