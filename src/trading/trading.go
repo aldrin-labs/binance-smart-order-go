@@ -46,7 +46,7 @@ type ITrading interface {
 
 	UpdateLeverage(keyId *primitive.ObjectID, leverage float64, symbol string) interface{}
 	Transfer(request TransferRequest) OrderResponse
-	SetHedgeMode(keyId *primitive.ObjectID, hedgeMode bool)
+	SetHedgeMode(keyId *primitive.ObjectID, hedgeMode bool) OrderResponse
 }
 
 type Trading struct {
@@ -263,10 +263,14 @@ func (t *Trading) Transfer(request TransferRequest) OrderResponse {
 	return response
 }
 
-func (t *Trading) SetHedgeMode(keyId *primitive.ObjectID, hedgeMode bool) {
+func (t *Trading) SetHedgeMode(keyId *primitive.ObjectID, hedgeMode bool) OrderResponse {
 	request := HedgeRequest{
 		KeyId:     keyId,
 		HedgeMode: hedgeMode,
 	}
-	_ = Request("changePositionMode", request)
+	rawResponse := Request("changePositionMode", request)
+
+	var response OrderResponse
+	_ = mapstructure.Decode(rawResponse, &response)
+	return response
 }
