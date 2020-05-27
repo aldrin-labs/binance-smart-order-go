@@ -21,7 +21,7 @@ func (sm *SmartOrder) checkTrailingEntry(ctx context.Context, args ...interface{
 	edgePrice := sm.Strategy.GetModel().State.TrailingEntryPrice
 	activateTrailing := false
 	if edgePrice == 0 {
-		println("edgePrice=0")
+		println("edgePrice=0, set TrailingEntryPrice", currentOHLCV.Close)
 		sm.Strategy.GetModel().State.TrailingEntryPrice = currentOHLCV.Close
 		activateTrailing = true
 	}
@@ -197,6 +197,7 @@ func (sm *SmartOrder) placeTrailingOrder(newTrailingPrice float64, trailingCheck
 	if trailingDidnChange || trailingChangedALot {
 		if sm.Lock == false {
 			sm.Lock = true
+			println("prev trailing price", model.State.TrailingEntryPrice, "new", newTrailingPrice)
 			model.State.TrailingEntryPrice = newTrailingPrice
 			sm.PlaceOrder(-1, step)
 			time.Sleep(3000 * time.Millisecond) // it will give some time for order execution, to avoid double send of orders
