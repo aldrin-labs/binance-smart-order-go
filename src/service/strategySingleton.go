@@ -242,7 +242,7 @@ func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
 		}
 	}
 
-	if model.Conditions.TrailingExitPrice != model.State.TrailingExitPrice {
+	if model.Conditions.TrailingExitPrice != model.State.TrailingExitPrice || model.Conditions.TakeProfitPrice != model.State.TakeProfitPrice {
 		sm.PlaceOrder(-1, smart_order.TakeProfit)
 	}
 
@@ -307,7 +307,7 @@ func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
 		}
 
 		sm.PlaceOrder(-1, smart_order.TakeProfit)
-	} else if model.Conditions.ExitLevels[0].Price != model.State.TakeProfit[0].Price || model.Conditions.TakeProfitPrice != model.State.TakeProfitPrice { // simple TAP
+	} else if model.Conditions.ExitLevels[0].Price != model.State.TakeProfit[0].Price { // simple TAP
 		ids := model.State.TakeProfitOrderIds[:]
 		if isSpot {
 			sm.TryCancelAllOrdersConsistently(ids)

@@ -478,23 +478,23 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 		} else {
 			println(response.Status)
 
-			if len(response.Data.Msg) > 0 && strings.Contains(response.Data.Msg, "position side does not match") {
-				if model.Conditions.Hedging || model.Conditions.HedgeMode {
-					changeHedgeModeResponse := sm.ExchangeApi.SetHedgeMode(sm.Strategy.GetModel().AccountId, true)
-					if !strings.Contains(changeHedgeModeResponse.Data.Msg, "cannot be changed") {
-						time.Sleep(5 * time.Second)
-						sm.PlaceOrder(price, step)
-						break
-					}
-				} else {
-					changeHedgeModeResponse := sm.ExchangeApi.SetHedgeMode(sm.Strategy.GetModel().AccountId, false)
-					if !strings.Contains(changeHedgeModeResponse.Data.Msg, "cannot be changed") {
-						time.Sleep(5 * time.Second)
-						sm.PlaceOrder(price, step)
-						break
-					}
-				}
-			}
+			//if len(response.Data.Msg) > 0 && strings.Contains(response.Data.Msg, "position side does not match") {
+			//	if model.Conditions.Hedging || model.Conditions.HedgeMode {
+			//		changeHedgeModeResponse := sm.ExchangeApi.SetHedgeMode(sm.Strategy.GetModel().AccountId, true)
+			//		if !strings.Contains(changeHedgeModeResponse.Data.Msg, "cannot be changed") {
+			//			time.Sleep(5 * time.Second)
+			//			sm.PlaceOrder(price, step)
+			//			break
+			//		}
+			//	} else {
+			//		changeHedgeModeResponse := sm.ExchangeApi.SetHedgeMode(sm.Strategy.GetModel().AccountId, false)
+			//		if !strings.Contains(changeHedgeModeResponse.Data.Msg, "cannot be changed") {
+			//			time.Sleep(5 * time.Second)
+			//			sm.PlaceOrder(price, step)
+			//			break
+			//		}
+			//	}
+			//}
 			if len(response.Data.Msg) > 0 && strings.Contains(response.Data.Msg, "invalid json") {
 				time.Sleep(2 * time.Second)
 				sm.PlaceOrder(price, step)
@@ -508,6 +508,12 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 				model.Enabled = false
 				model.State.State = Error
 				model.State.Msg = response.Data.Msg
+				go sm.StateMgmt.UpdateState(model.ID, model.State)
+
+				break
+			}
+			if len(response.Data.Msg) > 0 && strings.Contains(response.Data.Msg, "ReduceOnly Order is rejected") {
+				model.Enabled = false
 				go sm.StateMgmt.UpdateState(model.ID, model.State)
 
 				break
