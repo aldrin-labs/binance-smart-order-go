@@ -106,3 +106,7 @@ func (sm *MockStateMgmt) SavePNL(templateStrategyId *primitive.ObjectID, profitA
 func (sm *MockStateMgmt) SaveStrategyConditions(strategy *models.MongoStrategy) {
 	panic("implement me")
 }
+
+func (sm *MockStateMgmt) EnableHedgeLossStrategy(strategyId *primitive.ObjectID) {
+	return
+}
