@@ -125,6 +125,23 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			if model.State.ExecutedAmount >= amount {
 				return true
 			}
+		case "WithoutLoss":
+			if order.Filled > 0 {
+				model.State.ExecutedAmount += order.Filled
+			}
+			model.State.ExitPrice = order.Average
+			amount := model.Conditions.EntryOrder.Amount
+			if model.Conditions.MarketType == 0 {
+				amount = amount * 0.99
+			}
+			calculateAndSavePNL(model, sm.StateMgmt)
+			sm.StateMgmt.UpdateExecutedAmount(model.ID, model.State)
+
+			if model.State.ExecutedAmount >= amount {
+				model.State.State = End
+				sm.StateMgmt.UpdateState(model.ID, model.State)
+				return true
+			}
 		case Canceled:
 			if order.Filled > 0 {
 				model.State.ExecutedAmount += order.Filled
