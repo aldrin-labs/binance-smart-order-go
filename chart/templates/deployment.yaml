@@ -1,4 +1,4 @@
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ .Chart.Name }}
@@ -9,6 +9,11 @@ metadata:
     chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
 spec:
   replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Chart.Name }}
+      track: "{{ .Values.application.track }}"
+      tier: "{{ .Values.application.tier }}"
   template:
     metadata:
       labels:
@@ -63,38 +68,31 @@ spec:
             secretKeyRef:
               name: strategy-secrets
               key: redis-password
-        - name: GOOGLE_AUTH
-          valueFrom:
-            secretKeyRef:
-              name: strategy-secrets
-              key: google-auth
-        - name: GOOGLE_APPLICATION_CREDENTIALS
-          valueFrom:
-            secretKeyRef:
-              name: strategy-secrets
-              key: google-application-credentials
         - name: DB_HOST
-          value: 127.0.0.1
-        - name: OHLCDB_NAME
           valueFrom:
             secretKeyRef:
               name: strategy-secrets
-              key: ohlcvdb-name
+              key: db-host
         - name: DB_USER
           valueFrom:
             secretKeyRef:
               name: cloudsql-db-credentials
-              key: username
+              key: db-username
         - name: DB_PASSWORD
           valueFrom:
             secretKeyRef:
               name: cloudsql-db-credentials
-              key: password 
+              key: db-password 
+        - name: OHLCDB_NAME
+          valueFrom:
+            secretKeyRef:
+              name: strategy-secrets
+              key: db-name
         - name: OHLCV_TABLE_NAME
           valueFrom:
             secretKeyRef:
               name: strategy-secrets
-              key: ohlcvdb-table-name
+              key: db-table-name
         ports:
         - name: "{{ .Values.service.name }}"
           containerPort: {{ .Values.service.internalPort }}
@@ -112,21 +110,3 @@ spec:
           timeoutSeconds: 30
         resources:
 {{ toYaml .Values.resources | indent 12 }}
-      - name: cloudsql-proxy
-        image: gcr.io/cloudsql-docker/gce-proxy:1.11
-        command: ["/cloud_sql_proxy",
-                  "-instances=crypto-currencies-ai:us-central1:ohlcdata=tcp:3306",
-                  "-credential_file=/secrets/cloudsql/credentials.json"]
-        volumeMounts:
-          - name: cloudsql-instance-credentials
-            mountPath: /secrets/cloudsql
-            readOnly: true
-        # [END proxy_container]
-      # [START volumes]
-      volumes:
-        - name: cloudsql-instance-credentials
-          secret:
-            secretName: cloudsql-instance-credentials
-        - name: cloudsql
-          emptyDir:
-      # [END volumes]
