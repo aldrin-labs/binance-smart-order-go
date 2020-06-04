@@ -71,12 +71,12 @@ spec:
         - name: DB_USER
           valueFrom:
             secretKeyRef:
-              name: cloudsql-db-credentials
+              name: strategy-secrets
               key: db-username
         - name: DB_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: cloudsql-db-credentials
+              name: strategy-secrets
               key: db-password 
         - name: OHLCDB_NAME
           valueFrom:
