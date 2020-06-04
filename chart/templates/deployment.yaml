@@ -28,11 +28,6 @@ spec:
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         env:
-        - name: OHLCV_TABLE_NAME
-          valueFrom:
-            secretKeyRef:
-              name: strategy-secrets
-              key: ohlcv-table-name
         - name: EXCHANGESERVICE
           valueFrom:
             secretKeyRef:
