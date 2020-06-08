@@ -216,7 +216,7 @@ func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
 	sm := strategy.StrategyRuntime
 	isInEntry := model.State != nil && model.State.State != smart_order.TrailingEntry && model.State.State != smart_order.WaitForEntry
 
-	if model.State == nil { return }
+	if model.State == nil || sm == nil { return }
 	if !isInEntry { return }
 
 	// SL change
