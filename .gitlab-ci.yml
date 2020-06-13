@@ -24,7 +24,7 @@
 # `.buildpacks` that contains the URLs, one on each line, in order.
 # Note: Auto CI does not work with multiple buildpacks yet
 
-image: alpine:latest
+image: ubuntu:latest
 
 variables:
   # AUTO_DEVOPS_DOMAIN is the application deployment domain and should be set as a variable at the group or project level.
@@ -35,8 +35,8 @@ variables:
   POSTGRES_ENABLED: "false"
   POSTGRES_DB: $CI_ENVIRONMENT_SLUG
 
-  KUBERNETES_VERSION: 1.14.8
-  HELM_VERSION: 2.13.0
+  KUBERNETES_VERSION: 1.16.1
+  HELM_VERSION: 2.16.6
   CODECLIMATE_VERSION: 0.69.0
 
 stages:
@@ -144,9 +144,9 @@ test:
 develop_manual:
   stage: develop
   script:
-    - sed -i -e "s%strategy-service%strategy-service-dev%g" "chart/Chart.yaml"
-    - KUBE_NAMESPACE=${KUBE_NAMESPACE}-${CI_ENVIRONMENT_NAME}
     - install_dependencies
+    - config_aws
+    - config_kubectl
     - download_chart
     - ensure_namespace
     - install_tiller
@@ -167,9 +167,9 @@ develop_manual:
 develop:
   stage: develop
   script:
-    - sed -i -e "s%strategy-service%strategy-service-dev%g" "chart/Chart.yaml"
-    - KUBE_NAMESPACE=${KUBE_NAMESPACE}-${CI_ENVIRONMENT_NAME}
     - install_dependencies
+    - config_aws
+    - config_kubectl
     - download_chart
     - ensure_namespace
     - install_tiller
@@ -180,6 +180,7 @@ develop:
   only:
     refs:
       - develop
+      - move-to-aws
     kubernetes: active
   except:
     - master
@@ -197,6 +198,8 @@ production:
   stage: production
   script:
     - install_dependencies
+    - config_aws
+    - config_kubectl
     - download_chart
     - ensure_namespace
     - install_tiller
@@ -260,7 +263,7 @@ production:
 
   function deploy() {
     track="${1-stable}"
-    name="$CI_ENVIRONMENT_SLUG"
+    name="$KUBE_NAMESPACE-release"
 
     if [[ "$track" != "stable" ]]; then
       name="$name-$track"
@@ -286,10 +289,6 @@ production:
       replicas="$new_replicas"
     fi
 
-    if [[ "$CI_ENVIRONMENT_NAME" == "develop" ]]; then
-      name=${name}-${CI_ENVIRONMENT_NAME}
-    fi
-
     helm upgrade --install \
       --wait \
       --set service.enabled="$service_enabled" \
@@ -312,12 +311,44 @@ production:
       chart/
   }
 
+  function config_kubectl() {
+    apt-get install coreutils
+    echo $KUBECONFIG_PROD | base32 -d > ./kubeconfig
+    if [[ "$CI_ENVIRONMENT_NAME" == "develop" ]]; then
+      echo $KUBECONFIG_DEV | base64 -d > ./kubeconfig
+    fi
+  }
+
+  function config_aws() {
+    curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+    unzip -q awscliv2.zip
+    ./aws/install
+    echo "Default AWS region - $AWS_DEFAULT_REGION"
+    mkdir -p ~/.aws
+    echo "[default]" >> ~/.aws/credentials
+    echo "aws_access_key_id = $AWS_ACCESS_KEY_ID" >> ~/.aws/credentials
+    echo "aws_secret_access_key = $AWS_SECRET_ACCESS_KEY" >> ~/.aws/credentials
+    echo "[default]" >> ~/.aws/config
+    echo "region=$AWS_DEFAULT_REGION" >> ~/.aws/config
+    echo "output=json" >> ~/.aws/config
+
+    if [[ "$CI_ENVIRONMENT_NAME" == "develop" ]]; then
+      echo "Configuring aws in DEV environment"
+      aws eks update-kubeconfig --name ccai-cluster-dev
+    else
+      echo "Configuring aws in PROD environment"
+      aws eks update-kubeconfig --name ccai-cluster
+    fi
+  } 
+
   function install_dependencies() {
-    apk add -U openssl curl tar gzip bash ca-certificates git
-    wget -q -O /etc/apk/keys/sgerrand.rsa.pub https://alpine-pkgs.sgerrand.com/sgerrand.rsa.pub
-    wget https://github.com/sgerrand/alpine-pkg-glibc/releases/download/2.23-r3/glibc-2.23-r3.apk
-    apk add glibc-2.23-r3.apk
-    rm glibc-2.23-r3.apk
+    apt update &&  apt install -y openssl curl tar gzip unzip bash ca-certificates git 
+
+    # apk add -U openssl curl tar gzip bash ca-certificates git
+    # wget -q -O /etc/apk/keys/sgerrand.rsa.pub https://alpine-pkgs.sgerrand.com/sgerrand.rsa.pub
+    # wget https://github.com/sgerrand/alpine-pkg-glibc/releases/download/2.23-r3/glibc-2.23-r3.apk
+    # apk add glibc-2.23-r3.apk
+    # rm glibc-2.23-r3.apk
 
     curl "https://kubernetes-helm.storage.googleapis.com/helm-v${HELM_VERSION}-linux-amd64.tar.gz" | tar zx
     mv linux-amd64/helm /usr/bin/
