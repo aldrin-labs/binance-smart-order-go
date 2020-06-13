@@ -216,7 +216,7 @@ func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
 	sm := strategy.StrategyRuntime
 	isInEntry := model.State != nil && model.State.State != smart_order.TrailingEntry && model.State.State != smart_order.WaitForEntry
 
-	if model.State == nil { return }
+	if model.State == nil || sm == nil { return }
 	if !isInEntry { return }
 
 	// SL change
@@ -247,8 +247,18 @@ func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
 	}
 
 	if model.Conditions.TakeProfitHedgePrice != model.State.TakeProfitHedgePrice {
+		sideCoefficient := 1.0
+		feePercentage := 0.04 * 4
+		if model.Conditions.EntryOrder.Side == "sell" {
+			sideCoefficient = -1.0
+		}
+
+		currentProfitPercentage := ((model.Conditions.TakeProfitHedgePrice / model.State.EntryPrice) * 100 - 100) * model.Conditions.Leverage * sideCoefficient
 		strategy.GetModel().State.TrailingHedgeExitPrice = model.Conditions.TakeProfitHedgePrice
-		sm.PlaceOrder(-1, smart_order.HedgeLoss)
+
+		if currentProfitPercentage > feePercentage {
+			sm.PlaceOrder(-1, smart_order.HedgeLoss)
+		}
 	}
 
 	// TAP change
