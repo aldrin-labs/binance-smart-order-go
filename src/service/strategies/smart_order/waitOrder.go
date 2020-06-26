@@ -42,7 +42,6 @@ func (sm *SmartOrder) orderCallback(order *models.MongoOrder) {
 	}
 }
 func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface{}) bool {
-	println("in function CheckExistingOrders")
 	if args == nil {
 		return false
 	}

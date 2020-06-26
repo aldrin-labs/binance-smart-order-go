@@ -38,7 +38,7 @@ func RunSmartOrder(strategy *Strategy, df interfaces.IDataFeed, td trading.ITrad
 		}
 		keyId = &keyAsset.KeyId
 	}
-	if strategy.Model.Conditions.MarketType == 1 {
+	if strategy.Model.Conditions.MarketType == 1 && !strategy.Model.Conditions.SkipInitialSetup {
 		go td.UpdateLeverage(keyId, strategy.Model.Conditions.Leverage, strategy.Model.Conditions.Pair)
 	}
 	if strategy.Model.State == nil {

@@ -123,7 +123,6 @@ func (sm *StateMgmt) DisableStrategy(strategyId *primitive.ObjectID) {
 
 // TODO: refactor so it will be one global subscribtion to orders collection instead of one per order
 func (sm *StateMgmt) SubscribeToOrder(orderId string, onOrderStatusUpdate func(order *models.MongoOrder)) error {
-
 	sm.OrderCallbacks.Store(orderId, onOrderStatusUpdate)
 	executedOrder := sm.GetOrder(orderId)
 	if executedOrder != nil {
