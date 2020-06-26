@@ -217,6 +217,7 @@ func (sm *SmartOrder) checkWaitEntry(ctx context.Context, args ...interface{}) b
 	if isTrailing {
 		conditionPrice = model.Conditions.EntryOrder.ActivatePrice
 	}
+	println("conditionPrice, OHLCV", conditionPrice, currentOHLCV.Close)
 	switch model.Conditions.EntryOrder.Side {
 	case "buy":
 		if currentOHLCV.Close <= conditionPrice {
@@ -596,6 +597,7 @@ func (sm *SmartOrder) TryCancelAllOrders(orderIds []string) {
 
 func (sm *SmartOrder) Start() {
 	ctx := context.TODO()
+
 	state, _ := sm.State.State(ctx)
 	for state != End && state != Canceled {
 		if sm.Strategy.GetModel().Enabled == false {

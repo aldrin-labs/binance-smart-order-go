@@ -219,6 +219,9 @@ func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
 	if model.State == nil || sm == nil { return }
 	if !isInEntry { return }
 
+	if model.Conditions.PositionWasClosed {
+		sm.Stop()
+	}
 	// SL change
 	if model.Conditions.StopLoss != model.State.StopLoss || model.Conditions.StopLossPrice != model.State.StopLossPrice {
 		// we should also think about case when SL was placed by timeout, but didn't executed coz of limit order for example
@@ -254,9 +257,9 @@ func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
 		}
 
 		currentProfitPercentage := ((model.Conditions.TakeProfitHedgePrice / model.State.EntryPrice) * 100 - 100) * model.Conditions.Leverage * sideCoefficient
-		strategy.GetModel().State.TrailingHedgeExitPrice = model.Conditions.TakeProfitHedgePrice
 
 		if currentProfitPercentage > feePercentage {
+			strategy.GetModel().State.TrailingHedgeExitPrice = model.Conditions.TakeProfitHedgePrice
 			sm.PlaceOrder(-1, smart_order.HedgeLoss)
 		}
 	}

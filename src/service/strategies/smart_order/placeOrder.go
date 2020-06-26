@@ -17,6 +17,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 	recursiveCall := false
 	reduceOnly := false
 
+	attemptsToPlaceOrder := 0
 	oppositeSide := "buy"
 	model := sm.Strategy.GetModel()
 	if model.Conditions.EntryOrder.Side == oppositeSide {
@@ -34,6 +35,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 	}
 	switch step {
 	case TrailingEntry:
+		println("trailing entry order placing")
 		orderType = model.Conditions.EntryOrder.OrderType // TODO find out to remove duplicate lines with 154 & 164
 		isStopOrdersSupport := isFutures || orderType == "limit"
 		if isStopOrdersSupport { // we can place stop order, lets place it
@@ -295,7 +297,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 		if model.Conditions.TakeProfitPrice > 0 && !isTrailingTarget {
 			orderPrice = model.Conditions.TakeProfitPrice
 			baseAmount = model.Conditions.EntryOrder.Amount
-			if isFutures {
+			if isFutures && target.OrderType == "market" {
 				orderType = prefix + model.Conditions.ExitLevels[0].OrderType
 			} else {
 				orderType = model.Conditions.ExitLevels[0].OrderType
@@ -457,6 +459,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 				sm.OrdersMux.Lock()
 				sm.OrdersMap[response.Data.OrderId] = true
 				sm.OrdersMux.Unlock()
+				println("waitForOrder execute")
 				go sm.waitForOrder(response.Data.Id, step)
 
 				// save placed orders id to state SL/TAP
@@ -478,42 +481,36 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 		} else {
 			println(response.Status)
 
-			//if len(response.Data.Msg) > 0 && strings.Contains(response.Data.Msg, "position side does not match") {
-			//	if model.Conditions.Hedging || model.Conditions.HedgeMode {
-			//		changeHedgeModeResponse := sm.ExchangeApi.SetHedgeMode(sm.Strategy.GetModel().AccountId, true)
-			//		if !strings.Contains(changeHedgeModeResponse.Data.Msg, "cannot be changed") {
-			//			time.Sleep(5 * time.Second)
-			//			sm.PlaceOrder(price, step)
-			//			break
-			//		}
-			//	} else {
-			//		changeHedgeModeResponse := sm.ExchangeApi.SetHedgeMode(sm.Strategy.GetModel().AccountId, false)
-			//		if !strings.Contains(changeHedgeModeResponse.Data.Msg, "cannot be changed") {
-			//			time.Sleep(5 * time.Second)
-			//			sm.PlaceOrder(price, step)
-			//			break
-			//		}
-			//	}
-			//}
+			if len(response.Data.Msg) > 0 && attemptsToPlaceOrder < 3 && strings.Contains(response.Data.Msg, "position side does not match") {
+				attemptsToPlaceOrder += 1
+				time.Sleep(time.Second * 5)
+				continue
+			}
 			if len(response.Data.Msg) > 0 && strings.Contains(response.Data.Msg, "invalid json") {
 				time.Sleep(2 * time.Second)
-				sm.PlaceOrder(price, step)
-				break
+				continue
 			}
 			if len(response.Data.Msg) > 0 && strings.Contains(response.Data.Msg, "immediately trigger") {
-				sm.PlaceOrder(0, Canceled)
-				break
+				if step == TrailingEntry {
+					orderType = "market"
+					stopPrice = 0.0
+					ifShouldCancelPreviousOrder = false
+					continue
+				} else {
+					sm.PlaceOrder(0, Canceled)
+					break
+				}
 			}
-			if len(response.Data.Msg) > 0 && step != Canceled && step != End && step != Timeout {
+			if len(response.Data.Msg) > 0 && strings.Contains(response.Data.Msg, "ReduceOnly Order is rejected") {
 				model.Enabled = false
-				model.State.State = Error
-				model.State.Msg = response.Data.Msg
 				go sm.StateMgmt.UpdateState(model.ID, model.State)
 
 				break
 			}
-			if len(response.Data.Msg) > 0 && strings.Contains(response.Data.Msg, "ReduceOnly Order is rejected") {
+			if len(response.Data.Msg) > 0 && step != Canceled && step != End && step != Timeout && step != TrailingEntry {
 				model.Enabled = false
+				model.State.State = Error
+				model.State.Msg = response.Data.Msg
 				go sm.StateMgmt.UpdateState(model.ID, model.State)
 
 				break
