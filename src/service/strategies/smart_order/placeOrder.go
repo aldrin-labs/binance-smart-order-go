@@ -2,9 +2,10 @@ package smart_order
 
 import (
 	"context"
-	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"strings"
 	"time"
+
+	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 )
 
 func (sm *SmartOrder) PlaceOrder(price float64, step string) {
@@ -244,7 +245,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 			fee = fee * 2
 		}
 
-		if fee * model.Conditions.Leverage > model.Conditions.WithoutLossAfterProfit &&
+		if fee*model.Conditions.Leverage > model.Conditions.WithoutLossAfterProfit &&
 			model.Conditions.WithoutLossAfterProfit > 0 {
 			orderType = "take-profit-" + "limit"
 		}
@@ -264,8 +265,8 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 			currentOHLCV := *currentOHLCVp
 			if currentOHLCV.Close < orderPrice && sm.Strategy.GetModel().Conditions.EntryOrder.Side == "buy" ||
 				currentOHLCV.Close > orderPrice && sm.Strategy.GetModel().Conditions.EntryOrder.Side == "sell" {
-					orderType = "take-profit-" + "limit"
-				}
+				orderType = "take-profit-" + "limit"
+			}
 		}
 		break
 	case TakeProfit:
@@ -507,7 +508,8 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 
 				break
 			}
-			if len(response.Data.Msg) > 0 && step != Canceled && step != End && step != Timeout && step != TrailingEntry {
+			//if len(response.Data.Msg) > 0 && step != Canceled && step != End && step != Timeout && step != TrailingEntry {
+			if len(response.Data.Msg) > 0 {
 				model.Enabled = false
 				model.State.State = Error
 				model.State.Msg = response.Data.Msg
