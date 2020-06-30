@@ -508,8 +508,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 
 				break
 			}
-			//if len(response.Data.Msg) > 0 && step != Canceled && step != End && step != Timeout && step != TrailingEntry {
-			if len(response.Data.Msg) > 0 {
+			if len(response.Data.Msg) > 0 && attemptsToPlaceOrder < 3 && step != Canceled && step != End && step != Timeout && step != TrailingEntry {
 				model.Enabled = false
 				model.State.State = Error
 				model.State.Msg = response.Data.Msg
@@ -520,6 +519,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 			if response.Status == "OK" {
 				break
 			}
+			attemptsToPlaceOrder += 1
 		}
 	}
 	canPlaceAnotherOrderForNextTarget := sm.SelectedExitTarget+1 < len(model.Conditions.ExitLevels)
