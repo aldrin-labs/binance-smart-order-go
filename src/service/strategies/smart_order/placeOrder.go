@@ -481,13 +481,17 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 			break
 		} else {
 			println(response.Status)
-
+			if len(response.Data.Msg) > 0 && strings.Contains(response.Data.Msg, "network error") {
+				time.Sleep(time.Second * 5)
+				continue
+			}
 			if len(response.Data.Msg) > 0 && attemptsToPlaceOrder < 3 && strings.Contains(response.Data.Msg, "position side does not match") {
 				attemptsToPlaceOrder += 1
 				time.Sleep(time.Second * 5)
 				continue
 			}
-			if len(response.Data.Msg) > 0 && strings.Contains(response.Data.Msg, "invalid json") {
+			if len(response.Data.Msg) > 0 && attemptsToPlaceOrder < 3 && strings.Contains(response.Data.Msg, "invalid json") {
+				attemptsToPlaceOrder += 1
 				time.Sleep(2 * time.Second)
 				continue
 			}
@@ -505,15 +509,13 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 			if len(response.Data.Msg) > 0 && strings.Contains(response.Data.Msg, "ReduceOnly Order is rejected") {
 				model.Enabled = false
 				go sm.StateMgmt.UpdateState(model.ID, model.State)
-
 				break
 			}
-			if len(response.Data.Msg) > 0 && attemptsToPlaceOrder < 3 && step != Canceled && step != End && step != Timeout && step != TrailingEntry {
+			if len(response.Data.Msg) > 0 {
 				model.Enabled = false
 				model.State.State = Error
 				model.State.Msg = response.Data.Msg
 				go sm.StateMgmt.UpdateState(model.ID, model.State)
-
 				break
 			}
 			if response.Status == "OK" {

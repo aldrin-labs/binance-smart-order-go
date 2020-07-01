@@ -604,9 +604,13 @@ func (sm *SmartOrder) Start() {
 			break
 		}
 		if !sm.Lock {
-			sm.processEventLoop()
+			if sm.Strategy.GetModel().Conditions.SpreadHunter {
+				sm.processSpreadEventLoop()
+			} else {
+				sm.processEventLoop()
+			}
 		}
-		time.Sleep(200 * time.Millisecond)
+		time.Sleep(15 * time.Millisecond)
 		state, _ = sm.State.State(ctx)
 	}
 	sm.Stop()
@@ -656,6 +660,38 @@ func (sm *SmartOrder) processEventLoop() {
 				return
 			}
 			err = sm.State.FireCtx(context.TODO(), CheckTrailingProfitTrade, currentOHLCV)
+			if err == nil {
+				return
+			}
+		}
+		// println(sm.Strategy.GetModel().Conditions.Pair, sm.Strategy.GetModel().State.TrailingEntryPrice, currentOHLCV.Close, err.Error())
+	}
+}
+
+func (sm *SmartOrder) processSpreadEventLoop() {
+	currentSpreadP := sm.DataFeed.GetSpreadForPairAtExchange(sm.Strategy.GetModel().Conditions.Pair, sm.ExchangeName, sm.Strategy.GetModel().Conditions.MarketType)
+	if currentSpreadP != nil {
+		currentSpreadData := *currentSpreadP
+		currentSpread := currentSpreadData.BestBid
+		state, err := sm.State.State(context.TODO())
+		err = sm.State.FireCtx(context.TODO(), TriggerTrade, currentSpread)
+		if err == nil {
+			return
+		}
+		if state == InEntry || state == TakeProfit || state == Stoploss || state == HedgeLoss {
+			err = sm.State.FireCtx(context.TODO(), CheckLossTrade, currentSpread)
+			if err == nil {
+				return
+			}
+			err = sm.State.FireCtx(context.TODO(), CheckProfitTrade, currentSpread)
+			if err == nil {
+				return
+			}
+			err = sm.State.FireCtx(context.TODO(), CheckTrailingLossTrade, currentSpread)
+			if err == nil {
+				return
+			}
+			err = sm.State.FireCtx(context.TODO(), CheckTrailingProfitTrade, currentSpread)
 			if err == nil {
 				return
 			}

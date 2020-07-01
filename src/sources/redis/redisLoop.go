@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"strconv"
+	"strings"
 	"sync"
 )
 
 type RedisLoop struct {
 	OhlcvMap sync.Map // <string: exchange+pair+o/h/l/c/v, OHLCV: ohlcv>
+	SpreadMap sync.Map
 }
 var redisLoop *RedisLoop
 
@@ -28,6 +30,14 @@ func (rl *RedisLoop) GetPriceForPairAtExchange(pair string, exchange string, mar
 		redisLoop.SubscribeToPairs()
 	}
 	return redisLoop.GetPrice(pair, exchange, marketType)
+}
+
+func (rl *RedisLoop) GetSpreadForPairAtExchange(pair string, exchange string, marketType int64) *interfaces.SpreadData {
+	if redisLoop == nil {
+		redisLoop = &RedisLoop{}
+		redisLoop.SubscribeToSpread()
+	}
+	return redisLoop.GetSpread(pair, exchange, marketType)
 }
 
 type OrderbookOHLCV struct {
@@ -83,6 +93,35 @@ func (rl *RedisLoop) GetPrice(pair, exchange string, marketType int64) *interfac
 	if ob == true {
 		ohlcv := ohlcvRaw.(interfaces.OHLCV)
 		return &ohlcv
+	}
+	return nil
+}
+
+func (rl *RedisLoop) SubscribeToSpread() {
+	go ListenPubSubChannels(context.TODO(), func() error {
+		return nil
+	}, func(channel string, data []byte) error {
+		go rl.UpdateSpread(channel, data)
+		return nil
+	}, "best:*:*:*")
+}
+
+func (rl *RedisLoop) UpdateSpread(channel string, data []byte) {
+	var spread interfaces.SpreadData
+	_ = json.Unmarshal(data, &spread)
+	split := strings.Split(channel, ":")
+	exchange := split[1]
+	pair := split[2]
+	marketType := split[3]
+
+	rl.SpreadMap.Store(exchange+pair+marketType, spread)
+}
+
+func (rl *RedisLoop) GetSpread(pair, exchange string, marketType int64) *interfaces.SpreadData {
+	spreadRaw, ok := rl.SpreadMap.Load(exchange+pair+strconv.FormatInt(marketType, 10))
+	if ok == true {
+		spread := spreadRaw.(interfaces.SpreadData)
+		return &spread
 	}
 	return nil
 }
