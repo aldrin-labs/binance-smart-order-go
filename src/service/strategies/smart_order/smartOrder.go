@@ -33,12 +33,14 @@ const (
 
 const (
 	TriggerTrade             = "Trade"
+	TriggerSpread            = "Spread"
 	TriggerOrderExecuted     = "TriggerOrderExecuted"
 	CheckExistingOrders      = "CheckExistingOrders"
 	CheckHedgeLoss           = "CheckHedgeLoss"
 	CheckProfitTrade         = "CheckProfitTrade"
 	CheckTrailingProfitTrade = "CheckTrailingProfitTrade"
 	CheckTrailingLossTrade   = "CheckTrailingLossTrade"
+	CheckSpreadProfitTrade   = "CheckSpreadProfitTrade"
 	CheckLossTrade           = "CheckLossTrade"
 )
 
@@ -87,6 +89,7 @@ func NewSmartOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed,
 	// define triggers and input types:
 	State.SetTriggerParameters(TriggerTrade, reflect.TypeOf(interfaces.OHLCV{}))
 	State.SetTriggerParameters(CheckExistingOrders, reflect.TypeOf(models.MongoOrder{}))
+	State.SetTriggerParameters(TriggerSpread, reflect.TypeOf(interfaces.SpreadData{}))
 
 	/*
 		Smart Order life cycle:
@@ -98,15 +101,18 @@ func NewSmartOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed,
 			6) or stop-loss
 	*/
 	State.Configure(WaitForEntry).PermitDynamic(TriggerTrade, sm.exitWaitEntry,
-		sm.checkWaitEntry).PermitDynamic(CheckExistingOrders, sm.exitWaitEntry,
+		sm.checkWaitEntry).PermitDynamic(TriggerSpread, sm.exitWaitEntry,
+		sm.checkSpreadEntry).PermitDynamic(CheckExistingOrders, sm.exitWaitEntry,
 		sm.checkExistingOrders).OnEntry(sm.onStart)
+
 	State.Configure(TrailingEntry).Permit(TriggerTrade, InEntry,
 		sm.checkTrailingEntry).Permit(CheckExistingOrders, InEntry,
 		sm.checkExistingOrders).OnEntry(sm.enterTrailingEntry)
 
 	State.Configure(InEntry).PermitDynamic(CheckProfitTrade, sm.exit,
 		sm.checkProfit).PermitDynamic(CheckTrailingProfitTrade, sm.exit,
-		sm.checkTrailingProfit).PermitDynamic(CheckLossTrade, sm.exit,
+		sm.checkTrailingProfit).PermitDynamic(CheckSpreadProfitTrade, sm.exit,
+		sm.checkSpreadTakeProfit).PermitDynamic(CheckLossTrade, sm.exit,
 		sm.checkLoss).PermitDynamic(CheckExistingOrders, sm.exit,
 		sm.checkExistingOrders).PermitDynamic(CheckHedgeLoss, sm.exit,
 		sm.checkLossHedge).OnEntry(sm.enterEntry)
@@ -166,7 +172,7 @@ func (sm *SmartOrder) checkIfPlaceOrderInstantlyOnStart() {
 	isFirstRunSoStateisEmpty := sm.Strategy.GetModel().State.State == ""
 	if isFirstRunSoStateisEmpty && sm.Strategy.GetModel().Enabled {
 		entryIsNotTrailing := sm.Strategy.GetModel().Conditions.EntryOrder.ActivatePrice == 0
-		if entryIsNotTrailing { // then we must know exact price
+		if entryIsNotTrailing && !sm.Strategy.GetModel().Conditions.EntrySpreadHunter { // then we must know exact price
 			sm.IsWaitingForOrder.Store(WaitForEntry, true)
 			sm.PlaceOrder(sm.Strategy.GetModel().Conditions.EntryOrder.Price, WaitForEntry)
 		}
@@ -204,6 +210,9 @@ func (sm *SmartOrder) exitWaitEntry(ctx context.Context, args ...interface{}) (s
 func (sm *SmartOrder) checkWaitEntry(ctx context.Context, args ...interface{}) bool {
 	isWaitingForOrder, ok := sm.IsWaitingForOrder.Load(WaitForEntry)
 	if ok && isWaitingForOrder.(bool) {
+		return false
+	}
+	if sm.Strategy.GetModel().Conditions.EntrySpreadHunter {
 		return false
 	}
 	currentOHLCV := args[0].(interfaces.OHLCV)
@@ -300,7 +309,7 @@ func (sm *SmartOrder) checkProfit(ctx context.Context, args ...interface{}) bool
 		return false
 	}
 
-	if model.Conditions.TakeProfitExternal {
+	if model.Conditions.TakeProfitExternal || model.Conditions.TakeProfitSpreadHunter {
 		return false
 	}
 
@@ -671,8 +680,7 @@ func (sm *SmartOrder) processEventLoop() {
 func (sm *SmartOrder) processSpreadEventLoop() {
 	currentSpreadP := sm.DataFeed.GetSpreadForPairAtExchange(sm.Strategy.GetModel().Conditions.Pair, sm.ExchangeName, sm.Strategy.GetModel().Conditions.MarketType)
 	if currentSpreadP != nil {
-		currentSpreadData := *currentSpreadP
-		currentSpread := currentSpreadData.BestBid
+		currentSpread := *currentSpreadP
 		state, err := sm.State.State(context.TODO())
 		err = sm.State.FireCtx(context.TODO(), TriggerTrade, currentSpread)
 		if err == nil {

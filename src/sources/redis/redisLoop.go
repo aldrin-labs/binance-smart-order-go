@@ -52,6 +52,11 @@ type OrderbookOHLCV struct {
 	Exchange string `json:"exchange"`
 }
 
+type Spread struct {
+	BestAsk float64 `json:"bestAsk,float"`
+	BestBid float64 `json:"bestBid,float"`
+}
+
 func (rl *RedisLoop) SubscribeToPairs() {
 	go ListenPubSubChannels(context.TODO(), func() error {
 		return nil
@@ -107,14 +112,19 @@ func (rl *RedisLoop) SubscribeToSpread() {
 }
 
 func (rl *RedisLoop) UpdateSpread(channel string, data []byte) {
-	var spread interfaces.SpreadData
+	var spread Spread
 	_ = json.Unmarshal(data, &spread)
 	split := strings.Split(channel, ":")
 	exchange := split[1]
 	pair := split[2]
 	marketType := split[3]
+	spreadData := interfaces.SpreadData{
+		Close: spread.BestBid,
+		BestBid: spread.BestBid,
+		BestAsk: spread.BestAsk,
+	}
 
-	rl.SpreadMap.Store(exchange+pair+marketType, spread)
+	rl.SpreadMap.Store(exchange+pair+marketType, spreadData)
 }
 
 func (rl *RedisLoop) GetSpread(pair, exchange string, marketType int64) *interfaces.SpreadData {

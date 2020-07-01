@@ -17,6 +17,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 
 	recursiveCall := false
 	reduceOnly := false
+	postOnly := false
 
 	attemptsToPlaceOrder := 0
 	oppositeSide := "buy"
@@ -80,6 +81,10 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 	case WaitForEntry:
 		if isTrailingEntry {
 			return // do nothing because we dont know entry price, coz didnt hit activation price yet
+		}
+
+		if model.Conditions.EntrySpreadHunter {
+			postOnly = true
 		}
 
 		orderType = model.Conditions.EntryOrder.OrderType
@@ -403,6 +408,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 				Price:      orderPrice,
 				ReduceOnly: &reduceOnly,
 				StopPrice:  stopPrice,
+				PostOnly:   &postOnly,
 			},
 		}
 		if request.KeyParams.Type == "stop" {
