@@ -19,7 +19,6 @@ func (sm *SmartOrder) checkSpreadCondition(spread interfaces.SpreadData, orderTy
 	//		price = model.Conditions.ExitLevels[sm.SelectedExitTarget].Price
 	//	}
 	//}
-
 	if spread.BestAsk - spread.BestBid > fee * price * amount {
 		return true
 	}
@@ -63,11 +62,11 @@ func (sm *SmartOrder) checkSpreadTakeProfit(ctx context.Context, args ...interfa
 	model := sm.Strategy.GetModel()
 
 	if sm.checkSpreadCondition(currentSpread, model.Conditions.ExitLevels[sm.SelectedExitTarget].OrderType, false) {
-		if model.Conditions.EntryWaitingTime > 0 {
+		if model.Conditions.TakeProfitWaitingTime > 0 {
 			time.Sleep(time.Millisecond * time.Duration(model.Conditions.TakeProfitWaitingTime))
 		}
 
-		sm.PlaceOrder(0, TakeProfit)
+		sm.PlaceOrder(currentSpread.BestBid, TakeProfit)
 		return true
 	}
 

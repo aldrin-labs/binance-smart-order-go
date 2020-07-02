@@ -286,16 +286,17 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 		baseAmount = model.Conditions.EntryOrder.Amount
 		side = oppositeSide
 
+		if model.Conditions.TakeProfitSpreadHunter && price > 0 {
+			orderType = "postOnly"
+			break
+		}
+
 		if price == 0 && isTrailingTarget {
 			// trailing exit, we cant place exit order now
 			return
 		}
 		if price > 0 && !isSpotMarketOrder {
 			return // order was placed before, exit
-		}
-		if model.Conditions.TakeProfitSpreadHunter {
-			orderType = "postOnly"
-			break
 		}
 
 		// try exit on timeoutIfProfitable
@@ -489,8 +490,14 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 			break
 		} else {
 			println(response.Status)
-			if len(response.Data.Msg) > 0 && strings.Contains(response.Data.Msg, "network error") {
-				time.Sleep(time.Second * 5)
+			// need correct message from exchange_service when down
+			//if len(response.Data.Msg) > 0 && strings.Contains(response.Data.Msg, "network error") {
+			//	time.Sleep(time.Second * 5)
+			//	continue
+			//}
+			if len(response.Data.Msg) > 0 && attemptsToPlaceOrder < 1 && strings.Contains(response.Data.Msg, "Key is processing") {
+				attemptsToPlaceOrder += 1
+				time.Sleep(time.Minute * 1)
 				continue
 			}
 			if len(response.Data.Msg) > 0 && attemptsToPlaceOrder < 3 && strings.Contains(response.Data.Msg, "position side does not match") {

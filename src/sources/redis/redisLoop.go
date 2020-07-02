@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"strconv"
-	"strings"
 	"sync"
 )
 
@@ -53,8 +52,11 @@ type OrderbookOHLCV struct {
 }
 
 type Spread struct {
-	BestAsk float64 `json:"bestAsk,float"`
-	BestBid float64 `json:"bestBid,float"`
+	BestBidPrice float64 `json:"bestBidPrice,float"`
+	BestAskPrice float64 `json:"bestAskPrice,float"`
+	Exchange     string  `json:"exchange,string"`
+	Symbol       string  `json:"symbol,string"`
+	MarketType   int64  `json:"marketType,float"`
 }
 
 func (rl *RedisLoop) SubscribeToPairs() {
@@ -114,17 +116,14 @@ func (rl *RedisLoop) SubscribeToSpread() {
 func (rl *RedisLoop) UpdateSpread(channel string, data []byte) {
 	var spread Spread
 	_ = json.Unmarshal(data, &spread)
-	split := strings.Split(channel, ":")
-	exchange := split[1]
-	pair := split[2]
-	marketType := split[3]
+
 	spreadData := interfaces.SpreadData{
-		Close: spread.BestBid,
-		BestBid: spread.BestBid,
-		BestAsk: spread.BestAsk,
+		Close: spread.BestBidPrice,
+		BestBid: spread.BestBidPrice,
+		BestAsk: spread.BestAskPrice,
 	}
 
-	rl.SpreadMap.Store(exchange+pair+marketType, spreadData)
+	rl.SpreadMap.Store(spread.Exchange+spread.Symbol+strconv.FormatInt(spread.MarketType, 10), spreadData)
 }
 
 func (rl *RedisLoop) GetSpread(pair, exchange string, marketType int64) *interfaces.SpreadData {

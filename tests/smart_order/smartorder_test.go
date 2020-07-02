@@ -56,6 +56,26 @@ func GetTestSmartOrderStrategy(scenario string) models.MongoStrategy {
 				},
 			},
 		}
+	case "entrySpread":
+		smartOrder.Conditions = &models.MongoStrategyCondition{
+			Pair: "BTC_USDT",
+			EntryOrder: &models.MongoEntryPoint{
+				Side:      "buy",
+				Price:     7000,
+				Amount:    0.001,
+				OrderType: "limit",
+			},
+			ExitLevels: []*models.MongoEntryPoint{
+				{
+					Type:      1,
+					OrderType: "limit",
+					Price:     10,
+					Amount:    100,
+				},
+			},
+			EntrySpreadHunter: true,
+			EntryWaitingTime: 1000,
+		}
 	case "trailingEntryLong":
 		smartOrder.Conditions = &models.MongoStrategyCondition{
 			Pair: "BTC_USDT",
@@ -176,6 +196,32 @@ func GetTestSmartOrderStrategy(scenario string) models.MongoStrategy {
 					Amount:    100,
 				},
 			},
+		}
+	case "takeProfitSpread":
+		smartOrder.State = &models.MongoStrategyState{
+			State:      "InEntry",
+			EntryPrice: 7000,
+			Amount:     0.05,
+		}
+		smartOrder.Conditions = &models.MongoStrategyCondition{
+			Pair: "BTC_USDT",
+			EntryOrder: &models.MongoEntryPoint{
+				Side:      "buy",
+				Price:     7000,
+				Amount:    0.001,
+				OrderType: "limit",
+			},
+			ExitLevels: []*models.MongoEntryPoint{
+				{
+					Type:      1,
+					OrderType: "limit",
+					Price:     10,
+					Amount:    100,
+				},
+			},
+			EntrySpreadHunter: true,
+			TakeProfitSpreadHunter: true,
+			TakeProfitWaitingTime: 1000,
 		}
 	case "TakeProfitMarket":
 		smartOrder.State = &models.MongoStrategyState{

@@ -19,10 +19,19 @@ func NewMockedDataFeed(mockedStream []interfaces.OHLCV) *MockDataFeed {
 	return &dataFeed
 }
 
+func NewMockedSpreadDataFeed(mockedStream []interfaces.SpreadData) *MockDataFeed {
+	dataFeed := MockDataFeed{
+		spreadData:  mockedStream,
+		currentTick: -1,
+	}
+
+	return &dataFeed
+}
+
 func (df *MockDataFeed) GetPriceForPairAtExchange(pair string, exchange string, marketType int64) *interfaces.OHLCV {
 	df.currentTick += 1
 	len := len(df.tickerData)
-	// println(len, df.currentTick)
+	//println(len, df.currentTick)
 	if df.currentTick >= len {
 		df.currentTick = len - 1
 		return &df.tickerData[df.currentTick]
