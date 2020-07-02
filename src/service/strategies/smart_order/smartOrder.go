@@ -266,15 +266,17 @@ func (sm *SmartOrder) enterEntry(ctx context.Context, args ...interface{}) error
 	sm.Strategy.GetModel().State.ExecutedOrders = []string{}
 	go sm.StateMgmt.UpdateState(sm.Strategy.GetModel().ID, sm.Strategy.GetModel().State)
 
-	if isSpot {
-		sm.PlaceOrder(sm.Strategy.GetModel().State.EntryPrice, InEntry)
-		if !sm.Strategy.GetModel().Conditions.TakeProfitExternal {
-			sm.PlaceOrder(0, TakeProfit)
-		}
-	} else {
-		go sm.PlaceOrder(sm.Strategy.GetModel().State.EntryPrice, InEntry)
-		if !sm.Strategy.GetModel().Conditions.TakeProfitExternal {
-			sm.PlaceOrder(0, TakeProfit)
+	if !sm.Strategy.GetModel().Conditions.EntrySpreadHunter {
+		if isSpot {
+			sm.PlaceOrder(sm.Strategy.GetModel().State.EntryPrice, InEntry)
+			if !sm.Strategy.GetModel().Conditions.TakeProfitExternal {
+				sm.PlaceOrder(0, TakeProfit)
+			}
+		} else {
+			go sm.PlaceOrder(sm.Strategy.GetModel().State.EntryPrice, InEntry)
+			if !sm.Strategy.GetModel().Conditions.TakeProfitExternal {
+				sm.PlaceOrder(0, TakeProfit)
+			}
 		}
 	}
 
