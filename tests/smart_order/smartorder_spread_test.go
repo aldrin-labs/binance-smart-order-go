@@ -105,7 +105,7 @@ func TestSmartOrderTakeProfitBySpread(t *testing.T) {
 	sm := tests.NewMockedStateMgmt(&tradingApi)
 	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
 	go smartOrder.Start()
-	time.Sleep(1800 * time.Millisecond)
+	time.Sleep(2800 * time.Millisecond)
 	isInState, _ := smartOrder.State.IsInState(smart_order.End)
 	if !isInState {
 		state, _ := smartOrder.State.State(context.Background())
