@@ -17,7 +17,6 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 
 	recursiveCall := false
 	reduceOnly := false
-	postOnly := false
 
 	attemptsToPlaceOrder := 0
 	oppositeSide := "buy"
@@ -84,10 +83,11 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 		}
 
 		if model.Conditions.EntrySpreadHunter {
-			postOnly = true
+			orderType = "postOnly"
+		} else {
+			orderType = model.Conditions.EntryOrder.OrderType
 		}
 
-		orderType = model.Conditions.EntryOrder.OrderType
 		side = model.Conditions.EntryOrder.Side
 		baseAmount = model.Conditions.EntryOrder.Amount
 		break
@@ -283,6 +283,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 		target := model.Conditions.ExitLevels[sm.SelectedExitTarget]
 		isTrailingTarget := target.ActivatePrice != 0
 		isSpotMarketOrder := target.OrderType == "market" && isSpot
+		baseAmount = model.Conditions.EntryOrder.Amount
 		side = oppositeSide
 
 		if price == 0 && isTrailingTarget {
@@ -292,17 +293,19 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 		if price > 0 && !isSpotMarketOrder {
 			return // order was placed before, exit
 		}
+		if model.Conditions.TakeProfitSpreadHunter {
+			orderType = "postOnly"
+			break
+		}
 
 		// try exit on timeoutIfProfitable
 		if (model.Conditions.TimeoutIfProfitable > 0 && price < 0) || model.Conditions.TakeProfitPrice == -1 {
-			baseAmount = model.Conditions.EntryOrder.Amount
 			orderType = "market"
 			break
 		}
 
 		if model.Conditions.TakeProfitPrice > 0 && !isTrailingTarget {
 			orderPrice = model.Conditions.TakeProfitPrice
-			baseAmount = model.Conditions.EntryOrder.Amount
 			if isFutures && target.OrderType == "market" {
 				orderType = prefix + model.Conditions.ExitLevels[0].OrderType
 			} else {
@@ -408,7 +411,6 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 				Price:      orderPrice,
 				ReduceOnly: &reduceOnly,
 				StopPrice:  stopPrice,
-				PostOnly:   &postOnly,
 			},
 		}
 		if request.KeyParams.Type == "stop" {
