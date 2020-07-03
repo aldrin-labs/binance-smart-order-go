@@ -22,7 +22,133 @@ func TestSmartOrderMarketEntryAndTrailingExit(t *testing.T) {
 			Low:    7000,
 			Close:  7005,
 			Volume: 30,
-		}, { // Its trading around, like in real life
+		},
+		{
+			Open:   7100,
+			High:   7101,
+			Low:    7000,
+			Close:  7005,
+			Volume: 30,
+		},
+		{
+			Open:   7100,
+			High:   7101,
+			Low:    7000,
+			Close:  7005,
+			Volume: 30,
+		},
+		{
+			Open:   7100,
+			High:   7101,
+			Low:    7000,
+			Close:  7005,
+			Volume: 30,
+		},
+		{
+			Open:   7100,
+			High:   7101,
+			Low:    7000,
+			Close:  7005,
+			Volume: 30,
+		},
+		{
+			Open:   7100,
+			High:   7101,
+			Low:    7000,
+			Close:  7005,
+			Volume: 30,
+		},
+		{
+			Open:   7100,
+			High:   7101,
+			Low:    7000,
+			Close:  7005,
+			Volume: 30,
+		},
+		{
+			Open:   7100,
+			High:   7101,
+			Low:    7000,
+			Close:  7005,
+			Volume: 30,
+		},
+		{
+			Open:   7100,
+			High:   7101,
+			Low:    7000,
+			Close:  7005,
+			Volume: 30,
+		},
+		{
+			Open:   7100,
+			High:   7101,
+			Low:    7000,
+			Close:  7005,
+			Volume: 30,
+		},
+		{
+			Open:   7100,
+			High:   7101,
+			Low:    7000,
+			Close:  7005,
+			Volume: 30,
+		},
+		{
+			Open:   7100,
+			High:   7101,
+			Low:    7000,
+			Close:  7005,
+			Volume: 30,
+		},
+		{
+			Open:   7100,
+			High:   7101,
+			Low:    7000,
+			Close:  7005,
+			Volume: 30,
+		},
+		{
+			Open:   7100,
+			High:   7101,
+			Low:    7000,
+			Close:  7005,
+			Volume: 30,
+		},
+		{
+			Open:   7100,
+			High:   7101,
+			Low:    7000,
+			Close:  7005,
+			Volume: 30,
+		},
+		{
+			Open:   7100,
+			High:   7101,
+			Low:    7000,
+			Close:  7005,
+			Volume: 30,
+		},
+		{
+			Open:   7100,
+			High:   7101,
+			Low:    7000,
+			Close:  7005,
+			Volume: 30,
+		},
+		{
+			Open:   7100,
+			High:   7101,
+			Low:    7000,
+			Close:  7005,
+			Volume: 30,
+		},
+		{
+			Open:   7100,
+			High:   7101,
+			Low:    7000,
+			Close:  7005,
+			Volume: 30,
+		},{ // Its trading around, like in real life
 			Open:   7005,
 			High:   7005,
 			Low:    7005,
@@ -81,7 +207,7 @@ func TestSmartOrderMarketEntryAndTrailingExit(t *testing.T) {
 		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
 	})
 	go smartOrder.Start()
-	time.Sleep(4 * time.Second)
+	time.Sleep(5 * time.Second)
 	isInState, _ := smartOrder.State.IsInState(smart_order.End)
 	if !isInState {
 		state, _ := smartOrder.State.State(context.Background())
@@ -104,7 +230,104 @@ func TestSmartOrderMarketEntryAndThenFollowTrailing(t *testing.T) {
 			Low:    7005,
 			Close:  7000,
 			Volume: 30,
-		}, { // Going up..
+		},
+		{ // Its trading around, like in real life
+			Open:   7005,
+			High:   7005,
+			Low:    7005,
+			Close:  7000,
+			Volume: 30,
+		},
+		{ // Its trading around, like in real life
+			Open:   7005,
+			High:   7005,
+			Low:    7005,
+			Close:  7000,
+			Volume: 30,
+		},
+		{ // Its trading around, like in real life
+			Open:   7005,
+			High:   7005,
+			Low:    7005,
+			Close:  7000,
+			Volume: 30,
+		},{ // Its trading around, like in real life
+			Open:   7005,
+			High:   7005,
+			Low:    7005,
+			Close:  7000,
+			Volume: 30,
+		},
+		{ // Its trading around, like in real life
+			Open:   7005,
+			High:   7005,
+			Low:    7005,
+			Close:  7000,
+			Volume: 30,
+		},
+		{ // Its trading around, like in real life
+			Open:   7005,
+			High:   7005,
+			Low:    7005,
+			Close:  7000,
+			Volume: 30,
+		},
+		{ // Its trading around, like in real life
+			Open:   7005,
+			High:   7005,
+			Low:    7005,
+			Close:  7000,
+			Volume: 30,
+		},
+		{ // Its trading around, like in real life
+			Open:   7005,
+			High:   7005,
+			Low:    7005,
+			Close:  7000,
+			Volume: 30,
+		},
+		{ // Its trading around, like in real life
+			Open:   7005,
+			High:   7005,
+			Low:    7005,
+			Close:  7000,
+			Volume: 30,
+		},
+		{ // Its trading around, like in real life
+			Open:   7005,
+			High:   7005,
+			Low:    7005,
+			Close:  7000,
+			Volume: 30,
+		},
+		{ // Its trading around, like in real life
+			Open:   7005,
+			High:   7005,
+			Low:    7005,
+			Close:  7000,
+			Volume: 30,
+		},
+		{ // Its trading around, like in real life
+			Open:   7005,
+			High:   7005,
+			Low:    7005,
+			Close:  7000,
+			Volume: 30,
+		},
+		{ // Its trading around, like in real life
+			Open:   7005,
+			High:   7005,
+			Low:    7005,
+			Close:  7000,
+			Volume: 30,
+		},
+		{ // Its trading around, like in real life
+			Open:   7005,
+			High:   7005,
+			Low:    7005,
+			Close:  7000,
+			Volume: 30,
+		},{ // Going up..
 			Open:   7005,
 			High:   7005,
 			Low:    7005,
@@ -116,7 +339,35 @@ func TestSmartOrderMarketEntryAndThenFollowTrailing(t *testing.T) {
 			Low:    7015,
 			Close:  7015,
 			Volume: 30,
-		}, { // Oh wow, its pump!
+		},
+		{ // Going up....
+			Open:   7015,
+			High:   7015,
+			Low:    7015,
+			Close:  7015,
+			Volume: 30,
+		},
+		{ // Going up....
+			Open:   7015,
+			High:   7015,
+			Low:    7015,
+			Close:  7015,
+			Volume: 30,
+		},
+		{ // Going up....
+			Open:   7015,
+			High:   7015,
+			Low:    7015,
+			Close:  7015,
+			Volume: 30,
+		},
+		{ // Going up....
+			Open:   7015,
+			High:   7015,
+			Low:    7015,
+			Close:  7015,
+			Volume: 30,
+		},{ // Oh wow, its pump!
 			Open:   7045,
 			High:   7045,
 			Low:    7045,
@@ -157,7 +408,7 @@ func TestSmartOrderMarketEntryAndThenFollowTrailing(t *testing.T) {
 		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
 	})
 	go smartOrder.Start()
-	time.Sleep(9 * time.Second)
+	time.Sleep(10 * time.Second)
 	isInState, _ := smartOrder.State.IsInState(smart_order.End)
 	if !isInState {
 		state, _ := smartOrder.State.State(context.Background())

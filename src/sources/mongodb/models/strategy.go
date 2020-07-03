@@ -171,7 +171,10 @@ type MongoStrategyCondition struct {
 	StopLossExternal       bool     `json:"stopLossExternal,omitempty" bson:"stopLossExternal"`
 	TakeProfitExternal     bool     `json:"takeProfitExternal,omitempty" bson:"takeProfitExternal"`
 	WithoutLossAfterProfit float64  `json:"withoutLossAfterProfit,omitempty" bson:"withoutLossAfterProfit"`
-
+	EntrySpreadHunter      bool     `json:"entrySpreadHunter,omitempty" bson:"entrySpreadHunter"`
+	EntryWaitingTime       int64    `json:"entryWaitingTime,omitempty" bson:"entryWaitingTime"`
+	TakeProfitSpreadHunter bool     `json:"takeProfitSpreadHunter,omitempty" bson:"takeProfitSpreadHunter"`
+	TakeProfitWaitingTime  int64    `json:"takeProfitWaitingTime,omitempty" bson:"takeProfitWaitingTime"`
 	KeyAssetId *primitive.ObjectID `json:"keyAssetId,omitempty" bson:"keyAssetId"`
 	Pair       string              `json:"pair,omitempty" bson:"pair"`
 	MarketType int64               `json:"marketType,omitempty" bson:"marketType"`
