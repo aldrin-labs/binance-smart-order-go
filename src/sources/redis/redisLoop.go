@@ -10,6 +10,7 @@ import (
 
 type RedisLoop struct {
 	OhlcvMap sync.Map // <string: exchange+pair+o/h/l/c/v, OHLCV: ohlcv>
+	SpreadMap sync.Map
 }
 var redisLoop *RedisLoop
 
@@ -30,6 +31,14 @@ func (rl *RedisLoop) GetPriceForPairAtExchange(pair string, exchange string, mar
 	return redisLoop.GetPrice(pair, exchange, marketType)
 }
 
+func (rl *RedisLoop) GetSpreadForPairAtExchange(pair string, exchange string, marketType int64) *interfaces.SpreadData {
+	if redisLoop == nil {
+		redisLoop = &RedisLoop{}
+		redisLoop.SubscribeToSpread()
+	}
+	return redisLoop.GetSpread(pair, exchange, marketType)
+}
+
 type OrderbookOHLCV struct {
 	Open float64 `json:"open_price,float"`
 	High float64 `json:"high_price,float"`
@@ -40,6 +49,14 @@ type OrderbookOHLCV struct {
 	Base string `json:"tsym"`
 	Quote string `json:"fsym"`
 	Exchange string `json:"exchange"`
+}
+
+type Spread struct {
+	BestBidPrice float64 `json:"bestBidPrice,float"`
+	BestAskPrice float64 `json:"bestAskPrice,float"`
+	Exchange     string  `json:"exchange,string"`
+	Symbol       string  `json:"symbol,string"`
+	MarketType   int64  `json:"marketType,float"`
 }
 
 func (rl *RedisLoop) SubscribeToPairs() {
@@ -83,6 +100,37 @@ func (rl *RedisLoop) GetPrice(pair, exchange string, marketType int64) *interfac
 	if ob == true {
 		ohlcv := ohlcvRaw.(interfaces.OHLCV)
 		return &ohlcv
+	}
+	return nil
+}
+
+func (rl *RedisLoop) SubscribeToSpread() {
+	go ListenPubSubChannels(context.TODO(), func() error {
+		return nil
+	}, func(channel string, data []byte) error {
+		go rl.UpdateSpread(channel, data)
+		return nil
+	}, "best:*:*:*")
+}
+
+func (rl *RedisLoop) UpdateSpread(channel string, data []byte) {
+	var spread Spread
+	_ = json.Unmarshal(data, &spread)
+
+	spreadData := interfaces.SpreadData{
+		Close: spread.BestBidPrice,
+		BestBid: spread.BestBidPrice,
+		BestAsk: spread.BestAskPrice,
+	}
+
+	rl.SpreadMap.Store(spread.Exchange+spread.Symbol+strconv.FormatInt(spread.MarketType, 10), spreadData)
+}
+
+func (rl *RedisLoop) GetSpread(pair, exchange string, marketType int64) *interfaces.SpreadData {
+	spreadRaw, ok := rl.SpreadMap.Load(exchange+pair+strconv.FormatInt(marketType, 10))
+	if ok == true {
+		spread := spreadRaw.(interfaces.SpreadData)
+		return &spread
 	}
 	return nil
 }
