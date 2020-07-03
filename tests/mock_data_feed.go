@@ -6,6 +6,7 @@ import (
 
 type MockDataFeed struct {
 	tickerData  []interfaces.OHLCV
+	spreadData  []interfaces.SpreadData
 	currentTick int
 }
 
@@ -18,10 +19,19 @@ func NewMockedDataFeed(mockedStream []interfaces.OHLCV) *MockDataFeed {
 	return &dataFeed
 }
 
+func NewMockedSpreadDataFeed(mockedStream []interfaces.SpreadData) *MockDataFeed {
+	dataFeed := MockDataFeed{
+		spreadData:  mockedStream,
+		currentTick: -1,
+	}
+
+	return &dataFeed
+}
+
 func (df *MockDataFeed) GetPriceForPairAtExchange(pair string, exchange string, marketType int64) *interfaces.OHLCV {
 	df.currentTick += 1
 	len := len(df.tickerData)
-	// println(len, df.currentTick)
+	//println(len, df.currentTick)
 	if df.currentTick >= len {
 		df.currentTick = len - 1
 		return &df.tickerData[df.currentTick]
@@ -29,6 +39,19 @@ func (df *MockDataFeed) GetPriceForPairAtExchange(pair string, exchange string, 
 	}
 
 	return &df.tickerData[df.currentTick]
+}
+
+func (df *MockDataFeed) GetSpreadForPairAtExchange(pair string, exchange string, marketType int64) *interfaces.SpreadData {
+	df.currentTick += 1
+	len := len(df.spreadData)
+	// println(len, df.currentTick)
+	if df.currentTick >= len {
+		df.currentTick = len - 1
+		return &df.spreadData[df.currentTick]
+		// df.currentTick = len - 1 // ok we wont stop everything, just keep returning last price
+	}
+
+	return &df.spreadData[df.currentTick]
 }
 
 func (df *MockDataFeed) SubscribeToPairUpdate() {

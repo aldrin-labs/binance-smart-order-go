@@ -82,7 +82,12 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 			return // do nothing because we dont know entry price, coz didnt hit activation price yet
 		}
 
-		orderType = model.Conditions.EntryOrder.OrderType
+		if model.Conditions.EntrySpreadHunter {
+			orderType = "postOnly"
+		} else {
+			orderType = model.Conditions.EntryOrder.OrderType
+		}
+
 		side = model.Conditions.EntryOrder.Side
 		baseAmount = model.Conditions.EntryOrder.Amount
 		break
@@ -278,7 +283,13 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 		target := model.Conditions.ExitLevels[sm.SelectedExitTarget]
 		isTrailingTarget := target.ActivatePrice != 0
 		isSpotMarketOrder := target.OrderType == "market" && isSpot
+		baseAmount = model.Conditions.EntryOrder.Amount
 		side = oppositeSide
+
+		if model.Conditions.TakeProfitSpreadHunter && price > 0 {
+			orderType = "postOnly"
+			break
+		}
 
 		if price == 0 && isTrailingTarget {
 			// trailing exit, we cant place exit order now
@@ -290,14 +301,12 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 
 		// try exit on timeoutIfProfitable
 		if (model.Conditions.TimeoutIfProfitable > 0 && price < 0) || model.Conditions.TakeProfitPrice == -1 {
-			baseAmount = model.Conditions.EntryOrder.Amount
 			orderType = "market"
 			break
 		}
 
 		if model.Conditions.TakeProfitPrice > 0 && !isTrailingTarget {
 			orderPrice = model.Conditions.TakeProfitPrice
-			baseAmount = model.Conditions.EntryOrder.Amount
 			if isFutures && target.OrderType == "market" {
 				orderType = prefix + model.Conditions.ExitLevels[0].OrderType
 			} else {
@@ -481,13 +490,23 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 			break
 		} else {
 			println(response.Status)
-
+			// need correct message from exchange_service when down
+			//if len(response.Data.Msg) > 0 && strings.Contains(response.Data.Msg, "network error") {
+			//	time.Sleep(time.Second * 5)
+			//	continue
+			//}
+			if len(response.Data.Msg) > 0 && attemptsToPlaceOrder < 1 && strings.Contains(response.Data.Msg, "Key is processing") {
+				attemptsToPlaceOrder += 1
+				time.Sleep(time.Minute * 1)
+				continue
+			}
 			if len(response.Data.Msg) > 0 && attemptsToPlaceOrder < 3 && strings.Contains(response.Data.Msg, "position side does not match") {
 				attemptsToPlaceOrder += 1
 				time.Sleep(time.Second * 5)
 				continue
 			}
-			if len(response.Data.Msg) > 0 && strings.Contains(response.Data.Msg, "invalid json") {
+			if len(response.Data.Msg) > 0 && attemptsToPlaceOrder < 3 && strings.Contains(response.Data.Msg, "invalid json") {
+				attemptsToPlaceOrder += 1
 				time.Sleep(2 * time.Second)
 				continue
 			}
@@ -505,21 +524,19 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 			if len(response.Data.Msg) > 0 && strings.Contains(response.Data.Msg, "ReduceOnly Order is rejected") {
 				model.Enabled = false
 				go sm.StateMgmt.UpdateState(model.ID, model.State)
-
 				break
 			}
-			//if len(response.Data.Msg) > 0 && step != Canceled && step != End && step != Timeout && step != TrailingEntry {
 			if len(response.Data.Msg) > 0 {
 				model.Enabled = false
 				model.State.State = Error
 				model.State.Msg = response.Data.Msg
 				go sm.StateMgmt.UpdateState(model.ID, model.State)
-
 				break
 			}
 			if response.Status == "OK" {
 				break
 			}
+			attemptsToPlaceOrder += 1
 		}
 	}
 	canPlaceAnotherOrderForNextTarget := sm.SelectedExitTarget+1 < len(model.Conditions.ExitLevels)

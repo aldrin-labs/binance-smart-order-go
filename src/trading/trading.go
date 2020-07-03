@@ -139,6 +139,7 @@ type Order struct {
 	StopPrice    float64     `json:"stopPrice,omitempty" bson:"stopPrice"`
 	PositionSide string      `json:"positionSide,omitempty" bson:"positionSide"`
 	Params       OrderParams `json:"params,omitempty" bson:"params"`
+	PostOnly     *bool       `json:"postOnly,omitempty" bson:"postOnly"`
 }
 
 type CreateOrderRequest struct {
