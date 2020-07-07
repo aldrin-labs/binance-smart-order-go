@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -34,7 +35,7 @@ func (rl *RedisLoop) GetPriceForPairAtExchange(pair string, exchange string, mar
 func (rl *RedisLoop) GetSpreadForPairAtExchange(pair string, exchange string, marketType int64) *interfaces.SpreadData {
 	if redisLoop == nil {
 		redisLoop = &RedisLoop{}
-		redisLoop.SubscribeToSpread()
+		redisLoop.SubscribeToPairs()
 	}
 	return redisLoop.GetSpread(pair, exchange, marketType)
 }
@@ -52,20 +53,24 @@ type OrderbookOHLCV struct {
 }
 
 type Spread struct {
-	BestBidPrice float64 `json:"bestBidPrice,float"`
-	BestAskPrice float64 `json:"bestAskPrice,float"`
-	Exchange     string  `json:"exchange,string"`
-	Symbol       string  `json:"symbol,string"`
-	MarketType   int64  `json:"marketType,float"`
+	BestBidPrice string `json:"bestBidPrice"`
+	BestAskPrice string `json:"bestAskPrice"`
+	Exchange     string  `json:"exchange"`
+	Symbol       string  `json:"symbol"`
+	MarketType   int64  `json:"marketType"`
 }
 
 func (rl *RedisLoop) SubscribeToPairs() {
 	go ListenPubSubChannels(context.TODO(), func() error {
 		return nil
 	}, func(channel string, data []byte) error {
+		if strings.Contains(channel, "best") {
+			go rl.UpdateSpread(channel, data)
+			return nil
+		}
 		go rl.UpdateOHLCV(channel, data)
 		return nil
-	}, "*:60")
+	}, "*:60", "best:*:*:*")
 }
 
 func (rl *RedisLoop) UpdateOHLCV(channel string, data []byte) {
@@ -115,15 +120,28 @@ func (rl *RedisLoop) SubscribeToSpread() {
 
 func (rl *RedisLoop) UpdateSpread(channel string, data []byte) {
 	var spread Spread
-	_ = json.Unmarshal(data, &spread)
+	err := json.Unmarshal(data, &spread)
 
-	spreadData := interfaces.SpreadData{
-		Close: spread.BestBidPrice,
-		BestBid: spread.BestBidPrice,
-		BestAsk: spread.BestAskPrice,
+	if err != nil {
+		println("spread json err", err)
 	}
 
-	rl.SpreadMap.Store(spread.Exchange+spread.Symbol+strconv.FormatInt(spread.MarketType, 10), spreadData)
+	bid, _ := strconv.ParseFloat(spread.BestBidPrice, 64)
+	ask, _ := strconv.ParseFloat(spread.BestAskPrice, 64)
+
+	spreadData := interfaces.SpreadData{
+		Close: bid,
+		BestBid: bid,
+		BestAsk: ask,
+	}
+
+	arr := strings.Split(channel, ":")
+	exchange := arr[1]
+	pair := arr[2]
+	marketType := arr[3]
+
+	str := exchange+pair+marketType
+	rl.SpreadMap.Store(str, spreadData)
 }
 
 func (rl *RedisLoop) GetSpread(pair, exchange string, marketType int64) *interfaces.SpreadData {

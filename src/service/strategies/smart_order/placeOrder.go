@@ -12,6 +12,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 	baseAmount := 0.0
 	orderType := "market"
 	stopPrice := 0.0
+	frequency := 0.0
 	side := ""
 	orderPrice := price
 
@@ -83,7 +84,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 		}
 
 		if model.Conditions.EntrySpreadHunter {
-			orderType = "postOnly"
+			orderType = "post-only"
 		} else {
 			orderType = model.Conditions.EntryOrder.OrderType
 		}
@@ -287,7 +288,10 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 		side = oppositeSide
 
 		if model.Conditions.TakeProfitSpreadHunter && price > 0 {
-			orderType = "postOnly"
+			orderType = "post-only"
+			if model.Conditions.TakeProfitWaitingTime > 0 {
+				frequency = float64(model.Conditions.TakeProfitWaitingTime)
+			}
 			break
 		}
 
@@ -412,6 +416,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 				Price:      orderPrice,
 				ReduceOnly: &reduceOnly,
 				StopPrice:  stopPrice,
+				Frequency: frequency,
 			},
 		}
 		if request.KeyParams.Type == "stop" {
