@@ -10,7 +10,7 @@ func (sm *SmartOrder) checkSpreadCondition(spread interfaces.SpreadData, orderTy
 	price := spread.BestBid
 	model := sm.Strategy.GetModel()
 	amount := model.Conditions.EntryOrder.Amount
-	
+
 	//println("spread.BestAsk - spread.BestBid", spread.BestAsk - spread.BestBid)
 	//println("fee * price * amount", fee * price * amount)
 

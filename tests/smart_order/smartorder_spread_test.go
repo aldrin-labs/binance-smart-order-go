@@ -46,40 +46,6 @@ func TestSmartOrderEntryBySpread(t *testing.T) {
 	}
 }
 
-func TestSmartOrderEntryWaitingBySpread(t *testing.T) {
-	smartOrderModel := GetTestSmartOrderStrategy("entrySpread")
-	// price falls
-	fakeDataStream := []interfaces.SpreadData{{
-		BestAsk: 7006,
-		BestBid: 7005,
-		Close:  7005,
-	}, {
-		BestAsk: 7006,
-		BestBid: 7005,
-		Close:  7005,
-	}, {
-		BestAsk: 7006,
-		BestBid: 7005,
-		Close:  7005,
-	}}
-	df := tests.NewMockedSpreadDataFeed(fakeDataStream)
-	tradingApi := *tests.NewMockedTradingAPI()
-	strategy := strategies.Strategy{
-		Model: &smartOrderModel,
-	}
-	keyId := primitive.NewObjectID()
-	sm := tests.NewMockedStateMgmt(&tradingApi)
-	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
-	go smartOrder.Start()
-	time.Sleep(800 * time.Millisecond)
-	isInState, _ := smartOrder.State.IsInState(smart_order.WaitForEntry)
-	if !isInState {
-		state, _ := smartOrder.State.State(context.Background())
-		stateStr := fmt.Sprintf("%v", state)
-		t.Error("SmartOrder state is not InEntry (State: " + stateStr + ")")
-	}
-}
-
 func TestSmartOrderTakeProfitBySpread(t *testing.T) {
 	smartOrderModel := GetTestSmartOrderStrategy("takeProfitSpread")
 	// price falls
@@ -111,39 +77,5 @@ func TestSmartOrderTakeProfitBySpread(t *testing.T) {
 		state, _ := smartOrder.State.State(context.Background())
 		stateStr := fmt.Sprintf("%v", state)
 		t.Error("SmartOrder state is not End (State: " + stateStr + ")")
-	}
-}
-
-func TestSmartOrderTakeProfitWaitingBySpread(t *testing.T) {
-	smartOrderModel := GetTestSmartOrderStrategy("takeProfitSpread")
-	// price falls
-	fakeDataStream := []interfaces.SpreadData{{
-		BestAsk: 7006,
-		BestBid: 7005,
-		Close:  7005,
-	}, {
-		BestAsk: 7006,
-		BestBid: 7005,
-		Close:  7005,
-	}, {
-		BestAsk: 7006,
-		BestBid: 7005,
-		Close:  7005,
-	}}
-	df := tests.NewMockedSpreadDataFeed(fakeDataStream)
-	tradingApi := *tests.NewMockedTradingAPI()
-	strategy := strategies.Strategy{
-		Model: &smartOrderModel,
-	}
-	keyId := primitive.NewObjectID()
-	sm := tests.NewMockedStateMgmt(&tradingApi)
-	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
-	go smartOrder.Start()
-	time.Sleep(800 * time.Millisecond)
-	isInState, _ := smartOrder.State.IsInState(smart_order.InEntry)
-	if !isInState {
-		state, _ := smartOrder.State.State(context.Background())
-		stateStr := fmt.Sprintf("%v", state)
-		t.Error("SmartOrder state is not InEntry (State: " + stateStr + ")")
 	}
 }
