@@ -51,9 +51,6 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 	orderId := order.OrderId
 	step, ok := sm.StatusByOrderId.Load(orderId)
 	orderStatus := order.Status
-	if order.Type == "post-only" {
-		order = *sm.StateMgmt.GetOrder(order.OrderId)
-	}
 	//println("step ok", step, ok, order.OrderId)
 	if orderStatus == "filled" || orderStatus == "canceled" && (step == WaitForEntry || step == TrailingEntry) {
 		sm.StatusByOrderId.Delete(orderId)
@@ -63,6 +60,9 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 	}
 	//println("orderStatus", orderStatus)
 	model := sm.Strategy.GetModel()
+	if order.Type == "post-only" {
+		order = *sm.StateMgmt.GetOrder(order.PostOnlyFinalOrderId)
+	}
 	switch orderStatus {
 	case "closed", "filled": // TODO i
 		switch step {

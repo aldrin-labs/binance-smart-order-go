@@ -57,6 +57,7 @@ type MongoOrder struct {
 	ID         primitive.ObjectID `json:"_id" bson:"_id"`
 	Status     string             `json:"status,omitempty" bson:"status"`
 	OrderId    string             `json:"id,omitempty" bson:"id"`
+	PostOnlyFinalOrderId string   `json:"postOnlyFinalOrderId,omitempty" bson:"postOnlyFinalOrderId"`
 	Filled     float64            `json:"filled,omitempty" bson:"filled"`
 	Average    float64            `json:"average,omitempty" bson:"average"`
 	Side       string             `json:"side,omitempty" bson:"side"`
