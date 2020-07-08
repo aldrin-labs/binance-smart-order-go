@@ -13,7 +13,7 @@ func (sm *SmartOrder) waitForOrder(orderId string, orderStatus string) {
 }
 func (sm *SmartOrder) orderCallback(order *models.MongoOrder) {
 	//println("order callback in")
-	if order == nil || order.OrderId == "" || !(order.Status == "filled" || order.Status == "canceled")  {
+	if order == nil || (order.OrderId == "" && order.PostOnlyInitialOrderId == "") || !(order.Status == "filled" || order.Status == "canceled")  {
 		return
 	}
 	sm.OrdersMux.Lock()

@@ -90,10 +90,12 @@ func (sm *StateMgmt) InitOrdersWatch() {
 		go func(event models.MongoOrderUpdateEvent) {
 			if event.FullDocument.Status == "filled" || event.FullDocument.Status == "canceled" {
 				orderId := event.FullDocument.OrderId
+				println("event.FullDocument.PostOnlyInitialOrderId", event.FullDocument.PostOnlyInitialOrderId)
 				if event.FullDocument.PostOnlyInitialOrderId != "" {
 					orderId = event.FullDocument.PostOnlyInitialOrderId
 				}
 
+				println("orderId", orderId)
 				getCallBackRaw, ok := sm.OrderCallbacks.Load(orderId)
 				if ok {
 					callback := getCallBackRaw.(func(order *models.MongoOrder))
@@ -130,7 +132,7 @@ func (sm *StateMgmt) DisableStrategy(strategyId *primitive.ObjectID) {
 func (sm *StateMgmt) SubscribeToOrder(orderId string, onOrderStatusUpdate func(order *models.MongoOrder)) error {
 	sm.OrderCallbacks.Store(orderId, onOrderStatusUpdate)
 	executedOrder := sm.GetOrder(orderId)
-	//println("executedOrder", executedOrder == nil)
+	println("executedOrder", executedOrder == nil)
 	if executedOrder != nil {
 		onOrderStatusUpdate(executedOrder)
 	}

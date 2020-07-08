@@ -472,6 +472,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 				model.State.ExecutedOrders = append(model.State.ExecutedOrders, response.Data.Id)
 			}
 			if response.Data.Id != "0" {
+				println("response.Data.Id", response.Data.Id)
 				sm.OrdersMux.Lock()
 				sm.OrdersMap[response.Data.Id] = true
 				sm.OrdersMux.Unlock()
