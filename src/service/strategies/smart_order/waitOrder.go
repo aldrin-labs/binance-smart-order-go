@@ -13,11 +13,9 @@ func (sm *SmartOrder) waitForOrder(orderId string, orderStatus string) {
 }
 func (sm *SmartOrder) orderCallback(order *models.MongoOrder) {
 	//println("order callback in")
-	if order == nil || order.OrderId == ""  {
+	if order == nil || order.OrderId == "" || !(order.Status == "filled" || order.Status == "canceled")  {
 		return
 	}
-	if order.Type != "post-only" && !(order.Status == "filled" || order.Status == "canceled") { return }
-	if order.Type == "post-only" && !(order.PostOnlyStatus == "filled" || order.PostOnlyStatus == "canceled") { return }
 	sm.OrdersMux.Lock()
 	if _, ok := sm.OrdersMap[order.OrderId]; ok {
 		delete(sm.OrdersMap, order.OrderId)
@@ -54,7 +52,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 	step, ok := sm.StatusByOrderId.Load(orderId)
 	orderStatus := order.Status
 	if order.Type == "post-only" {
-		orderStatus = order.PostOnlyStatus
+		order = *sm.StateMgmt.GetOrder(order.OrderId)
 	}
 	//println("step ok", step, ok, order.OrderId)
 	if orderStatus == "filled" || orderStatus == "canceled" && (step == WaitForEntry || step == TrailingEntry) {
