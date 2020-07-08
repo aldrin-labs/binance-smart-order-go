@@ -171,6 +171,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 				go func(lastTimestamp int64) {
 					time.Sleep(time.Duration(model.Conditions.TimeoutLoss) * time.Second)
 					currentState := sm.Strategy.GetModel().State.State
+					//println("currentState", currentState, model.State.StopLossAt, lastTimestamp)
 					if currentState == Stoploss && model.State.StopLossAt == lastTimestamp {
 						sm.PlaceOrder(price, step)
 					} else {

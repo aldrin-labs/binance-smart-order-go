@@ -35,7 +35,6 @@ func (sm *SmartOrder) checkSpreadEntry(ctx context.Context, args ...interface{})
 
 	if sm.checkSpreadCondition(currentSpread, model.Conditions.EntryOrder.OrderType, true) {
 		sm.PlaceOrder(currentSpread.BestBid, WaitForEntry)
-		return true
 	}
 
 	return false
@@ -54,7 +53,6 @@ func (sm *SmartOrder) checkSpreadTakeProfit(ctx context.Context, args ...interfa
 
 	if sm.checkSpreadCondition(currentSpread, model.Conditions.ExitLevels[sm.SelectedExitTarget].OrderType, false) {
 		sm.PlaceOrder(currentSpread.BestBid, TakeProfit)
-		return true
 	}
 
 	return false

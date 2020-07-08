@@ -2,19 +2,22 @@ package smart_order
 
 import (
 	"context"
-
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
 )
 
 func (sm *SmartOrder) waitForOrder(orderId string, orderStatus string) {
+	//println("in wait for order")
 	sm.StatusByOrderId.Store(orderId, orderStatus)
 	_ = sm.StateMgmt.SubscribeToOrder(orderId, sm.orderCallback)
 }
 func (sm *SmartOrder) orderCallback(order *models.MongoOrder) {
-	if order == nil || order.OrderId == "" || !(order.Status == "filled" || order.Status == "canceled") {
+	//println("order callback in")
+	if order == nil || order.OrderId == ""  {
 		return
 	}
+	if order.Type != "post-only" && !(order.Status == "filled" || order.Status == "canceled") { return }
+	if order.Type == "post-only" && !(order.PostOnlyStatus == "filled" || order.PostOnlyStatus == "canceled") { return }
 	sm.OrdersMux.Lock()
 	if _, ok := sm.OrdersMap[order.OrderId]; ok {
 		delete(sm.OrdersMap, order.OrderId)
@@ -42,19 +45,25 @@ func (sm *SmartOrder) orderCallback(order *models.MongoOrder) {
 	}
 }
 func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface{}) bool {
+	//println("in checkExisitingFunc")
 	if args == nil {
 		return false
 	}
 	order := args[0].(models.MongoOrder)
 	orderId := order.OrderId
 	step, ok := sm.StatusByOrderId.Load(orderId)
-	if order.Status == "filled" || order.Status == "canceled" && (step == WaitForEntry || step == TrailingEntry) {
+	orderStatus := order.Status
+	if order.Type == "post-only" {
+		orderStatus = order.PostOnlyStatus
+	}
+	//println("step ok", step, ok, order.OrderId)
+	if orderStatus == "filled" || orderStatus == "canceled" && (step == WaitForEntry || step == TrailingEntry) {
 		sm.StatusByOrderId.Delete(orderId)
 	}
 	if !ok {
 		return false
 	}
-	orderStatus := order.Status
+	//println("orderStatus", orderStatus)
 	model := sm.Strategy.GetModel()
 	switch orderStatus {
 	case "closed", "filled": // TODO i

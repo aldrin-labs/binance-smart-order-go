@@ -56,6 +56,7 @@ type MongoMarket struct {
 type MongoOrder struct {
 	ID         primitive.ObjectID `json:"_id" bson:"_id"`
 	Status     string             `json:"status,omitempty" bson:"status"`
+	PostOnlyStatus string         `json:"postOnlyStatus,omitempty" bson:"postOnlyStatus"`
 	OrderId    string             `json:"id,omitempty" bson:"id"`
 	Filled     float64            `json:"filled,omitempty" bson:"filled"`
 	Average    float64            `json:"average,omitempty" bson:"average"`

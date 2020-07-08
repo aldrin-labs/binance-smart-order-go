@@ -436,7 +436,7 @@ func (sm *SmartOrder) checkLoss(ctx context.Context, args ...interface{}) bool {
 
 	// try exit on timeout
 	if model.Conditions.TimeoutWhenLoss > 0 {
-		isLoss := (model.Conditions.EntryOrder.Side == "buy" && model.Conditions.EntryOrder.Price > currentOHLCV.Close) || (model.Conditions.EntryOrder.Side == "sell" && model.Conditions.EntryOrder.Price < currentOHLCV.Close)
+		isLoss := (model.Conditions.EntryOrder.Side == "buy" && model.State.EntryPrice > currentOHLCV.Close) || (model.Conditions.EntryOrder.Side == "sell" && model.State.EntryPrice < currentOHLCV.Close)
 		if isLoss && model.State.LossableAt == 0 {
 			model.State.LossableAt = time.Now().Unix()
 			go func(lossAt int64) {
@@ -540,6 +540,7 @@ func (sm *SmartOrder) enterTakeProfit(ctx context.Context, args ...interface{}) 
 }
 
 func (sm *SmartOrder) enterStopLoss(ctx context.Context, args ...interface{}) error {
+	//println("entry stopLoss")
 	if currentOHLCV, ok := args[0].(interfaces.OHLCV); ok {
 		if sm.Strategy.GetModel().State.Amount > 0 {
 			side := "buy"
