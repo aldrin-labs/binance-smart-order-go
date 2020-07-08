@@ -89,7 +89,12 @@ func (sm *StateMgmt) InitOrdersWatch() {
 		}
 		go func(event models.MongoOrderUpdateEvent) {
 			if event.FullDocument.Status == "filled" || event.FullDocument.Status == "canceled" {
-				getCallBackRaw, ok := sm.OrderCallbacks.Load(event.FullDocument.OrderId)
+				orderId := event.FullDocument.OrderId
+				if event.FullDocument.PostOnlyInitialOrderId != "" {
+					orderId = event.FullDocument.PostOnlyInitialOrderId
+				}
+
+				getCallBackRaw, ok := sm.OrderCallbacks.Load(orderId)
 				if ok {
 					callback := getCallBackRaw.(func(order *models.MongoOrder))
 					callback(&event.FullDocument)
