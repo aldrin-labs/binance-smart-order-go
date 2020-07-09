@@ -40,8 +40,16 @@ type PostOnlyOrder struct {
 	StopLock				bool
 	LastTrailingTimestamp   int64
 	SelectedExitTarget      int
+	TemplateOrderId			string
 	OrdersMux sync.Mutex
+
+	OrderParams trading.Order
 }
+
+func(po *PostOnlyOrder) createTemplateOrder() {
+
+}
+
 
 func NewPostOnlyOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed, TradingAPI trading.ITrading, keyId *primitive.ObjectID, stateMgmt interfaces.IStateMgmt) *PostOnlyOrder {
 
