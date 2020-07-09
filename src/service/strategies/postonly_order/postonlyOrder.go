@@ -1,6 +1,7 @@
 package postonly_order
 
 import (
+	"context"
 	"github.com/qmuntal/stateless"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
@@ -8,19 +9,20 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"reflect"
 	"sync"
+	"time"
 )
 
 const (
-	PlaceOrder       = "PlaceOrder"
-	PartiallyFilled      = "PartiallyFilled"
-	Filled     = "Filled"
-	Cancelled = "Cancelled"
+	PlaceOrder      = "PlaceOrder"
+	PartiallyFilled = "PartiallyFilled"
+	Filled          = "Filled"
+	Cancelled       = "Cancelled"
 )
 
 const (
-	TriggerSpread            = "Spread"
-	TriggerOrderExecuted     = "TriggerOrderExecuted"
-	CheckExistingOrders      = "CheckExistingOrders"
+	TriggerSpread        = "Spread"
+	TriggerOrderExecuted = "TriggerOrderExecuted"
+	CheckExistingOrders  = "CheckExistingOrders"
 )
 
 type PostOnlyOrder struct {
@@ -37,27 +39,26 @@ type PostOnlyOrder struct {
 	QuantityAmountPrecision int64
 	QuantityPricePrecision  int64
 	Lock                    bool
-	StopLock				bool
+	StopLock                bool
 	LastTrailingTimestamp   int64
 	SelectedExitTarget      int
-	TemplateOrderId			string
-	OrdersMux sync.Mutex
+	TemplateOrderId         string
+	OrdersMux               sync.Mutex
 
 	OrderParams trading.Order
 }
 
-func(po *PostOnlyOrder) createTemplateOrder() {
+func (po *PostOnlyOrder) createTemplateOrder() {
 
 }
 
-
 func NewPostOnlyOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed, TradingAPI trading.ITrading, keyId *primitive.ObjectID, stateMgmt interfaces.IStateMgmt) *PostOnlyOrder {
 
-	sm := &PostOnlyOrder{Strategy: strategy, DataFeed: DataFeed, ExchangeApi: TradingAPI, KeyId: keyId, StateMgmt: stateMgmt, Lock: false, SelectedExitTarget: 0, OrdersMap: map[string]bool{}}
+	PO := &PostOnlyOrder{Strategy: strategy, DataFeed: DataFeed, ExchangeApi: TradingAPI, KeyId: keyId, StateMgmt: stateMgmt, Lock: false, SelectedExitTarget: 0, OrdersMap: map[string]bool{}}
 	initState := PlaceOrder
 	pricePrecision, amountPrecision := stateMgmt.GetMarketPrecision(strategy.GetModel().Conditions.Pair, strategy.GetModel().Conditions.MarketType)
-	sm.QuantityPricePrecision = pricePrecision
-	sm.QuantityAmountPrecision = amountPrecision
+	PO.QuantityPricePrecision = pricePrecision
+	PO.QuantityAmountPrecision = amountPrecision
 	// if state is not empty but if its in the end and open ended, then we skip state value, since want to start over
 	if strategy.GetModel().State != nil && strategy.GetModel().State.State != "" && !(strategy.GetModel().State.State == End && strategy.GetModel().Conditions.ContinueIfEnded == true) {
 		initState = strategy.GetModel().State.State
@@ -74,23 +75,44 @@ func NewPostOnlyOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataFe
 			2) wait N time
 			3) if possible place at better/worse price or stay
 	*/
-	State.Configure(PlaceOrder).PermitDynamic(TriggerSpread, sm.exitWaitEntry,
-		sm.checkWaitEntry).PermitDynamic(TriggerSpread, sm.exitWaitEntry,
-		sm.checkSpreadEntry).PermitDynamic(CheckExistingOrders, sm.exitWaitEntry,
-		sm.checkExistingOrders).OnEntry(sm.onStart)
+	State.Configure(PlaceOrder).PermitDynamic(TriggerSpread, PO.che,
+		PO.checkWaitEntry).PermitDynamic(CheckExistingOrders, PO.exitWaitEntry,
+		PO.checkExistingOrders).OnEntry(PO.onStart)
 
 	State.Configure(PartiallyFilled).Permit(TriggerSpread, InEntry,
-		sm.checkTrailingEntry).Permit(CheckExistingOrders, InEntry,
-		sm.checkExistingOrders).OnEntry(sm.enterTrailingEntry)
+		PO.checkTrailingEntry).Permit(CheckExistingOrders, InEntry,
+		PO.checkExistingOrders).OnEntry(PO.enterTrailingEntry)
 
-	State.Configure(Filled).OnEntry(sm.enterEnd)
+	State.Configure(Filled).OnEntry(PO.enterEnd)
 
 	State.Activate()
 
-	sm.State = State
-	sm.ExchangeName = "binance"
-	// fmt.Printf(sm.State.ToGraph())
+	PO.State = State
+	PO.ExchangeName = "binance"
+	// fmt.Printf(PO.State.ToGraph())
 	// fmt.Printf("DONE\n")
-	_ = sm.onStart(nil)
-	return sm
+	_ = PO.onStart(nil)
+	return PO
+}
+
+func (sm *SmartOrder) Start() {
+	ctx := context.TODO()
+
+	state, _ := sm.State.State(ctx)
+	for state != End && state != Canceled {
+		if sm.Strategy.GetModel().Enabled == false {
+			break
+		}
+		if !sm.Lock {
+			if sm.Strategy.GetModel().Conditions.EntrySpreadHunter {
+				sm.processSpreadEventLoop()
+			} else {
+				sm.processEventLoop()
+			}
+		}
+		time.Sleep(15 * time.Millisecond)
+		state, _ = sm.State.State(ctx)
+	}
+	sm.Stop()
+	println("STOPPED")
 }

@@ -1,5 +1,5 @@
 package postonly_order
 
-func(po *PostOnlyOrder) cancelPreviousPostOnlyOrder() {
+func(po *PostOnlyOrder) cancelPreviousPostOnlyOrder() string {
 
 }
