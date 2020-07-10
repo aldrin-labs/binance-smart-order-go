@@ -1,8 +1,8 @@
-package postonly_order
+package makeronly_order
 
 import "time"
 
-func(po *PostOnlyOrder) monitorPostOnlyOrder() {
+func(po *MakerOnlyOrder) monitorPostOnlyOrder() {
 	monitorFrequency := po.OrderParams.Frequency
 	if monitorFrequency == 0 {
 		monitorFrequency = 1000.0
@@ -16,6 +16,6 @@ func(po *PostOnlyOrder) monitorPostOnlyOrder() {
 		}
 		// в канселе мы так же записываем в монгу последний зафилленый ордер
 
-		orderStatus := po.cancelPreviousPostOnlyOrder()
+		// orderStatus := po.cancelPreviousPostOnlyOrder()
 	}
 }

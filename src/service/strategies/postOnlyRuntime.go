@@ -4,6 +4,7 @@ package strategies
 import (
 	"context"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
+	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies/makeronly_order"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies/postonly_order"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
@@ -12,9 +13,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-type KeyAsset struct {
-	KeyId primitive.ObjectID `json:"keyId" bson:"keyId"`
-}
 
 func RunPostOnlyOrder(strategy *Strategy, df interfaces.IDataFeed, td trading.ITrading, keyId *primitive.ObjectID) interfaces.IStrategyRuntime {
 	if strategy.Model.Conditions.Leverage == 0 {
@@ -46,7 +44,7 @@ func RunPostOnlyOrder(strategy *Strategy, df interfaces.IDataFeed, td trading.IT
 		strategy.Model.State = &models.MongoStrategyState{}
 	}
 	strategy.StateMgmt.SaveStrategyConditions(strategy.Model)
-	runtime := postonly_order.NewPostOnlyOrder(strategy, df, td, keyId, strategy.StateMgmt)
+	runtime := makeronly_order.NewPostOnlyOrder(strategy, df, td, keyId, strategy.StateMgmt)
 	go runtime.Start()
 
 	return runtime

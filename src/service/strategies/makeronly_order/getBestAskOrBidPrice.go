@@ -1,7 +1,7 @@
-package postonly_order
+package makeronly_order
 
 
-func(po *PostOnlyOrder) getBestAskOrBidPrice() float64 {
+func(po *MakerOnlyOrder) getBestAskOrBidPrice() float64 {
 	pair := po.Strategy.GetModel().Conditions.Pair
 	marketType := po.Strategy.GetModel().Conditions.MarketType
 	exchange := "binance"
