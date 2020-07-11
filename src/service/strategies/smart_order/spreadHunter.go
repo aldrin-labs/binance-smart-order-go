@@ -8,9 +8,9 @@ import (
 
 func (sm *SmartOrder) checkSpreadCondition(spread interfaces.SpreadData, orderType string, isEntry bool) bool {
 	fee := 0.001 * 2
-	price := spread.BestBid
-	model := sm.Strategy.GetModel()
-	amount := model.Conditions.EntryOrder.Amount
+	// price := spread.BestBid
+	// model := sm.Strategy.GetModel()
+	// amount := model.Conditions.EntryOrder.Amount
 
 	//if orderType == "limit" {
 	//	if isEntry {
@@ -19,7 +19,7 @@ func (sm *SmartOrder) checkSpreadCondition(spread interfaces.SpreadData, orderTy
 	//		price = model.Conditions.ExitLevels[sm.SelectedExitTarget].Price
 	//	}
 	//}
-	if spread.BestAsk - spread.BestBid > fee * price * amount {
+	if (spread.BestAsk / spread.BestBid - 1) > fee {
 		return true
 	}
 
