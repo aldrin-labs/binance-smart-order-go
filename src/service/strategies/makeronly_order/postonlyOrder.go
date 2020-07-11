@@ -56,6 +56,15 @@ func (sm *MakerOnlyOrder) IsOrderExistsInMap(orderId string) bool {
 	return false
 }
 
+func (sm *MakerOnlyOrder) SetSelectedExitTarget(selectedExitTarget int){
+
+}
+
+
+func (sm *MakerOnlyOrder) Stop(){}
+
+func (sm *MakerOnlyOrder) TryCancelAllOrders(orderIds []string){}
+func (sm *MakerOnlyOrder) TryCancelAllOrdersConsistently(orderIds []string){}
 func NewPostOnlyOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed, TradingAPI trading.ITrading, keyId *primitive.ObjectID, stateMgmt interfaces.IStateMgmt) *MakerOnlyOrder {
 
 	PO := &MakerOnlyOrder{Strategy: strategy, DataFeed: DataFeed, ExchangeApi: TradingAPI, KeyId: keyId, StateMgmt: stateMgmt, Lock: false, SelectedExitTarget: 0, OrdersMap: map[string]bool{}}
