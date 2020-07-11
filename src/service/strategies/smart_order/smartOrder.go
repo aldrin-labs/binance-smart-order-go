@@ -209,6 +209,7 @@ func (sm *SmartOrder) exitWaitEntry(ctx context.Context, args ...interface{}) (s
 	println("move to", InEntry)
 	return InEntry, nil
 }
+
 func (sm *SmartOrder) checkWaitEntry(ctx context.Context, args ...interface{}) bool {
 	isWaitingForOrder, ok := sm.IsWaitingForOrder.Load(WaitForEntry)
 	if ok && isWaitingForOrder.(bool) {
