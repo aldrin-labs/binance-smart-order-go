@@ -34,7 +34,7 @@ func (rl *RedisLoop) GetPriceForPairAtExchange(pair string, exchange string, mar
 func (rl *RedisLoop) GetSpreadForPairAtExchange(pair string, exchange string, marketType int64) *interfaces.SpreadData {
 	if redisLoop == nil {
 		redisLoop = &RedisLoop{}
-		redisLoop.SubscribeToSpread()
+		redisLoop.SubscribeToPairs()
 	}
 	return redisLoop.GetSpread(pair, exchange, marketType)
 }
@@ -66,6 +66,7 @@ func (rl *RedisLoop) SubscribeToPairs() {
 		go rl.UpdateOHLCV(channel, data)
 		return nil
 	}, "*:60")
+	rl.SubscribeToSpread()
 }
 
 func (rl *RedisLoop) UpdateOHLCV(channel string, data []byte) {
