@@ -70,7 +70,8 @@ func (rl *RedisLoop) SubscribeToPairs() {
 		}
 		go rl.UpdateOHLCV(channel, data)
 		return nil
-	}, "*:60", "best:*:*:*")
+	}, "*:60")
+	rl.SubscribeToSpread()
 }
 
 func (rl *RedisLoop) UpdateOHLCV(channel string, data []byte) {

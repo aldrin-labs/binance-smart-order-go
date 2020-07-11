@@ -140,7 +140,7 @@ type Order struct {
 	PositionSide string      `json:"positionSide,omitempty" bson:"positionSide"`
 	Params       OrderParams `json:"params,omitempty" bson:"params"`
 	PostOnly     *bool       `json:"postOnly,omitempty" bson:"postOnly"`
-	Frequency    float64     `json:"frequency,omitempty" bson:"frequency"`
+	Frequency    float64     `json:"frequency" bson:"frequency"`
 }
 
 type CreateOrderRequest struct {
