@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -65,6 +66,10 @@ func (rl *RedisLoop) SubscribeToPairs() {
 	go ListenPubSubChannels(context.TODO(), func() error {
 		return nil
 	}, func(channel string, data []byte) error {
+		if strings.Contains(channel, "best") {
+			go rl.UpdateSpread(channel, data)
+			return nil
+		}
 		go rl.UpdateOHLCV(channel, data)
 		return nil
 	}, "*:60")
