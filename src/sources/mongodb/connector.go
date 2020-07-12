@@ -57,7 +57,7 @@ func Connect(url string, connectTimeout time.Duration) (*mongo.Client, error) {
 }
 
 type StateMgmt struct {
-	OrderCallbacks *sync.Map
+	OrderCallbacks         *sync.Map
 }
 
 func (sm *StateMgmt) InitOrdersWatch() {
@@ -89,7 +89,14 @@ func (sm *StateMgmt) InitOrdersWatch() {
 		}
 		go func(event models.MongoOrderUpdateEvent) {
 			if event.FullDocument.Status == "filled" || event.FullDocument.Status == "canceled" {
-				getCallBackRaw, ok := sm.OrderCallbacks.Load(event.FullDocument.OrderId)
+				orderId := event.FullDocument.OrderId
+				println("event.FullDocument.PostOnlyInitialOrderId", event.FullDocument.PostOnlyInitialOrderId)
+				if event.FullDocument.PostOnlyInitialOrderId != "" {
+					orderId = event.FullDocument.PostOnlyInitialOrderId
+				}
+
+				println("orderId", orderId)
+				getCallBackRaw, ok := sm.OrderCallbacks.Load(orderId)
 				if ok {
 					callback := getCallBackRaw.(func(order *models.MongoOrder))
 					callback(&event.FullDocument)
@@ -125,6 +132,7 @@ func (sm *StateMgmt) DisableStrategy(strategyId *primitive.ObjectID) {
 func (sm *StateMgmt) SubscribeToOrder(orderId string, onOrderStatusUpdate func(order *models.MongoOrder)) error {
 	sm.OrderCallbacks.Store(orderId, onOrderStatusUpdate)
 	executedOrder := sm.GetOrder(orderId)
+	println("executedOrder", executedOrder == nil)
 	if executedOrder != nil {
 		onOrderStatusUpdate(executedOrder)
 	}

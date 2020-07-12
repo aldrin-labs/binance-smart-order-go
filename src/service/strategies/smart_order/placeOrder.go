@@ -12,6 +12,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 	baseAmount := 0.0
 	orderType := "market"
 	stopPrice := 0.0
+	frequency := 0.0
 	side := ""
 	orderPrice := price
 
@@ -83,7 +84,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 		}
 
 		if model.Conditions.EntrySpreadHunter {
-			orderType = "postOnly"
+			orderType = "post-only"
 		} else {
 			orderType = model.Conditions.EntryOrder.OrderType
 		}
@@ -170,6 +171,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 				go func(lastTimestamp int64) {
 					time.Sleep(time.Duration(model.Conditions.TimeoutLoss) * time.Second)
 					currentState := sm.Strategy.GetModel().State.State
+					//println("currentState", currentState, model.State.StopLossAt, lastTimestamp)
 					if currentState == Stoploss && model.State.StopLossAt == lastTimestamp {
 						sm.PlaceOrder(price, step)
 					} else {
@@ -287,7 +289,10 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 		side = oppositeSide
 
 		if model.Conditions.TakeProfitSpreadHunter && price > 0 {
-			orderType = "postOnly"
+			orderType = "post-only"
+			if model.Conditions.TakeProfitWaitingTime > 0 {
+				frequency = float64(model.Conditions.TakeProfitWaitingTime)
+			}
 			break
 		}
 
@@ -412,6 +417,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 				Price:      orderPrice,
 				ReduceOnly: &reduceOnly,
 				StopPrice:  stopPrice,
+				Frequency: frequency,
 			},
 		}
 		if request.KeyParams.Type == "stop" {
@@ -466,8 +472,9 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 				model.State.ExecutedOrders = append(model.State.ExecutedOrders, response.Data.Id)
 			}
 			if response.Data.Id != "0" {
+				println("response.Data.Id", response.Data.Id)
 				sm.OrdersMux.Lock()
-				sm.OrdersMap[response.Data.OrderId] = true
+				sm.OrdersMap[response.Data.Id] = true
 				sm.OrdersMux.Unlock()
 				println("waitForOrder execute")
 				go sm.waitForOrder(response.Data.Id, step)

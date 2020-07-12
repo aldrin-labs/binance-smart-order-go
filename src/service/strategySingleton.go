@@ -266,70 +266,72 @@ func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
 
 	// TAP change
 	// split targets
-	if len(model.Conditions.ExitLevels) > 1 || (model.Conditions.ExitLevels[0].Amount > 0) {
-		wasChanged := false
+	if len(model.Conditions.ExitLevels) > 0 {
+		if len(model.Conditions.ExitLevels) > 1 || (model.Conditions.ExitLevels[0].Amount > 0) {
+			wasChanged := false
 
-		if len(model.State.TakeProfit) != len(model.Conditions.ExitLevels) {
-			wasChanged = true
-		} else {
-			for i, target := range model.Conditions.ExitLevels {
-				if (target.Price != model.State.TakeProfit[i].Price || target.Amount != model.State.TakeProfit[i].Amount) && !wasChanged {
-					wasChanged = true
+			if len(model.State.TakeProfit) != len(model.Conditions.ExitLevels) {
+				wasChanged = true
+			} else {
+				for i, target := range model.Conditions.ExitLevels {
+					if (target.Price != model.State.TakeProfit[i].Price || target.Amount != model.State.TakeProfit[i].Amount) && !wasChanged {
+						wasChanged = true
+					}
 				}
 			}
-		}
 
-		// add some logic if some of targets was executed
-		if wasChanged {
+			// add some logic if some of targets was executed
+			if wasChanged {
+				ids := model.State.TakeProfitOrderIds[:]
+				lastExecutedTarget := 0
+				for i, id := range ids {
+					orderStillOpen := sm.IsOrderExistsInMap(id)
+					if orderStillOpen {
+						sm.SetSelectedExitTarget(i)
+						lastExecutedTarget = i
+						break
+					}
+				}
+
+				idsToCancel := ids[lastExecutedTarget:]
+				if isSpot {
+					sm.TryCancelAllOrdersConsistently(idsToCancel)
+					time.Sleep(5 * time.Second)
+				} else {
+					sm.TryCancelAllOrdersConsistently(idsToCancel)
+				}
+
+				// here we delete canceled orders
+				if lastExecutedTarget-1 >= 0 {
+					strategy.GetModel().State.TakeProfitOrderIds = ids[:lastExecutedTarget]
+				} else {
+					strategy.GetModel().State.TakeProfitOrderIds = make([]string, 0)
+				}
+
+				sm.PlaceOrder(0, smart_order.TakeProfit)
+			}
+		} else if model.Conditions.ExitLevels[0].ActivatePrice > 0 && (model.Conditions.ExitLevels[0].EntryDeviation != model.State.TakeProfit[0].EntryDeviation) {
+			// trailing TAP
 			ids := model.State.TakeProfitOrderIds[:]
-			lastExecutedTarget := 0
-			for i, id := range ids {
-				orderStillOpen := sm.IsOrderExistsInMap(id)
-				if orderStillOpen {
-					sm.SetSelectedExitTarget(i)
-					lastExecutedTarget = i
-					break
-				}
-			}
-
-			idsToCancel := ids[lastExecutedTarget:]
 			if isSpot {
-				sm.TryCancelAllOrdersConsistently(idsToCancel)
+				sm.TryCancelAllOrdersConsistently(ids)
 				time.Sleep(5 * time.Second)
 			} else {
-				sm.TryCancelAllOrdersConsistently(idsToCancel)
+				go sm.TryCancelAllOrders(ids)
 			}
 
-			// here we delete canceled orders
-			if lastExecutedTarget - 1 >= 0 {
-				strategy.GetModel().State.TakeProfitOrderIds = ids[:lastExecutedTarget]
+			sm.PlaceOrder(-1, smart_order.TakeProfit)
+		} else if model.Conditions.ExitLevels[0].Price != model.State.TakeProfit[0].Price { // simple TAP
+			ids := model.State.TakeProfitOrderIds[:]
+			if isSpot {
+				sm.TryCancelAllOrdersConsistently(ids)
+				time.Sleep(5 * time.Second)
 			} else {
-				strategy.GetModel().State.TakeProfitOrderIds = make([]string, 0)
+				go sm.TryCancelAllOrders(ids)
 			}
 
 			sm.PlaceOrder(0, smart_order.TakeProfit)
 		}
-	} else if model.Conditions.ExitLevels[0].ActivatePrice > 0 && (model.Conditions.ExitLevels[0].EntryDeviation != model.State.TakeProfit[0].EntryDeviation) {
-		// trailing TAP
-		ids := model.State.TakeProfitOrderIds[:]
-		if isSpot {
-			sm.TryCancelAllOrdersConsistently(ids)
-			time.Sleep(5 * time.Second)
-		} else {
-			go sm.TryCancelAllOrders(ids)
-		}
-
-		sm.PlaceOrder(-1, smart_order.TakeProfit)
-	} else if model.Conditions.ExitLevels[0].Price != model.State.TakeProfit[0].Price { // simple TAP
-		ids := model.State.TakeProfitOrderIds[:]
-		if isSpot {
-			sm.TryCancelAllOrdersConsistently(ids)
-			time.Sleep(5 * time.Second)
-		} else {
-			go sm.TryCancelAllOrders(ids)
-		}
-
-		sm.PlaceOrder(0, smart_order.TakeProfit)
 	}
 
 	strategy.StateMgmt.SaveStrategyConditions(strategy.Model)
