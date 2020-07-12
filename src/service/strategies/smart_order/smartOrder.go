@@ -121,16 +121,14 @@ func NewSmartOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed,
 		sm.checkLossHedge).OnEntry(sm.enterWaitLossHedge)
 
 	State.Configure(TakeProfit).PermitDynamic(CheckProfitTrade, sm.exit,
-		sm.checkProfit).PermitDynamic(CheckSpreadProfitTrade, sm.exit,
-		sm.checkSpreadTakeProfit).PermitDynamic(CheckTrailingProfitTrade, sm.exit,
+		sm.checkProfit).PermitDynamic(CheckTrailingProfitTrade, sm.exit,
 		sm.checkTrailingProfit).PermitDynamic(CheckLossTrade, sm.exit,
 		sm.checkLoss).PermitDynamic(CheckExistingOrders, sm.exit,
 		sm.checkExistingOrders).PermitDynamic(CheckHedgeLoss, sm.exit,
 		sm.checkLossHedge).OnEntry(sm.enterTakeProfit)
 
 	State.Configure(Stoploss).PermitDynamic(CheckProfitTrade, sm.exit,
-		sm.checkProfit).PermitDynamic(CheckSpreadProfitTrade, sm.exit,
-		sm.checkSpreadTakeProfit).PermitDynamic(CheckTrailingProfitTrade, sm.exit,
+		sm.checkProfit).PermitDynamic(CheckTrailingProfitTrade, sm.exit,
 		sm.checkTrailingProfit).PermitDynamic(CheckLossTrade, sm.exit,
 		sm.checkLoss).PermitDynamic(CheckExistingOrders, sm.exit,
 		sm.checkExistingOrders).PermitDynamic(CheckHedgeLoss, sm.exit,
@@ -405,7 +403,7 @@ func (sm *SmartOrder) checkLoss(ctx context.Context, args ...interface{}) bool {
 	existTimeout := model.Conditions.TimeoutWhenLoss != 0 || model.Conditions.TimeoutLoss != 0
 	isSpot := model.Conditions.MarketType == 0
 
-	if ok && isWaitingForOrder.(bool) && !existTimeout && !isSpot  {
+	if ok && isWaitingForOrder.(bool) && !existTimeout && !isSpot {
 		return false
 	}
 	if model.Conditions.StopLossExternal {
@@ -437,7 +435,7 @@ func (sm *SmartOrder) checkLoss(ctx context.Context, args ...interface{}) bool {
 
 	// try exit on timeout
 	if model.Conditions.TimeoutWhenLoss > 0 {
-		isLoss := (model.Conditions.EntryOrder.Side == "buy" && model.Conditions.EntryOrder.Price > currentOHLCV.Close) || (model.Conditions.EntryOrder.Side == "sell" && model.Conditions.EntryOrder.Price < currentOHLCV.Close)
+		isLoss := (model.Conditions.EntryOrder.Side == "buy" && model.State.EntryPrice > currentOHLCV.Close) || (model.Conditions.EntryOrder.Side == "sell" && model.State.EntryPrice < currentOHLCV.Close)
 		if isLoss && model.State.LossableAt == 0 {
 			model.State.LossableAt = time.Now().Unix()
 			go func(lossAt int64) {
@@ -541,6 +539,7 @@ func (sm *SmartOrder) enterTakeProfit(ctx context.Context, args ...interface{}) 
 }
 
 func (sm *SmartOrder) enterStopLoss(ctx context.Context, args ...interface{}) error {
+	//println("entry stopLoss")
 	if currentOHLCV, ok := args[0].(interfaces.OHLCV); ok {
 		if sm.Strategy.GetModel().State.Amount > 0 {
 			side := "buy"
