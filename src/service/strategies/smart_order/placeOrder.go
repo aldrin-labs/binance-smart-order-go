@@ -288,13 +288,13 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 		baseAmount = model.Conditions.EntryOrder.Amount
 		side = oppositeSide
 
-		if model.Conditions.TakeProfitSpreadHunter && price > 0 {
-			orderType = "post-only"
-			if model.Conditions.TakeProfitWaitingTime > 0 {
-				frequency = float64(model.Conditions.TakeProfitWaitingTime)
-			}
-			break
-		}
+		//if model.Conditions.TakeProfitSpreadHunter && price > 0 {
+		//	orderType = "post-only"
+		//	if model.Conditions.TakeProfitWaitingTime > 0 {
+		//		frequency = float64(model.Conditions.TakeProfitWaitingTime)
+		//	}
+		//	break
+		//}
 
 		if price == 0 && isTrailingTarget {
 			// trailing exit, we cant place exit order now
