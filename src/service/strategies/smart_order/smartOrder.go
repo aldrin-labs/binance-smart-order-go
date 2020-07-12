@@ -617,7 +617,7 @@ func (sm *SmartOrder) Start() {
 			break
 		}
 		if !sm.Lock {
-			if sm.Strategy.GetModel().Conditions.EntrySpreadHunter {
+			if sm.Strategy.GetModel().Conditions.EntrySpreadHunter && state != InEntry {
 				sm.processSpreadEventLoop()
 			} else {
 				sm.processEventLoop()
