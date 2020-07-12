@@ -5,7 +5,7 @@ import (
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 )
 
-func (sm *SmartOrder) checkSpreadCondition(spread interfaces.SpreadData, orderType string, isEntry bool) bool {
+func (sm *SmartOrder) checkSpreadCondition(spread interfaces.SpreadData) bool {
 	fee := 0.001 * 2
 
 	if (spread.BestAsk / spread.BestBid - 1) > fee {
@@ -24,10 +24,8 @@ func (sm *SmartOrder) checkSpreadEntry(ctx context.Context, args ...interface{})
 		return false
 	}
 	currentSpread := args[0].(interfaces.SpreadData)
-	model := sm.Strategy.GetModel()
 
-
-	if sm.checkSpreadCondition(currentSpread, model.Conditions.EntryOrder.OrderType, true) {
+	if sm.checkSpreadCondition(currentSpread) {
 		sm.PlaceOrder(currentSpread.BestBid, WaitForEntry)
 	}
 
@@ -43,9 +41,8 @@ func (sm *SmartOrder) checkSpreadTakeProfit(ctx context.Context, args ...interfa
 		return false
 	}
 	currentSpread := args[0].(interfaces.SpreadData)
-	model := sm.Strategy.GetModel()
 
-	if sm.checkSpreadCondition(currentSpread, model.Conditions.ExitLevels[sm.SelectedExitTarget].OrderType, false) {
+	if sm.checkSpreadCondition(currentSpread) {
 		sm.PlaceOrder(currentSpread.BestBid, TakeProfit)
 	}
 
