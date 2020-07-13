@@ -58,10 +58,10 @@ type SmartOrder struct {
 	QuantityAmountPrecision int64
 	QuantityPricePrecision  int64
 	Lock                    bool
-	StopLock				bool
+	StopLock                bool
 	LastTrailingTimestamp   int64
 	SelectedExitTarget      int
-	OrdersMux sync.Mutex
+	OrdersMux               sync.Mutex
 }
 
 func round(num float64) int {
@@ -149,7 +149,7 @@ func NewSmartOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed,
 	return sm
 }
 
-func (sm *SmartOrder) checkIfShouldCancelIfAnyActive(){
+func (sm *SmartOrder) checkIfShouldCancelIfAnyActive() {
 	model := sm.Strategy.GetModel()
 
 	if model.Conditions.CancelIfAnyActive && sm.StateMgmt.AnyActiveStrats(model) {
@@ -219,7 +219,7 @@ func (sm *SmartOrder) checkWaitEntry(ctx context.Context, args ...interface{}) b
 	model := sm.Strategy.GetModel()
 	conditionPrice := model.Conditions.EntryOrder.Price
 	isInstantMarketOrder := model.Conditions.EntryOrder.ActivatePrice == 0 && model.Conditions.EntryOrder.OrderType == "market"
-	if  model.Conditions.EntryOrder.ActivatePrice == -1 || isInstantMarketOrder {
+	if model.Conditions.EntryOrder.ActivatePrice == -1 || isInstantMarketOrder {
 		return true
 	}
 	isTrailing := model.Conditions.EntryOrder.ActivatePrice != 0
@@ -264,19 +264,19 @@ func (sm *SmartOrder) enterEntry(ctx context.Context, args ...interface{}) error
 	sm.Strategy.GetModel().State.ExecutedOrders = []string{}
 	go sm.StateMgmt.UpdateState(sm.Strategy.GetModel().ID, sm.Strategy.GetModel().State)
 
-	if !sm.Strategy.GetModel().Conditions.EntrySpreadHunter {
-		if isSpot {
-			sm.PlaceOrder(sm.Strategy.GetModel().State.EntryPrice, InEntry)
-			if !sm.Strategy.GetModel().Conditions.TakeProfitExternal {
-				sm.PlaceOrder(0, TakeProfit)
-			}
-		} else {
-			go sm.PlaceOrder(sm.Strategy.GetModel().State.EntryPrice, InEntry)
-			if !sm.Strategy.GetModel().Conditions.TakeProfitExternal {
-				sm.PlaceOrder(0, TakeProfit)
-			}
+	//if !sm.Strategy.GetModel().Conditions.EntrySpreadHunter {
+	if isSpot {
+		sm.PlaceOrder(sm.Strategy.GetModel().State.EntryPrice, InEntry)
+		if !sm.Strategy.GetModel().Conditions.TakeProfitExternal {
+			sm.PlaceOrder(0, TakeProfit)
+		}
+	} else {
+		go sm.PlaceOrder(sm.Strategy.GetModel().State.EntryPrice, InEntry)
+		if !sm.Strategy.GetModel().Conditions.TakeProfitExternal {
+			sm.PlaceOrder(0, TakeProfit)
 		}
 	}
+	//}
 
 	if !sm.Strategy.GetModel().Conditions.StopLossExternal {
 		go sm.PlaceOrder(0, Stoploss)
@@ -479,7 +479,7 @@ func (sm *SmartOrder) checkLoss(ctx context.Context, args ...interface{}) bool {
 		}
 		break
 	case "sell":
-		if isSpot && forcedLoss > 0 && (currentOHLCV.Close/model.State.EntryPrice-1)*100 >= forcedLoss  {
+		if isSpot && forcedLoss > 0 && (currentOHLCV.Close/model.State.EntryPrice-1)*100 >= forcedLoss {
 			sm.PlaceOrder(currentOHLCV.Close, Stoploss)
 			return false
 		}
