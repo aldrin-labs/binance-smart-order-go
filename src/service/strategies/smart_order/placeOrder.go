@@ -84,7 +84,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 		}
 
 		if model.Conditions.EntrySpreadHunter {
-			orderType = "post-only"
+			orderType = "maker-only"
 		} else {
 			orderType = model.Conditions.EntryOrder.OrderType
 		}
@@ -289,7 +289,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 		side = oppositeSide
 
 		//if model.Conditions.TakeProfitSpreadHunter && price > 0 {
-		//	orderType = "post-only"
+		//	orderType = "maker-only"
 		//	if model.Conditions.TakeProfitWaitingTime > 0 {
 		//		frequency = float64(model.Conditions.TakeProfitWaitingTime)
 		//	}
