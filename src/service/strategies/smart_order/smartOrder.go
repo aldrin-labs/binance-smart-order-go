@@ -111,8 +111,7 @@ func NewSmartOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed,
 
 	State.Configure(InEntry).PermitDynamic(CheckProfitTrade, sm.exit,
 		sm.checkProfit).PermitDynamic(CheckTrailingProfitTrade, sm.exit,
-		sm.checkTrailingProfit).PermitDynamic(CheckSpreadProfitTrade, sm.exit,
-		sm.checkSpreadTakeProfit).PermitDynamic(CheckLossTrade, sm.exit,
+		sm.checkTrailingProfit).PermitDynamic(CheckLossTrade, sm.exit,
 		sm.checkLoss).PermitDynamic(CheckExistingOrders, sm.exit,
 		sm.checkExistingOrders).PermitDynamic(CheckHedgeLoss, sm.exit,
 		sm.checkLossHedge).OnEntry(sm.enterEntry)
@@ -617,7 +616,7 @@ func (sm *SmartOrder) Start() {
 			break
 		}
 		if !sm.Lock {
-			if sm.Strategy.GetModel().Conditions.EntrySpreadHunter {
+			if sm.Strategy.GetModel().Conditions.EntrySpreadHunter && state != InEntry {
 				sm.processSpreadEventLoop()
 			} else {
 				sm.processEventLoop()
