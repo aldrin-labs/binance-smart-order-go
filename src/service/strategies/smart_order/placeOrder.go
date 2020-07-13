@@ -83,11 +83,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 			return // do nothing because we dont know entry price, coz didnt hit activation price yet
 		}
 
-		if model.Conditions.EntrySpreadHunter {
-			orderType = "maker-only"
-		} else {
-			orderType = model.Conditions.EntryOrder.OrderType
-		}
+		orderType = model.Conditions.EntryOrder.OrderType
 
 		side = model.Conditions.EntryOrder.Side
 		baseAmount = model.Conditions.EntryOrder.Amount
