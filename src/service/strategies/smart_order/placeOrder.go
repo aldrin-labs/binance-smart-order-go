@@ -377,13 +377,14 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 	case Canceled:
 		{
 			currentState, _ := sm.State.State(context.TODO())
-			thereIsNoEntryToExit := currentState == WaitForEntry || currentState == TrailingEntry || currentState == End
+			thereIsNoEntryToExit := currentState == WaitForEntry || currentState == TrailingEntry || currentState == End || model.State.ExecutedAmount >= model.Conditions.EntryOrder.Amount
 			if thereIsNoEntryToExit {
 				return
 			}
 			side = oppositeSide
 			reduceOnly = true
 			baseAmount = model.Conditions.EntryOrder.Amount
+			orderType = "market"
 			if isSpot {
 				sm.TryCancelAllOrdersConsistently(sm.Strategy.GetModel().State.Orders)
 			}

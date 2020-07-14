@@ -128,7 +128,6 @@ func (sm *StateMgmt) DisableStrategy(strategyId *primitive.ObjectID) {
 	}
 }
 
-// TODO: refactor so it will be one global subscribtion to orders collection instead of one per order
 func (sm *StateMgmt) SubscribeToOrder(orderId string, onOrderStatusUpdate func(order *models.MongoOrder)) error {
 	sm.OrderCallbacks.Store(orderId, onOrderStatusUpdate)
 	executedOrder := sm.GetOrder(orderId)
@@ -136,26 +135,6 @@ func (sm *StateMgmt) SubscribeToOrder(orderId string, onOrderStatusUpdate func(o
 	if executedOrder != nil {
 		onOrderStatusUpdate(executedOrder)
 	}
-	//ch := make(chan int)
-	//go func(ch chan int) {
-	//	executedOrder := sm.GetOrder(orderId)
-	//	isOrderStillOpen := true
-	//	for isOrderStillOpen {
-	//		select {
-	//		case i := <-ch:
-	//			println("received realtime, closing refetch loop", orderId, i)
-	//			return
-	//		default:
-	//			executedOrder = sm.GetOrder(orderId)
-	//			if executedOrder != nil {
-	//				onOrderStatusUpdate(executedOrder)
-	//			}
-	//			time.Sleep(2 * time.Second)
-	//			isOrderStillOpen = executedOrder == nil || (executedOrder.Status != "expired" && executedOrder.Status != "filled" && executedOrder.Status != "closed" && executedOrder.Status != "canceled")
-	//		}
-	//	}
-	//}(ch)
-	//time.Sleep(3 * time.Second)
 	return nil
 }
 

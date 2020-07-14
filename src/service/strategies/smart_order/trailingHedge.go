@@ -56,7 +56,7 @@ func (sm *SmartOrder) waitForHedge() {
 }
 
 func (sm *SmartOrder) hedge() {
-	if sm.Strategy.GetModel().Conditions.Hedging {
+	if sm.Strategy.GetModel().Conditions.MarketType == 1 && sm.Strategy.GetModel().Conditions.Hedging {
 		if !sm.Strategy.GetModel().Conditions.SkipInitialSetup {
 			sm.ExchangeApi.SetHedgeMode(sm.Strategy.GetModel().AccountId, true)
 			time.Sleep(5 * time.Second)
