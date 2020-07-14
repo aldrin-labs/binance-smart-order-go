@@ -169,9 +169,9 @@ func (sm *SmartOrder) onStart(ctx context.Context, args ...interface{}) error {
 
 func (sm *SmartOrder) checkIfPlaceOrderInstantlyOnStart() {
 	isFirstRunSoStateisEmpty := sm.Strategy.GetModel().State.State == ""
-	if isFirstRunSoStateisEmpty && sm.Strategy.GetModel().Enabled {
+	if isFirstRunSoStateisEmpty && sm.Strategy.GetModel().Enabled && !sm.Strategy.GetModel().Conditions.EntrySpreadHunter {
 		entryIsNotTrailing := sm.Strategy.GetModel().Conditions.EntryOrder.ActivatePrice == 0
-		if entryIsNotTrailing && !sm.Strategy.GetModel().Conditions.EntrySpreadHunter { // then we must know exact price
+		if entryIsNotTrailing { // then we must know exact price
 			sm.IsWaitingForOrder.Store(WaitForEntry, true)
 			sm.PlaceOrder(sm.Strategy.GetModel().Conditions.EntryOrder.Price, WaitForEntry)
 		}
