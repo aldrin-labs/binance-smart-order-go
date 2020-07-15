@@ -657,8 +657,9 @@ func (sm *SmartOrder) Stop() {
 	States := sm.Strategy.GetModel().State.State
 	if States == Timeout && sm.Strategy.GetModel().Conditions.ContinueIfEnded == true {
 		sm.IsWaitingForOrder = sync.Map{}
+		sm.StateMgmt.EnableStrategy(sm.Strategy.GetModel().ID)
 		sm.State.Fire(Restart)
-		go sm.Start()
+		sm.Start()
 	}
 }
 
