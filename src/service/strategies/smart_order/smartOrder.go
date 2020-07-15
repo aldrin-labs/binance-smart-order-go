@@ -647,19 +647,23 @@ func (sm *SmartOrder) Stop() {
 	} else {
 		go sm.TryCancelAllOrders(sm.Strategy.GetModel().State.Orders)
 	}
-	if state != End {
+	StateS := sm.Strategy.GetModel().State.State
+	if state != End && StateS != Timeout {
 		sm.PlaceOrder(0, Canceled)
 	}
 	if sm.Strategy.GetModel().Conditions.ContinueIfEnded == false {
 		sm.StateMgmt.DisableStrategy(sm.Strategy.GetModel().ID)
 	}
 	sm.StopLock = false
-	States := sm.Strategy.GetModel().State.State
-	if States == Timeout && sm.Strategy.GetModel().Conditions.ContinueIfEnded == true {
+	if StateS == Timeout && sm.Strategy.GetModel().Conditions.ContinueIfEnded == true {
 		sm.IsWaitingForOrder = sync.Map{}
 		sm.StateMgmt.EnableStrategy(sm.Strategy.GetModel().ID)
+		stateModel := sm.Strategy.GetModel().State
+		stateModel.State = WaitForEntry
+		sm.StateMgmt.UpdateState(sm.Strategy.GetModel().ID, stateModel)
 		sm.State.Fire(Restart)
 		sm.Start()
+		_ = sm.onStart(nil)
 	}
 }
 
