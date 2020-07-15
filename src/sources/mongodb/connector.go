@@ -106,6 +106,28 @@ func (sm *StateMgmt) InitOrdersWatch() {
 	}
 }
 
+func (sm *StateMgmt) EnableStrategy(strategyId *primitive.ObjectID) {
+	col := GetCollection("core_strategies")
+	var request bson.D
+	request = bson.D{
+		{"_id", strategyId},
+	}
+	var update bson.D
+	update = bson.D{
+		{
+			"$set", bson.D{
+			{
+				"enabled", true,
+			},
+		},
+		},
+	}
+	_, err := col.UpdateOne(context.TODO(), request, update)
+	if err != nil {
+		println("error in arg", err.Error())
+	}
+}
+
 func (sm *StateMgmt) DisableStrategy(strategyId *primitive.ObjectID) {
 	col := GetCollection("core_strategies")
 	var request bson.D
