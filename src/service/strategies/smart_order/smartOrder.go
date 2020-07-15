@@ -42,6 +42,7 @@ const (
 	CheckTrailingLossTrade   = "CheckTrailingLossTrade"
 	CheckSpreadProfitTrade   = "CheckSpreadProfitTrade"
 	CheckLossTrade           = "CheckLossTrade"
+	Restart             	 = "Restart"
 )
 
 type SmartOrder struct {
@@ -136,6 +137,8 @@ func NewSmartOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed,
 	State.Configure(HedgeLoss).PermitDynamic(CheckTrailingLossTrade, sm.exit,
 		sm.checkTrailingHedgeLoss).PermitDynamic(CheckExistingOrders, sm.exit,
 		sm.checkExistingOrders)
+
+	State.Configure(Timeout).Permit(Restart, WaitForEntry)
 
 	State.Configure(End).OnEntry(sm.enterEnd)
 
@@ -631,7 +634,9 @@ func (sm *SmartOrder) Start() {
 
 func (sm *SmartOrder) Stop() {
 	if sm.StopLock {
-		sm.StateMgmt.DisableStrategy(sm.Strategy.GetModel().ID)
+		if sm.Strategy.GetModel().Conditions.ContinueIfEnded == false {
+			sm.StateMgmt.DisableStrategy(sm.Strategy.GetModel().ID)
+		}
 		go sm.TryCancelAllOrders(sm.Strategy.GetModel().State.Orders)
 		return
 	}
@@ -645,8 +650,16 @@ func (sm *SmartOrder) Stop() {
 	if state != End {
 		sm.PlaceOrder(0, Canceled)
 	}
-	sm.StateMgmt.DisableStrategy(sm.Strategy.GetModel().ID)
+	if sm.Strategy.GetModel().Conditions.ContinueIfEnded == false {
+		sm.StateMgmt.DisableStrategy(sm.Strategy.GetModel().ID)
+	}
 	sm.StopLock = false
+	States := sm.Strategy.GetModel().State.State
+	if States == Timeout && sm.Strategy.GetModel().Conditions.ContinueIfEnded == true {
+		sm.IsWaitingForOrder = sync.Map{}
+		sm.State.Fire(Restart)
+		go sm.Start()
+	}
 }
 
 func (sm *SmartOrder) processEventLoop() {
