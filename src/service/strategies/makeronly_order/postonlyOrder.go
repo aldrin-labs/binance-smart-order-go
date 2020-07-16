@@ -126,5 +126,5 @@ func (sm *MakerOnlyOrder) Start() {
 		state, _ = sm.State.State(ctx)
 	}
 	//sm.Stop()
-	println("STOPPED")
+	println("STOPPED postonly")
 }
