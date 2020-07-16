@@ -648,7 +648,7 @@ func (sm *SmartOrder) Stop() {
 		go sm.TryCancelAllOrders(sm.Strategy.GetModel().State.Orders)
 	}
 	StateS := sm.Strategy.GetModel().State.State
-	if state != End && StateS != Timeout {
+	if state != End && StateS != Timeout && sm.Strategy.GetModel().Conditions.EntrySpreadHunter == false {
 		sm.PlaceOrder(0, Canceled)
 	}
 	if sm.Strategy.GetModel().Conditions.ContinueIfEnded == false {
