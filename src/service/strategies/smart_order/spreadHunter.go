@@ -6,7 +6,7 @@ import (
 )
 
 func (sm *SmartOrder) checkSpreadCondition(spread interfaces.SpreadData) bool {
-	fee := 0.000012
+	fee := 0.0012
 	if (spread.BestAsk / spread.BestBid - 1) > fee {
 		return true
 	}
