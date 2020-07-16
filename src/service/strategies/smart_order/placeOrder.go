@@ -116,7 +116,8 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 		//if isSpot {
 		//	baseAmount = baseAmount * 0.99
 		//}
-		
+		println("place stop-loss")
+
 		side = "buy"
 		if model.Conditions.EntryOrder.Side == side {
 			side = "sell"
@@ -283,6 +284,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 		isSpotMarketOrder := target.OrderType == "market" && isSpot
 		baseAmount = model.Conditions.EntryOrder.Amount
 		side = oppositeSide
+		println("place take-profit")
 
 		//if model.Conditions.TakeProfitSpreadHunter && price > 0 {
 		//	orderType = "maker-only"

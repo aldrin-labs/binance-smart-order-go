@@ -281,7 +281,7 @@ func (sm *SmartOrder) enterEntry(ctx context.Context, args ...interface{}) error
 	}
 	//}
 
-	if !sm.Strategy.GetModel().Conditions.StopLossExternal {
+	if !sm.Strategy.GetModel().Conditions.StopLossExternal && !isSpot {
 		go sm.PlaceOrder(0, Stoploss)
 	}
 
