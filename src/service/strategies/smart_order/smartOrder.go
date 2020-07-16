@@ -281,7 +281,7 @@ func (sm *SmartOrder) enterEntry(ctx context.Context, args ...interface{}) error
 	}
 	//}
 
-	if !sm.Strategy.GetModel().Conditions.StopLossExternal {
+	if !sm.Strategy.GetModel().Conditions.StopLossExternal && !isSpot {
 		go sm.PlaceOrder(0, Stoploss)
 	}
 
@@ -616,6 +616,7 @@ func (sm *SmartOrder) Start() {
 	state, _ := sm.State.State(ctx)
 	for state != End && state != Canceled {
 		if sm.Strategy.GetModel().Enabled == false {
+			state, _ = sm.State.State(ctx)
 			break
 		}
 		if !sm.Lock {
@@ -629,7 +630,7 @@ func (sm *SmartOrder) Start() {
 		state, _ = sm.State.State(ctx)
 	}
 	sm.Stop()
-	println("STOPPED")
+	println("STOPPED smartorder", state.(string))
 }
 
 func (sm *SmartOrder) Stop() {
@@ -648,7 +649,7 @@ func (sm *SmartOrder) Stop() {
 		go sm.TryCancelAllOrders(sm.Strategy.GetModel().State.Orders)
 	}
 	StateS := sm.Strategy.GetModel().State.State
-	if state != End && StateS != Timeout {
+	if state != End && StateS != Timeout && sm.Strategy.GetModel().Conditions.EntrySpreadHunter == false {
 		sm.PlaceOrder(0, Canceled)
 	}
 	if sm.Strategy.GetModel().Conditions.ContinueIfEnded == false {
@@ -658,12 +659,14 @@ func (sm *SmartOrder) Stop() {
 	if StateS == Timeout && sm.Strategy.GetModel().Conditions.ContinueIfEnded == true {
 		sm.IsWaitingForOrder = sync.Map{}
 		sm.StateMgmt.EnableStrategy(sm.Strategy.GetModel().ID)
+		sm.Strategy.GetModel().Enabled = true
 		stateModel := sm.Strategy.GetModel().State
 		stateModel.State = WaitForEntry
+		stateModel.Orders = []string{}
 		sm.StateMgmt.UpdateState(sm.Strategy.GetModel().ID, stateModel)
 		sm.State.Fire(Restart)
-		sm.Start()
 		_ = sm.onStart(nil)
+		sm.Start()
 	}
 }
 
