@@ -615,7 +615,7 @@ func (sm *SmartOrder) Start() {
 
 	state, _ := sm.State.State(ctx)
 	for state != End && state != Canceled {
-		if sm.Strategy.GetModel().Enabled == false {
+		if sm.Strategy.GetModel().Enabled == false || sm.Strategy.GetModel().Conditions.PositionWasClosed {
 			state, _ = sm.State.State(ctx)
 			break
 		}
@@ -656,7 +656,7 @@ func (sm *SmartOrder) Stop() {
 		sm.StateMgmt.DisableStrategy(sm.Strategy.GetModel().ID)
 	}
 	sm.StopLock = false
-	if StateS == Timeout && sm.Strategy.GetModel().Conditions.ContinueIfEnded == true {
+	if StateS == Timeout && sm.Strategy.GetModel().Conditions.ContinueIfEnded == true && !sm.Strategy.GetModel().Conditions.PositionWasClosed {
 		sm.IsWaitingForOrder = sync.Map{}
 		sm.StateMgmt.EnableStrategy(sm.Strategy.GetModel().ID)
 		sm.Strategy.GetModel().Enabled = true
