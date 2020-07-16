@@ -116,7 +116,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 		//if isSpot {
 		//	baseAmount = baseAmount * 0.99
 		//}
-
+		
 		side = "buy"
 		if model.Conditions.EntryOrder.Side == side {
 			side = "sell"
