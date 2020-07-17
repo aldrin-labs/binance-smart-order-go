@@ -63,6 +63,7 @@ type SmartOrder struct {
 	LastTrailingTimestamp   int64
 	SelectedExitTarget      int
 	OrdersMux               sync.Mutex
+	StopMux                 sync.Mutex
 }
 
 func round(num float64) int {
@@ -660,6 +661,7 @@ func (sm *SmartOrder) Stop() {
 	sm.StopLock = false
 	println("pair stateS", sm.Strategy.GetModel().Conditions.Pair, StateS)
 	if StateS == Timeout && sm.Strategy.GetModel().Conditions.ContinueIfEnded == true && !sm.Strategy.GetModel().Conditions.PositionWasClosed {
+		sm.StopMux.Lock()
 		sm.IsWaitingForOrder = sync.Map{}
 		sm.StateMgmt.EnableStrategy(sm.Strategy.GetModel().ID)
 		sm.Strategy.GetModel().Enabled = true
@@ -669,6 +671,7 @@ func (sm *SmartOrder) Stop() {
 		sm.StateMgmt.UpdateState(sm.Strategy.GetModel().ID, stateModel)
 		sm.State.Fire(Restart)
 		_ = sm.onStart(nil)
+		sm.StopMux.Unlock()
 		sm.Start()
 	}
 }
