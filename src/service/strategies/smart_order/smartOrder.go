@@ -270,12 +270,12 @@ func (sm *SmartOrder) enterEntry(ctx context.Context, args ...interface{}) error
 	//if !sm.Strategy.GetModel().Conditions.EntrySpreadHunter {
 	if isSpot {
 		sm.PlaceOrder(sm.Strategy.GetModel().State.EntryPrice, InEntry)
-		if !sm.Strategy.GetModel().Conditions.TakeProfitExternal {
+		if !sm.Strategy.GetModel().Conditions.TakeProfitExternal && !sm.Strategy.GetModel().Conditions.TakeProfitSpreadHunter {
 			sm.PlaceOrder(0, TakeProfit)
 		}
 	} else {
 		go sm.PlaceOrder(sm.Strategy.GetModel().State.EntryPrice, InEntry)
-		if !sm.Strategy.GetModel().Conditions.TakeProfitExternal {
+		if !sm.Strategy.GetModel().Conditions.TakeProfitExternal && !sm.Strategy.GetModel().Conditions.TakeProfitSpreadHunter {
 			sm.PlaceOrder(0, TakeProfit)
 		}
 	}

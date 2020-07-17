@@ -43,7 +43,7 @@ func (sm *SmartOrder) orderCallback(order *models.MongoOrder) {
 	}
 }
 func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface{}) bool {
-	//println("in checkExisitingFunc")
+	println("in checkExisitingFunc")
 	if args == nil {
 		return false
 	}
@@ -58,7 +58,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 	if !ok {
 		return false
 	}
-	//println("orderStatus", orderStatus)
+	println("orderStatus", orderStatus)
 	model := sm.Strategy.GetModel()
 	if order.Type == "post-only" {
 		order = *sm.StateMgmt.GetOrder(order.PostOnlyFinalOrderId)
@@ -87,6 +87,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			if model.State.EntryPrice > 0 {
 				return false
 			}
+			println("waitoForEntry in waitOrder average", order.Average)
 			model.State.EntryPrice = order.Average
 			model.State.State = InEntry
 			sm.StateMgmt.UpdateEntryPrice(model.ID, model.State)

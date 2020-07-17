@@ -397,7 +397,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 	println("orderPrice before toFixed", orderPrice)
 	orderPrice = sm.toFixed(orderPrice, sm.QuantityPricePrecision)
 	println("orderPrice after toFixed", orderPrice)
-	
+
 	advancedOrderType := orderType
 	if strings.Contains(orderType, "stop") || strings.Contains(orderType, "take-profit") {
 		orderType = "stop"
