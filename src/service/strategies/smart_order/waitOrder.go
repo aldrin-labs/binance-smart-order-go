@@ -58,7 +58,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 	if !ok {
 		return false
 	}
-	println("orderStatus", orderStatus)
+	println("orderStatus, step", orderStatus, step.(string))
 	model := sm.Strategy.GetModel()
 	if order.Type == "post-only" {
 		order = *sm.StateMgmt.GetOrder(order.PostOnlyFinalOrderId)
