@@ -42,6 +42,7 @@ func (sm *SmartOrder) checkSpreadTakeProfit(ctx context.Context, args ...interfa
 	currentSpread := args[0].(interfaces.SpreadData)
 
 	if sm.checkSpreadCondition(currentSpread) {
+		println("best bid before placing TAP", currentSpread.BestBid)
 		sm.PlaceOrder(currentSpread.BestBid, TakeProfit)
 	}
 
