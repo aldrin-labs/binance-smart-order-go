@@ -404,7 +404,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 		stopPrice = orderPrice
 	}
 	for {
-		if baseAmount == 0 {
+		if baseAmount == 0 || orderType == "limit" && orderPrice == 0 {
 			return
 		}
 		request := trading.CreateOrderRequest{
