@@ -284,6 +284,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 		isSpotMarketOrder := target.OrderType == "market" && isSpot
 		baseAmount = model.Conditions.EntryOrder.Amount
 		side = oppositeSide
+		println("take profit price, orderPrice", price, orderPrice)
 
 		//if model.Conditions.TakeProfitSpreadHunter && price > 0 {
 		//	orderType = "maker-only"
@@ -372,7 +373,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 		} else {
 			baseAmount = sm.getLastTargetAmount()
 		}
-
+		println("take profit price, orderPrice in the end", price, orderPrice)
 		// model.State.ExecutedAmount += amount
 		break
 	case Canceled:
@@ -393,8 +394,10 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 		}
 	}
 	baseAmount = sm.toFixed(baseAmount, sm.QuantityAmountPrecision)
+	println("orderPrice before toFixed", orderPrice)
 	orderPrice = sm.toFixed(orderPrice, sm.QuantityPricePrecision)
-
+	println("orderPrice after toFixed", orderPrice)
+	
 	advancedOrderType := orderType
 	if strings.Contains(orderType, "stop") || strings.Contains(orderType, "take-profit") {
 		orderType = "stop"
