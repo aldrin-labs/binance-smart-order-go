@@ -658,6 +658,7 @@ func (sm *SmartOrder) Stop() {
 		sm.StateMgmt.DisableStrategy(sm.Strategy.GetModel().ID)
 	}
 	sm.StopLock = false
+	println("pair stateS", sm.Strategy.GetModel().Conditions.Pair, StateS)
 	if StateS == Timeout && sm.Strategy.GetModel().Conditions.ContinueIfEnded == true && !sm.Strategy.GetModel().Conditions.PositionWasClosed {
 		sm.IsWaitingForOrder = sync.Map{}
 		sm.StateMgmt.EnableStrategy(sm.Strategy.GetModel().ID)
