@@ -101,6 +101,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			if model.Conditions.MarketType == 0 {
 				amount = amount * 0.99
 			}
+			println("model.State.ExecutedAmount >= amount", model.State.ExecutedAmount >= amount)
 			if model.State.ExecutedAmount >= amount {
 			} else {
 				go sm.PlaceOrder(0, Stoploss)
