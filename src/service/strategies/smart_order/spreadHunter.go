@@ -6,7 +6,7 @@ import (
 )
 
 func (sm *SmartOrder) checkSpreadCondition(spread interfaces.SpreadData) bool {
-	fee := 0.000012
+	fee := 0.0012
 	if (spread.BestAsk / spread.BestBid - 1) > fee {
 		return true
 	}
@@ -42,7 +42,6 @@ func (sm *SmartOrder) checkSpreadTakeProfit(ctx context.Context, args ...interfa
 	currentSpread := args[0].(interfaces.SpreadData)
 
 	if sm.checkSpreadCondition(currentSpread) {
-		println("best bid before placing TAP", currentSpread.BestBid)
 		sm.PlaceOrder(currentSpread.BestBid, TakeProfit)
 	}
 
