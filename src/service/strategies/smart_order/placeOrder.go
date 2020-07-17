@@ -87,6 +87,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 
 		side = model.Conditions.EntryOrder.Side
 		baseAmount = model.Conditions.EntryOrder.Amount
+		println("orderPrice in waitForEntry", orderPrice)
 		break
 	case HedgeLoss:
 		reduceOnly = true
