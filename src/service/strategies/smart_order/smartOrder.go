@@ -43,6 +43,7 @@ const (
 	CheckSpreadProfitTrade   = "CheckSpreadProfitTrade"
 	CheckLossTrade           = "CheckLossTrade"
 	Restart             	 = "Restart"
+	TriggerTimeout           = "TriggerTimeout"
 )
 
 type SmartOrder struct {
@@ -63,6 +64,7 @@ type SmartOrder struct {
 	LastTrailingTimestamp   int64
 	SelectedExitTarget      int
 	OrdersMux               sync.Mutex
+	StopMux                 sync.Mutex
 }
 
 func round(num float64) int {
@@ -104,7 +106,7 @@ func NewSmartOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed,
 	State.Configure(WaitForEntry).PermitDynamic(TriggerTrade, sm.exitWaitEntry,
 		sm.checkWaitEntry).PermitDynamic(TriggerSpread, sm.exitWaitEntry,
 		sm.checkSpreadEntry).PermitDynamic(CheckExistingOrders, sm.exitWaitEntry,
-		sm.checkExistingOrders).OnEntry(sm.onStart)
+		sm.checkExistingOrders).Permit(TriggerTimeout, Timeout).OnEntry(sm.onStart)
 
 	State.Configure(TrailingEntry).Permit(TriggerTrade, InEntry,
 		sm.checkTrailingEntry).Permit(CheckExistingOrders, InEntry,
@@ -247,6 +249,7 @@ func (sm *SmartOrder) checkWaitEntry(ctx context.Context, args ...interface{}) b
 }
 
 func (sm *SmartOrder) enterEntry(ctx context.Context, args ...interface{}) error {
+	//println("enter entry")
 	isSpot := sm.Strategy.GetModel().Conditions.MarketType == 0
 	// if we returned to InEntry from Stoploss timeout
 	if sm.Strategy.GetModel().State.StopLossAt == -1 {
@@ -270,12 +273,13 @@ func (sm *SmartOrder) enterEntry(ctx context.Context, args ...interface{}) error
 	//if !sm.Strategy.GetModel().Conditions.EntrySpreadHunter {
 	if isSpot {
 		sm.PlaceOrder(sm.Strategy.GetModel().State.EntryPrice, InEntry)
-		if !sm.Strategy.GetModel().Conditions.TakeProfitExternal {
+		if !sm.Strategy.GetModel().Conditions.TakeProfitExternal && !sm.Strategy.GetModel().Conditions.TakeProfitSpreadHunter {
+			println("place take-profit from enterEntry")
 			sm.PlaceOrder(0, TakeProfit)
 		}
 	} else {
 		go sm.PlaceOrder(sm.Strategy.GetModel().State.EntryPrice, InEntry)
-		if !sm.Strategy.GetModel().Conditions.TakeProfitExternal {
+		if !sm.Strategy.GetModel().Conditions.TakeProfitExternal && !sm.Strategy.GetModel().Conditions.TakeProfitSpreadHunter {
 			sm.PlaceOrder(0, TakeProfit)
 		}
 	}
@@ -614,7 +618,7 @@ func (sm *SmartOrder) Start() {
 	ctx := context.TODO()
 
 	state, _ := sm.State.State(ctx)
-	for state != End && state != Canceled {
+	for state != End && state != Canceled && state != Timeout {
 		if sm.Strategy.GetModel().Enabled == false || sm.Strategy.GetModel().Conditions.PositionWasClosed {
 			state, _ = sm.State.State(ctx)
 			break
@@ -656,6 +660,7 @@ func (sm *SmartOrder) Stop() {
 		sm.StateMgmt.DisableStrategy(sm.Strategy.GetModel().ID)
 	}
 	sm.StopLock = false
+	//println("pair stateS state", sm.Strategy.GetModel().Conditions.Pair, StateS, state.(string))
 	if StateS == Timeout && sm.Strategy.GetModel().Conditions.ContinueIfEnded == true && !sm.Strategy.GetModel().Conditions.PositionWasClosed {
 		sm.IsWaitingForOrder = sync.Map{}
 		sm.StateMgmt.EnableStrategy(sm.Strategy.GetModel().ID)

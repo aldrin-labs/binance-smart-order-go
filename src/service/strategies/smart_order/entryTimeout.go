@@ -12,9 +12,13 @@ func (sm *SmartOrder) checkTimeouts() {
 			currentState, _ := sm.State.State(context.TODO())
 			if (currentState == WaitForEntry || currentState == TrailingEntry) && sm.Lock == false {
 				sm.Lock = true
-				sm.Strategy.GetModel().Enabled = false
+				err := sm.State.Fire(TriggerTimeout)
+				if err != nil {
+					println("fire checkTimeout err", err)
+				}
 				sm.Strategy.GetModel().State.State = Timeout
 				sm.StateMgmt.UpdateState(sm.Strategy.GetModel().ID, sm.Strategy.GetModel().State)
+				//println("updated state to Timeout, pair, enabled", sm.Strategy.GetModel().Conditions.Pair, sm.Strategy.GetModel().Enabled)
 				sm.Lock = false
 			}
 		}()
