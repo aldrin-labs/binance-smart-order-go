@@ -43,6 +43,7 @@ const (
 	CheckSpreadProfitTrade   = "CheckSpreadProfitTrade"
 	CheckLossTrade           = "CheckLossTrade"
 	Restart             	 = "Restart"
+	TriggerTimeout           = "TriggerTimeout"
 )
 
 type SmartOrder struct {
@@ -105,7 +106,7 @@ func NewSmartOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed,
 	State.Configure(WaitForEntry).PermitDynamic(TriggerTrade, sm.exitWaitEntry,
 		sm.checkWaitEntry).PermitDynamic(TriggerSpread, sm.exitWaitEntry,
 		sm.checkSpreadEntry).PermitDynamic(CheckExistingOrders, sm.exitWaitEntry,
-		sm.checkExistingOrders).OnEntry(sm.onStart)
+		sm.checkExistingOrders).Permit(TriggerTimeout, Timeout).OnEntry(sm.onStart)
 
 	State.Configure(TrailingEntry).Permit(TriggerTrade, InEntry,
 		sm.checkTrailingEntry).Permit(CheckExistingOrders, InEntry,
@@ -617,7 +618,7 @@ func (sm *SmartOrder) Start() {
 	ctx := context.TODO()
 
 	state, _ := sm.State.State(ctx)
-	for state != End && state != Canceled {
+	for state != End && state != Canceled && state != Timeout {
 		if sm.Strategy.GetModel().Enabled == false || sm.Strategy.GetModel().Conditions.PositionWasClosed {
 			state, _ = sm.State.State(ctx)
 			break
@@ -659,9 +660,8 @@ func (sm *SmartOrder) Stop() {
 		sm.StateMgmt.DisableStrategy(sm.Strategy.GetModel().ID)
 	}
 	sm.StopLock = false
-	println("pair stateS", sm.Strategy.GetModel().Conditions.Pair, StateS)
+	println("pair stateS state", sm.Strategy.GetModel().Conditions.Pair, StateS, state.(string))
 	if StateS == Timeout && sm.Strategy.GetModel().Conditions.ContinueIfEnded == true && !sm.Strategy.GetModel().Conditions.PositionWasClosed {
-		sm.StopMux.Lock()
 		sm.IsWaitingForOrder = sync.Map{}
 		sm.StateMgmt.EnableStrategy(sm.Strategy.GetModel().ID)
 		sm.Strategy.GetModel().Enabled = true
@@ -671,7 +671,6 @@ func (sm *SmartOrder) Stop() {
 		sm.StateMgmt.UpdateState(sm.Strategy.GetModel().ID, stateModel)
 		sm.State.Fire(Restart)
 		_ = sm.onStart(nil)
-		sm.StopMux.Unlock()
 		sm.Start()
 	}
 }
