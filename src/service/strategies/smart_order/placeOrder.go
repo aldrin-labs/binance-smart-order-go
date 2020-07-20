@@ -429,7 +429,9 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 		if isSpot {
 			request.KeyParams.Params.MaxIfNotEnough = 1
 			request.KeyParams.Params.Retry = true
-			request.KeyParams.Params.RetryTimeout = 5000
+			request.KeyParams.Params.RetryTimeout = 1000
+			request.KeyParams.Params.RetryCount = 5
+
 		}
 		isSpotTAP := isSpot && step == TakeProfit && model.Conditions.ExitLevels[sm.SelectedExitTarget].ActivatePrice != 0
 		if (step == TrailingEntry || isSpotTAP) && orderType != "market" && ifShouldCancelPreviousOrder && len(model.State.ExecutedOrders) > 0 {

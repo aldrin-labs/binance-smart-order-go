@@ -123,7 +123,8 @@ type OrderParams struct {
 	Type           string                         `json:"type,omitempty" bson:"type"`
 	MaxIfNotEnough int                            `json:"maxIfNotEnough,omitempty"`
 	Retry          bool                           `json:"retry,omitempty"`
-	RetryTimeout   int64                        `json:"retryTimeout,omitempty"`
+	RetryTimeout   int64                          `json:"retryTimeout,omitempty"`
+	RetryCount     int                            `json:"retryCount,omitempty"`
 	Update         bool                           `json:"update,omitempty"`
 	SmartOrder     *models.MongoStrategyCondition `json:"smartOrder,omitempty"`
 }
