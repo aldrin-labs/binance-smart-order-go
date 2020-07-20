@@ -249,7 +249,7 @@ func (sm *SmartOrder) checkWaitEntry(ctx context.Context, args ...interface{}) b
 }
 
 func (sm *SmartOrder) enterEntry(ctx context.Context, args ...interface{}) error {
-	println("enter entry")
+	//println("enter entry")
 	isSpot := sm.Strategy.GetModel().Conditions.MarketType == 0
 	// if we returned to InEntry from Stoploss timeout
 	if sm.Strategy.GetModel().State.StopLossAt == -1 {
@@ -660,7 +660,7 @@ func (sm *SmartOrder) Stop() {
 		sm.StateMgmt.DisableStrategy(sm.Strategy.GetModel().ID)
 	}
 	sm.StopLock = false
-	println("pair stateS state", sm.Strategy.GetModel().Conditions.Pair, StateS, state.(string))
+	//println("pair stateS state", sm.Strategy.GetModel().Conditions.Pair, StateS, state.(string))
 	if StateS == Timeout && sm.Strategy.GetModel().Conditions.ContinueIfEnded == true && !sm.Strategy.GetModel().Conditions.PositionWasClosed {
 		sm.IsWaitingForOrder = sync.Map{}
 		sm.StateMgmt.EnableStrategy(sm.Strategy.GetModel().ID)
