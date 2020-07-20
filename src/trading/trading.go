@@ -122,6 +122,7 @@ type OrderParams struct {
 	StopPrice      float64                        `json:"stopPrice,omitempty" bson:"stopPrice"`
 	Type           string                         `json:"type,omitempty" bson:"type"`
 	MaxIfNotEnough int                            `json:"maxIfNotEnough,omitempty"`
+	Retry          bool                           `json:"retry,omitempty"`
 	Update         bool                           `json:"update,omitempty"`
 	SmartOrder     *models.MongoStrategyCondition `json:"smartOrder,omitempty"`
 }
