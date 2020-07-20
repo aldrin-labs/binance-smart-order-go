@@ -284,7 +284,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 		isSpotMarketOrder := target.OrderType == "market" && isSpot
 		baseAmount = model.Conditions.EntryOrder.Amount
 		side = oppositeSide
-		println("take profit price, orderPrice", price, orderPrice)
+		//println("take profit price, orderPrice", price, orderPrice)
 
 		//if model.Conditions.TakeProfitSpreadHunter && price > 0 {
 		//	orderType = "maker-only"

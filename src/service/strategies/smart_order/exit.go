@@ -14,7 +14,7 @@ func (sm *SmartOrder) exit(ctx context.Context, args ...interface{}) (stateless.
 	if model.Conditions.MarketType == 0 {
 		amount = amount * 0.99
 	}
-	println("model.State.ExecutedAmount >= amount  in exit", model.State.ExecutedAmount >= amount )
+	//println("model.State.ExecutedAmount >= amount  in exit", model.State.ExecutedAmount >= amount )
 	if model.State.State != WaitLossHedge && model.State.ExecutedAmount >= amount { // all trades executed, nothing more to trade
 		if model.Conditions.ContinueIfEnded {
 			isParentHedge := model.Conditions.Hedging == true
