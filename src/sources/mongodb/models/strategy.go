@@ -106,6 +106,10 @@ type MongoStrategyState struct {
 	Msg                    string  `json:"msg,omitempty" bson:"msg"`
 	EntryOrderId           string  `json:"entryOrderId,omitempty" bson:"entryOrderId"`
 	// we save params to understand which was changed
+	EntryPointPrice        float64  `json:"entryPointPrice,omitempty" bson:"entryPointPrice"`
+	EntryPointType         string   `json:"entryPointType,omitempty" bson:"entryPointType"`
+	EntryPointSide         string   `json:"entryPointSide,omitempty" bson:"entryPointSide"`
+	EntryPointAmount       float64  `json:"entryPointAmount,omitempty" bson:"entryPointAmount"`
 	StopLoss               float64  `json:"stopLoss,omitempty" bson:"stopLoss"`
 	StopLossPrice          float64  `json:"stopLossPrice, omitempty" bson:"stopLossPrice"`
 	StopLossOrderIds       []string  `json:"stopLossOrderIds,omitempty" bson:"stopLossOrderIds"`
