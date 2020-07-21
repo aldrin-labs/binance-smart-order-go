@@ -234,11 +234,11 @@ func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
 			go sm.TryCancelAllOrders(model.State.Orders)
 		}
 
-		entryIsNotActivatedTrailing := model.Conditions.EntryOrder.ActivatePrice == 0 && model.State.TrailingEntryPrice == 0
+		entryIsNotTrailing := model.Conditions.EntryOrder.ActivatePrice == 0
 
-		if entryIsNotActivatedTrailing {
+		if entryIsNotTrailing {
 			sm.PlaceOrder(model.Conditions.EntryOrder.Price, smart_order.WaitForEntry)
-		} else {
+		} else if model.State.TrailingEntryPrice > 0 {
 			sm.PlaceOrder(-1, smart_order.TrailingEntry)
 		}
 	}
