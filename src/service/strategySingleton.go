@@ -226,7 +226,7 @@ func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
 	entryOrder := model.Conditions.EntryOrder
 
 	// entry order change
-	if entryOrder.Amount != model.State.EntryPointAmount || entryOrder.Side != model.State.EntryPointSide || entryOrder.OrderType != model.State.EntryPointType || (entryOrder.Price != model.State.EntryPointPrice && entryOrder.EntryDeviation == 0) {
+	if entryOrder.Amount != model.State.EntryPointAmount || entryOrder.Side != model.State.EntryPointSide || entryOrder.OrderType != model.State.EntryPointType || (entryOrder.Price != model.State.EntryPointPrice && entryOrder.EntryDeviation == 0) || entryOrder.EntryDeviation != model.State.EntryPointDeviation {
 		if isSpot {
 			sm.TryCancelAllOrdersConsistently(model.State.Orders)
 			time.Sleep(5 * time.Second)
