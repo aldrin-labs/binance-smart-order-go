@@ -166,10 +166,6 @@ func (sm *SmartOrder) checkIfShouldCancelIfAnyActive() {
 
 func (sm *SmartOrder) onStart(ctx context.Context, args ...interface{}) error {
 	println("in onStart")
-	//if sm.Strategy.GetModel().State.Started {
-	//	return nil
-	//}
-	//sm.Strategy.GetModel().State.Started = true
 	sm.checkIfShouldCancelIfAnyActive()
 	sm.hedge()
 	sm.checkIfPlaceOrderInstantlyOnStart()
@@ -469,14 +465,12 @@ func (sm *SmartOrder) checkLoss(ctx context.Context, args ...interface{}) bool {
 			return false
 		}
 
-		println("currentOHLCV.Close, (1-currentOHLCV.Close/model.State.EntryPrice)*100, stop-loss", currentOHLCV.Close, (1-currentOHLCV.Close/model.State.EntryPrice)*100, stopLoss)
 		if (1-currentOHLCV.Close/model.State.EntryPrice)*100 >= stopLoss {
 			if model.State.ExecutedAmount < model.Conditions.EntryOrder.Amount {
 				model.State.Amount = model.Conditions.EntryOrder.Amount - model.State.ExecutedAmount
 			}
 
 			// if order go to StopLoss from InEntry state or returned to Stoploss while timeout
-			println("currentState in SL check", currentState)
 			if currentState == InEntry {
 				model.State.State = Stoploss
 				sm.StateMgmt.UpdateState(model.ID, model.State)

@@ -141,7 +141,6 @@ type MongoStrategyState struct {
 	LossableAt      int64 `json:"lossableAt,omitempty" bson:"lossableAt"`
 	ProfitableAt    int64 `json:"profitableAt,omitempty" bson:"profitableAt"`
 	ProfitAt        int64 `json:"profitAt,omitempty" bson:"profitAt"`
-	Started         bool  `json:"started,omitempty" bson:"started"`
 }
 
 type MongoEntryPoint struct {
