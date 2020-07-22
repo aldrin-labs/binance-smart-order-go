@@ -84,6 +84,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			sm.StateMgmt.UpdateEntryPrice(model.ID, model.State)
 			return true
 		case WaitForEntry:
+			println("model.State.EntryPrice in waitForEntry", model.State.EntryPrice)
 			if model.State.EntryPrice > 0 {
 				return false
 			}

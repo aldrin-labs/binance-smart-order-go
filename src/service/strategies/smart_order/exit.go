@@ -38,6 +38,7 @@ func (sm *SmartOrder) exit(ctx context.Context, args ...interface{}) (stateless.
 
 			newState := models.MongoStrategyState{
 				State: "",
+				Iteration: sm.Strategy.GetModel().State.Iteration + 1,
 			}
 			model.State = &newState
 			sm.StateMgmt.UpdateExecutedAmount(model.ID, model.State)

@@ -663,13 +663,13 @@ func (sm *SmartOrder) Stop() {
 	sm.StopLock = false
 	//println("pair stateS state", sm.Strategy.GetModel().Conditions.Pair, StateS, state.(string))
 	if StateS == Timeout && sm.Strategy.GetModel().Conditions.ContinueIfEnded == true && !sm.Strategy.GetModel().Conditions.PositionWasClosed {
-
 		sm.IsWaitingForOrder = sync.Map{}
 		sm.StateMgmt.EnableStrategy(sm.Strategy.GetModel().ID)
 		sm.Strategy.GetModel().Enabled = true
 		stateModel := sm.Strategy.GetModel().State
 		stateModel.State = WaitForEntry
 		stateModel.Orders = []string{}
+		stateModel.Iteration += 1
 		sm.StateMgmt.UpdateState(sm.Strategy.GetModel().ID, stateModel)
 		sm.StateMgmt.SaveStrategyConditions(sm.Strategy.GetModel())
 		sm.State.Fire(Restart)
