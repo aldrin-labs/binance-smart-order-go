@@ -165,6 +165,7 @@ func (sm *SmartOrder) checkIfShouldCancelIfAnyActive() {
 }
 
 func (sm *SmartOrder) onStart(ctx context.Context, args ...interface{}) error {
+	println("in onStart")
 	sm.checkIfShouldCancelIfAnyActive()
 	sm.hedge()
 	sm.checkIfPlaceOrderInstantlyOnStart()
@@ -664,12 +665,7 @@ func (sm *SmartOrder) Stop() {
 	sm.StopLock = false
 	//println("pair stateS state", sm.Strategy.GetModel().Conditions.Pair, StateS, state.(string))
 	if StateS == Timeout && sm.Strategy.GetModel().Conditions.ContinueIfEnded == true && !sm.Strategy.GetModel().Conditions.PositionWasClosed {
-		if sm.Strategy.GetModel().Conditions.Leverage == 0 {
-			sm.Strategy.GetModel().Conditions.Leverage = 1
-		}
-		if sm.Strategy.GetModel().Conditions.MarketType == 0 {
-			sm.Strategy.GetModel().Conditions.Leverage = 1
-		}
+
 		sm.IsWaitingForOrder = sync.Map{}
 		sm.StateMgmt.EnableStrategy(sm.Strategy.GetModel().ID)
 		sm.Strategy.GetModel().Enabled = true

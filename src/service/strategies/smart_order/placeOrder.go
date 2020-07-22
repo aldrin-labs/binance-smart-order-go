@@ -30,9 +30,9 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 	isSpot := model.Conditions.MarketType == 0
 	isTrailingEntry := model.Conditions.EntryOrder.ActivatePrice != 0
 	ifShouldCancelPreviousOrder := false
-	leverage := model.Conditions.Leverage
 	isTrailingHedgeOrder := model.Conditions.HedgeStrategyId != nil || model.Conditions.Hedging == true
-	if isSpot {
+	leverage := model.Conditions.Leverage
+	if isSpot || leverage == 0 {
 		leverage = 1
 	}
 	switch step {
@@ -63,9 +63,9 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 		}
 		side = model.Conditions.EntryOrder.Side
 		if side == "sell" {
-			orderPrice = model.State.TrailingEntryPrice * (1 - model.Conditions.EntryOrder.EntryDeviation/100/model.Conditions.Leverage)
+			orderPrice = model.State.TrailingEntryPrice * (1 - model.Conditions.EntryOrder.EntryDeviation/100/leverage)
 		} else {
-			orderPrice = model.State.TrailingEntryPrice * (1 + model.Conditions.EntryOrder.EntryDeviation/100/model.Conditions.Leverage)
+			orderPrice = model.State.TrailingEntryPrice * (1 + model.Conditions.EntryOrder.EntryDeviation/100/leverage)
 		}
 		break
 	case InEntry:
@@ -250,7 +250,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 			fee = fee * 2
 		}
 
-		if fee*model.Conditions.Leverage > model.Conditions.WithoutLossAfterProfit &&
+		if fee*leverage > model.Conditions.WithoutLossAfterProfit &&
 			model.Conditions.WithoutLossAfterProfit > 0 {
 			orderType = "take-profit-" + "limit"
 		}
