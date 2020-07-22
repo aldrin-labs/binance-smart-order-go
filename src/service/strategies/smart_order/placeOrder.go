@@ -112,6 +112,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 		orderType = prefix + orderType // ok we are in futures and can place order before it happened
 		break
 	case Stoploss:
+		println("place stop-loss order")
 		reduceOnly = true
 		baseAmount = model.Conditions.EntryOrder.Amount - model.State.ExecutedAmount
 		//if isSpot {
@@ -168,7 +169,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 				go func(lastTimestamp int64) {
 					time.Sleep(time.Duration(model.Conditions.TimeoutLoss) * time.Second)
 					currentState := sm.Strategy.GetModel().State.State
-					//println("currentState", currentState, model.State.StopLossAt, lastTimestamp)
+					println("in stop-loss place order currentState, stopLossAt, lastTimestamp", currentState, model.State.StopLossAt, lastTimestamp)
 					if currentState == Stoploss && model.State.StopLossAt == lastTimestamp {
 						sm.PlaceOrder(price, step)
 					} else {
