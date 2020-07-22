@@ -666,6 +666,7 @@ func (sm *SmartOrder) Stop() {
 		sm.Strategy.GetModel().Enabled = true
 		stateModel := sm.Strategy.GetModel().State
 		stateModel.State = WaitForEntry
+		stateModel.EntryPrice = 0
 		stateModel.Orders = []string{}
 		stateModel.Iteration += 1
 		sm.StateMgmt.UpdateState(sm.Strategy.GetModel().ID, stateModel)
