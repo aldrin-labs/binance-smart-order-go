@@ -166,6 +166,10 @@ func (sm *SmartOrder) checkIfShouldCancelIfAnyActive() {
 
 func (sm *SmartOrder) onStart(ctx context.Context, args ...interface{}) error {
 	println("in onStart")
+	//if sm.Strategy.GetModel().State.Started {
+	//	return nil
+	//}
+	//sm.Strategy.GetModel().State.Started = true
 	sm.checkIfShouldCancelIfAnyActive()
 	sm.hedge()
 	sm.checkIfPlaceOrderInstantlyOnStart()
@@ -675,7 +679,7 @@ func (sm *SmartOrder) Stop() {
 		sm.StateMgmt.UpdateState(sm.Strategy.GetModel().ID, stateModel)
 		sm.StateMgmt.SaveStrategyConditions(sm.Strategy.GetModel())
 		sm.State.Fire(Restart)
-		_ = sm.onStart(nil)
+		//_ = sm.onStart(nil)
 		sm.Start()
 	}
 }
