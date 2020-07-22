@@ -222,6 +222,27 @@ func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
 	if model.Conditions.PositionWasClosed {
 		sm.Stop()
 	}
+
+	entryOrder := model.Conditions.EntryOrder
+
+	// entry order change
+	if entryOrder.Amount != model.State.EntryPointAmount || entryOrder.Side != model.State.EntryPointSide || entryOrder.OrderType != model.State.EntryPointType || (entryOrder.Price != model.State.EntryPointPrice && entryOrder.EntryDeviation == 0) || entryOrder.EntryDeviation != model.State.EntryPointDeviation {
+		if isSpot {
+			sm.TryCancelAllOrdersConsistently(model.State.Orders)
+			time.Sleep(5 * time.Second)
+		} else {
+			go sm.TryCancelAllOrders(model.State.Orders)
+		}
+
+		entryIsNotTrailing := model.Conditions.EntryOrder.ActivatePrice == 0
+
+		if entryIsNotTrailing {
+			sm.PlaceOrder(model.Conditions.EntryOrder.Price, smart_order.WaitForEntry)
+		} else if model.State.TrailingEntryPrice > 0 {
+			sm.PlaceOrder(-1, smart_order.TrailingEntry)
+		}
+	}
+
 	// SL change
 	if model.Conditions.StopLoss != model.State.StopLoss || model.Conditions.StopLossPrice != model.State.StopLossPrice {
 		// we should also think about case when SL was placed by timeout, but didn't executed coz of limit order for example
