@@ -521,6 +521,12 @@ func (sm *StateMgmt) EnableHedgeLossStrategy(strategyId *primitive.ObjectID) {
 }
 
 func (sm *StateMgmt) SaveStrategyConditions(strategy *models.MongoStrategy) {
+	strategy.State.EntryPointPrice = strategy.Conditions.EntryOrder.Price
+	strategy.State.EntryPointType = strategy.Conditions.EntryOrder.OrderType
+	strategy.State.EntryPointSide = strategy.Conditions.EntryOrder.Side
+	strategy.State.EntryPointAmount = strategy.Conditions.EntryOrder.Amount
+	strategy.State.EntryPointDeviation = strategy.Conditions.EntryOrder.EntryDeviation
+
 	strategy.State.StopLoss = strategy.Conditions.StopLoss
 	strategy.State.ForcedLoss = strategy.Conditions.ForcedLoss
 	strategy.State.TakeProfit = strategy.Conditions.ExitLevels

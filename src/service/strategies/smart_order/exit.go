@@ -38,10 +38,12 @@ func (sm *SmartOrder) exit(ctx context.Context, args ...interface{}) (stateless.
 
 			newState := models.MongoStrategyState{
 				State: "",
+				Iteration: sm.Strategy.GetModel().State.Iteration + 1,
 			}
 			model.State = &newState
 			sm.StateMgmt.UpdateExecutedAmount(model.ID, model.State)
 			sm.StateMgmt.UpdateState(model.ID, &newState)
+			sm.StateMgmt.SaveStrategyConditions(sm.Strategy.GetModel())
 			println("go into WaitForEntry")
 			return WaitForEntry, nil
 		}
@@ -114,6 +116,7 @@ func (sm *SmartOrder) exit(ctx context.Context, args ...interface{}) (stateless.
 			ReachedTargetCount: 0,
 		}
 		sm.StateMgmt.UpdateState(model.ID, &newState)
+		sm.StateMgmt.SaveStrategyConditions(sm.Strategy.GetModel())
 		return WaitForEntry, nil
 	}
 	return nextState, nil

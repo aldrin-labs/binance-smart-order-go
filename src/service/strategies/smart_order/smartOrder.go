@@ -545,7 +545,6 @@ func (sm *SmartOrder) enterTakeProfit(ctx context.Context, args ...interface{}) 
 }
 
 func (sm *SmartOrder) enterStopLoss(ctx context.Context, args ...interface{}) error {
-	//println("entry stopLoss")
 	if currentOHLCV, ok := args[0].(interfaces.OHLCV); ok {
 		if sm.Strategy.GetModel().State.Amount > 0 {
 			side := "buy"
@@ -667,10 +666,13 @@ func (sm *SmartOrder) Stop() {
 		sm.Strategy.GetModel().Enabled = true
 		stateModel := sm.Strategy.GetModel().State
 		stateModel.State = WaitForEntry
+		stateModel.EntryPrice = 0
 		stateModel.Orders = []string{}
+		stateModel.Iteration += 1
 		sm.StateMgmt.UpdateState(sm.Strategy.GetModel().ID, stateModel)
+		sm.StateMgmt.SaveStrategyConditions(sm.Strategy.GetModel())
 		sm.State.Fire(Restart)
-		_ = sm.onStart(nil)
+		//_ = sm.onStart(nil)
 		sm.Start()
 	}
 }
