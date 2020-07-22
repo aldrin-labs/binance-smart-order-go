@@ -165,7 +165,6 @@ func (sm *SmartOrder) checkIfShouldCancelIfAnyActive() {
 }
 
 func (sm *SmartOrder) onStart(ctx context.Context, args ...interface{}) error {
-	println("in onStart")
 	sm.checkIfShouldCancelIfAnyActive()
 	sm.hedge()
 	sm.checkIfPlaceOrderInstantlyOnStart()
@@ -546,7 +545,6 @@ func (sm *SmartOrder) enterTakeProfit(ctx context.Context, args ...interface{}) 
 }
 
 func (sm *SmartOrder) enterStopLoss(ctx context.Context, args ...interface{}) error {
-	println("entry stopLoss")
 	if currentOHLCV, ok := args[0].(interfaces.OHLCV); ok {
 		if sm.Strategy.GetModel().State.Amount > 0 {
 			side := "buy"
