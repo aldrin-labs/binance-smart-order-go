@@ -637,6 +637,7 @@ func (sm *SmartOrder) Start() {
 }
 
 func (sm *SmartOrder) Stop() {
+	println("stop func orders len", len(sm.Strategy.GetModel().State.Orders))
 	if sm.StopLock {
 		if sm.Strategy.GetModel().Conditions.ContinueIfEnded == false {
 			sm.StateMgmt.DisableStrategy(sm.Strategy.GetModel().ID)
@@ -647,6 +648,7 @@ func (sm *SmartOrder) Stop() {
 	sm.StopLock = true
 	state, _ := sm.State.State(context.Background())
 	if sm.Strategy.GetModel().Conditions.MarketType == 0 && state != End {
+		println("cancel orders in stop")
 		sm.TryCancelAllOrdersConsistently(sm.Strategy.GetModel().State.Orders)
 	} else {
 		go sm.TryCancelAllOrders(sm.Strategy.GetModel().State.Orders)
