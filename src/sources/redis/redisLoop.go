@@ -133,8 +133,8 @@ func (rl *RedisLoop) UpdateSpread(channel string, data []byte) {
 		BestAsk: spread.BestAskPrice,
 	}
 
-	//if spread.Symbol == "BAND_USDT" {
-	//	println("update spread", spread.BestBidPrice)
+	//if spread.Symbol == "BAND_USDT" || spread.Symbol == "STX_USDT" || spread.Symbol == "DATA_USDT" || spread.Symbol == "HBAR_USDT" || spread.Symbol == "XTZ_USDT" {
+	//	println("update spread", spread.Symbol, spread.BestBidPrice)
 	//}
 
 	rl.SpreadMap.Store(spread.Exchange+spread.Symbol+strconv.FormatInt(spread.MarketType, 10), spreadData)
