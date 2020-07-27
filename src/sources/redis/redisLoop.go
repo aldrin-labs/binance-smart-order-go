@@ -142,7 +142,6 @@ func (rl *RedisLoop) UpdateSpread(channel string, data []byte) {
 }
 
 func (rl *RedisLoop) GetSpread(pair, exchange string, marketType int64) *interfaces.SpreadData {
-	println("load", exchange + pair + strconv.FormatInt(marketType, 10))
 	spreadRaw, ok := rl.SpreadMap.Load(exchange + pair + strconv.FormatInt(marketType, 10))
 	if ok == true {
 		spread := spreadRaw.(interfaces.SpreadData)
