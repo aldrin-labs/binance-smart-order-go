@@ -25,6 +25,7 @@ func (sm *SmartOrder) checkSpreadEntry(ctx context.Context, args ...interface{})
 	currentSpread := args[0].(interfaces.SpreadData)
 
 	if sm.checkSpreadCondition(currentSpread) {
+		println("place waitForEntry bestBid", currentSpread.BestBid)
 		sm.PlaceOrder(currentSpread.BestBid, WaitForEntry)
 	}
 
