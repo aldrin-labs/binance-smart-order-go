@@ -15,6 +15,7 @@ type MockTrading struct {
 	OrdersMap      *sync.Map
 	CreatedOrders  *list.List
 	CanceledOrders *list.List
+	CanceledOrdersCount  *sync.Map
 	CallCount      *sync.Map
 	AmountSum      *sync.Map
 	Feed           *MockDataFeed
@@ -31,6 +32,7 @@ func NewMockedTradingAPI() *MockTrading {
 		CallCount:      &sync.Map{},
 		AmountSum:      &sync.Map{},
 		CreatedOrders:  list.New(),
+		CanceledOrdersCount:  &sync.Map{},
 		CanceledOrders: list.New(),
 		OrdersMap:      &sync.Map{},
 		BuyDelay:       1000, // default 1 sec wait before orders got filled
@@ -71,7 +73,7 @@ func (mt MockTrading) CreateOrder(req trading.CreateOrderRequest) trading.OrderR
 	callCount, _ = mt.CallCount.Load(req.KeyParams.Symbol)
 	orderId := req.KeyParams.Symbol + strconv.Itoa(callCount.(int))
 	order := models.MongoOrder{
-		Status:     "filled",
+		Status:     "open",
 		OrderId:    orderId,
 		Average:    req.KeyParams.Price,
 		Filled:     req.KeyParams.Amount,
@@ -81,7 +83,7 @@ func (mt MockTrading) CreateOrder(req trading.CreateOrderRequest) trading.OrderR
 		StopPrice:  req.KeyParams.StopPrice,
 		ReduceOnly: *req.KeyParams.ReduceOnly,
 	}
-	if order.Average == 0 {
+	if order.Average == 0 && mt.Feed != nil {
 		lent := len(mt.Feed.tickerData)
 		index := mt.Feed.currentTick
 		if mt.Feed.currentTick >= lent {
@@ -109,8 +111,18 @@ func (mt MockTrading) CreateOrder(req trading.CreateOrderRequest) trading.OrderR
 }
 
 func (mt MockTrading) CancelOrder(req trading.CancelOrderRequest) trading.OrderResponse {
-	callCount, _ := mt.CallCount.Load(req.KeyParams.Pair)
-	orderId := string(callCount.(int)) + strconv.Itoa(callCount.(int))
+	fmt.Printf("Cancel Order Request: %v %f \n", req, req.KeyParams.Pair)
+	callCount, callOk := mt.CallCount.Load(req.KeyParams.Pair)
+
+	if !callOk {
+		response := trading.OrderResponse{
+			Status: "ERR",
+		}
+		return response
+	}
+
+	orderId := req.KeyParams.Pair + strconv.Itoa(callCount.(int))
+	callCount, _ = mt.CanceledOrdersCount.LoadOrStore(req.KeyParams.Pair, 0)
 
 	orderRaw, ok := mt.OrdersMap.Load(orderId)
 	var order models.MongoOrder
@@ -122,8 +134,13 @@ func (mt MockTrading) CancelOrder(req trading.CancelOrderRequest) trading.OrderR
 		}
 	} else {
 		order = orderRaw.(models.MongoOrder)
-		order.Status = "canceled"
+		println("order in cancel", order.Status, order.Side)
+		if order.Status == "open" {
+			mt.CanceledOrdersCount.Store(req.KeyParams.Pair, callCount.(int)+1)
+			order.Status = "canceled"
+		}
 	}
+
 	mt.OrdersMap.Store(orderId, order)
 	response := trading.OrderResponse{
 		Status: "OK",

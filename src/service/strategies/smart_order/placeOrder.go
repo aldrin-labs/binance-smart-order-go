@@ -456,6 +456,11 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 				request.KeyParams.PositionSide = "LONG"
 			}
 		}
+		println("create order step amount", step, sm.Strategy.GetModel().Conditions.EntryOrder.Amount)
+		if step == WaitForEntry {
+			println("sel isEntryOrderPlaced to true, amount", sm.Strategy.GetModel().Conditions.EntryOrder.Amount)
+			sm.IsEntryOrderPlaced = true
+		}
 		response := sm.ExchangeApi.CreateOrder(request)
 		if response.Status == "OK" && response.Data.Id != "0" && response.Data.Id != "" {
 			sm.IsWaitingForOrder.Store(step, true)

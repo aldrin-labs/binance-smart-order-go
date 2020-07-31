@@ -76,6 +76,46 @@ func GetTestSmartOrderStrategy(scenario string) models.MongoStrategy {
 			EntrySpreadHunter: true,
 			EntryWaitingTime: 1000,
 		}
+	case "entryLongTimeout":
+		smartOrder.Conditions = &models.MongoStrategyCondition{
+			Pair: "BTC_USDT",
+			EntryOrder: &models.MongoEntryPoint{
+				Side:      "buy",
+				OrderType: "limit",
+				Amount:    0.002,
+			},
+			WaitingEntryTimeout: 2,
+			ContinueIfEnded: true,
+			EntrySpreadHunter: true,
+			ExitLevels: []*models.MongoEntryPoint{
+				{
+					Type:      1,
+					OrderType: "limit",
+					Price:     0.00001,
+					Amount:    100,
+				},
+			},
+		}
+		case "entryLongTimeout2":
+		smartOrder.Conditions = &models.MongoStrategyCondition{
+			Pair: "BTC_USDT",
+			EntryOrder: &models.MongoEntryPoint{
+				Side:      "buy",
+				OrderType: "limit",
+				Amount:    0.0015,
+			},
+			WaitingEntryTimeout: 2,
+			ContinueIfEnded: true,
+			EntrySpreadHunter: true,
+			ExitLevels: []*models.MongoEntryPoint{
+				{
+					Type:      1,
+					OrderType: "limit",
+					Price:     0.00001,
+					Amount:    100,
+				},
+			},
+		}
 	case "trailingEntryLong":
 		smartOrder.Conditions = &models.MongoStrategyCondition{
 			Pair: "BTC_USDT",

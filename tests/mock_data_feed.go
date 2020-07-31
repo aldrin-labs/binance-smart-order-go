@@ -8,6 +8,7 @@ type MockDataFeed struct {
 	tickerData  []interfaces.OHLCV
 	spreadData  []interfaces.SpreadData
 	currentTick int
+	currentSpreadTick int
 }
 
 func NewMockedDataFeed(mockedStream []interfaces.OHLCV) *MockDataFeed {
@@ -19,9 +20,11 @@ func NewMockedDataFeed(mockedStream []interfaces.OHLCV) *MockDataFeed {
 	return &dataFeed
 }
 
-func NewMockedSpreadDataFeed(mockedStream []interfaces.SpreadData) *MockDataFeed {
+func NewMockedSpreadDataFeed(mockedStream []interfaces.SpreadData, mockedOHLCVStream []interfaces.OHLCV) *MockDataFeed {
 	dataFeed := MockDataFeed{
 		spreadData:  mockedStream,
+		tickerData: mockedOHLCVStream,
+		currentSpreadTick: -1,
 		currentTick: -1,
 	}
 
@@ -31,8 +34,8 @@ func NewMockedSpreadDataFeed(mockedStream []interfaces.SpreadData) *MockDataFeed
 func (df *MockDataFeed) GetPriceForPairAtExchange(pair string, exchange string, marketType int64) *interfaces.OHLCV {
 	df.currentTick += 1
 	len := len(df.tickerData)
-	//println(len, df.currentTick)
-	if df.currentTick >= len {
+	println(len, df.currentTick)
+	if df.currentTick >= len && len > 0 {
 		df.currentTick = len - 1
 		return &df.tickerData[df.currentTick]
 		// df.currentTick = len - 1 // ok we wont stop everything, just keep returning last price
@@ -42,16 +45,16 @@ func (df *MockDataFeed) GetPriceForPairAtExchange(pair string, exchange string, 
 }
 
 func (df *MockDataFeed) GetSpreadForPairAtExchange(pair string, exchange string, marketType int64) *interfaces.SpreadData {
-	df.currentTick += 1
+	df.currentSpreadTick += 1
 	len := len(df.spreadData)
 	// println(len, df.currentTick)
-	if df.currentTick >= len {
-		df.currentTick = len - 1
-		return &df.spreadData[df.currentTick]
+	if df.currentSpreadTick >= len {
+		df.currentSpreadTick = len - 1
+		return &df.spreadData[df.currentSpreadTick]
 		// df.currentTick = len - 1 // ok we wont stop everything, just keep returning last price
 	}
 
-	return &df.spreadData[df.currentTick]
+	return &df.spreadData[df.currentSpreadTick]
 }
 
 func (df *MockDataFeed) SubscribeToPairUpdate() {

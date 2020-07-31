@@ -2,6 +2,7 @@ package smart_order
 
 import (
 	"context"
+	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"time"
 )
 
@@ -10,8 +11,60 @@ func (sm *SmartOrder) checkTimeouts() {
 		go func(iteration int) {
 			time.Sleep(time.Duration(sm.Strategy.GetModel().Conditions.WaitingEntryTimeout) * time.Second)
 			currentState, _ := sm.State.State(context.TODO())
+			println("state lock iteration sm.Iteration", currentState.(string), sm.Lock, iteration, sm.Strategy.GetModel().State.Iteration )
 			if (currentState == WaitForEntry || currentState == TrailingEntry) && sm.Lock == false && iteration == sm.Strategy.GetModel().State.Iteration {
 				sm.Lock = true
+
+				println("len of orders, amount", len(sm.Strategy.GetModel().State.Orders), sm.Strategy.GetModel().Conditions.EntryOrder.Amount)
+				switch len(sm.Strategy.GetModel().State.Orders) {
+				// case whe
+				case 0:
+						println("sm.IsEntryOrderPlaced amount", sm.IsEntryOrderPlaced, sm.Strategy.GetModel().Conditions.EntryOrder.Amount)
+						// rare case when we have already placed entry order, but sm.Strategy.GetModel().State.Orders is empty (so we didn't receive response for this order)
+						if sm.IsEntryOrderPlaced {
+							count := 0
+							for {
+								// 5000 tries - 5 sec
+								if count > 10 * 100 * 5 {
+									// error in entry order
+									break
+								}
+								// received update
+								if len(sm.Strategy.GetModel().State.Orders) > 0 {
+									res := sm.tryCancelEntryOrder()
+									if res.Status == "OK" {
+										println("order canceled continue timeout code")
+										break
+									} else {
+										println("order already filled")
+										sm.Lock = false
+										return
+									}
+								}
+								count += 1
+								time.Sleep(time.Millisecond * 10)
+							}
+						} else {
+							break
+						}
+				case 1:
+					println("orderId in check timeout")
+					res := sm.tryCancelEntryOrder()
+					// if ok then we canceled order and we can go to next iteration
+					if res.Status == "OK" {
+						println("order canceled continue timeout code")
+						break
+					} else {
+						// otherwise order was already filled
+						println("order already filled")
+						sm.Lock = false
+						return
+					}
+				default:
+					sm.Lock = false
+					return
+				}
+
 				err := sm.State.Fire(TriggerTimeout)
 				if err != nil {
 					println("fire checkTimeout err", err.Error())
@@ -45,4 +98,25 @@ func (sm *SmartOrder) checkTimeouts() {
 		}()
 	}
 
+}
+
+func (sm *SmartOrder) tryCancelEntryOrder() trading.OrderResponse {
+	orderId := sm.Strategy.GetModel().State.Orders[0]
+	println("orderId in check timeout")
+	var res trading.OrderResponse
+	if orderId != "0" {
+		res = sm.ExchangeApi.CancelOrder(trading.CancelOrderRequest{
+			KeyId: sm.KeyId,
+			KeyParams: trading.CancelOrderRequestParams{
+				OrderId:    orderId,
+				MarketType: sm.Strategy.GetModel().Conditions.MarketType,
+				Pair:       sm.Strategy.GetModel().Conditions.Pair,
+			},
+		})
+	} else {
+		res = trading.OrderResponse{
+			Status: "ERR",
+		}
+	}
+	return res
 }
