@@ -143,7 +143,8 @@ func NewSmartOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed,
 
 	State.Configure(Timeout).Permit(Restart, WaitForEntry)
 
-	State.Configure(End).OnEntry(sm.enterEnd)
+	State.Configure(End).PermitDynamic(CheckExistingOrders, sm.exit,
+		sm.checkExistingOrders).OnEntry(sm.enterEnd)
 
 	State.Activate()
 

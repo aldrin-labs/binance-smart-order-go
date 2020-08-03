@@ -13,7 +13,16 @@ func (sm *SmartOrder) waitForOrder(orderId string, orderStatus string) {
 }
 func (sm *SmartOrder) orderCallback(order *models.MongoOrder) {
 	//println("order callback in")
-	if order == nil || (order.OrderId == "" && order.PostOnlyInitialOrderId == "") || !(order.Status == "filled" || order.Status == "canceled")  {
+	if order == nil || (order.OrderId == "" && order.PostOnlyInitialOrderId == "") {
+		return
+	}
+	currentState, _ := sm.State.State(context.Background())
+	model := sm.Strategy.GetModel()
+	step, _ := sm.StatusByOrderId.Load(order.OrderId)
+	if step == WaitForEntry && order.Filled > 0 {
+		model.State.Amount = order.Filled
+	}
+	if !(order.Status == "filled" || order.Status == "canceled")  {
 		return
 	}
 	sm.OrdersMux.Lock()
@@ -24,8 +33,6 @@ func (sm *SmartOrder) orderCallback(order *models.MongoOrder) {
 		return
 	}
 	sm.OrdersMux.Unlock()
-	currentState, _ := sm.State.State(context.Background())
-	model := sm.Strategy.GetModel()
 
 	println("before firing CheckExistingOrders")
 	err := sm.State.Fire(CheckExistingOrders, *order)
