@@ -133,10 +133,6 @@ func (rl *RedisLoop) UpdateSpread(channel string, data []byte) {
 		BestAsk: spread.BestAskPrice,
 	}
 
-	if spread.MarketType == 0 && spread.Symbol == "BTC_USDT" {
-		println("btc new bid", spread.BestBidPrice)
-	}
-
 	rl.SpreadMap.Store(spread.Exchange+spread.Symbol+strconv.FormatInt(spread.MarketType, 10), spreadData)
 }
 
@@ -144,7 +140,6 @@ func (rl *RedisLoop) GetSpread(pair, exchange string, marketType int64) *interfa
 	spreadRaw, ok := rl.SpreadMap.Load(exchange + pair + strconv.FormatInt(marketType, 10))
 	if ok == true {
 		spread := spreadRaw.(interfaces.SpreadData)
-		println("get spread bid", spread.BestBid)
 		return &spread
 	}
 	return nil
