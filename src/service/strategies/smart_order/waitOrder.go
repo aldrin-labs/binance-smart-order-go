@@ -19,7 +19,8 @@ func (sm *SmartOrder) orderCallback(order *models.MongoOrder) {
 	currentState, _ := sm.State.State(context.Background())
 	model := sm.Strategy.GetModel()
 	step, _ := sm.StatusByOrderId.Load(order.OrderId)
-	if step == WaitForEntry && order.Filled > 0 {
+	if step == WaitForEntry && order.Filled > 0 && order.Status != "filled" {
+		println("set amount to order.Filled pair", order.Filled, model.Conditions.Pair)
 		model.State.Amount = order.Filled
 	}
 	if !(order.Status == "filled" || order.Status == "canceled")  {

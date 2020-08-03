@@ -559,6 +559,10 @@ func (sm *SmartOrder) enterStopLoss(ctx context.Context, args ...interface{}) er
 			}
 			sm.Lock = true
 			if sm.Strategy.GetModel().Conditions.MarketType == 0 {
+				if len(sm.Strategy.GetModel().State.Orders) < 2 {
+					// if we go to stop loss once place TAP and didn't receive TAP id yet
+					time.Sleep(3 * time.Second)
+				}
 				sm.TryCancelAllOrdersConsistently(sm.Strategy.GetModel().State.Orders)
 			}
 			// sm.cancelOpenOrders(sm.Strategy.GetModel().Conditions.Pair)

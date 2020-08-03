@@ -47,6 +47,7 @@ func (sm *SmartOrder) checkTimeouts() {
 					res := sm.tryCancelEntryOrder()
 					if sm.Strategy.GetModel().State.Amount > 0 {
 						// if entry order was partially filled
+						println("amount in check sm.Strategy.GetModel().State.Amount pair", sm.Strategy.GetModel().State.Amount, sm.Strategy.GetModel().Conditions.Pair)
 						sm.Lock = false
 						return
 					}
