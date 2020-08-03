@@ -143,10 +143,9 @@ func NewSmartOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed,
 
 	State.Configure(Timeout).Permit(Restart, WaitForEntry)
 
-	State.Configure(End).PermitDynamic(CheckExistingOrders, sm.exit,
-		sm.checkExistingOrders).OnEntry(sm.enterEnd)
+	State.Configure(End).Permit(CheckExistingOrders, End, sm.checkExistingOrders).OnEntry(sm.enterEnd)
 
-	State.Activate()
+	_ = State.Activate()
 
 	sm.State = State
 	sm.ExchangeName = "binance"
@@ -666,7 +665,9 @@ func (sm *SmartOrder) Stop() {
 	if state != End && StateS != Timeout && sm.Strategy.GetModel().Conditions.EntrySpreadHunter == false {
 		sm.PlaceOrder(0, Canceled)
 	}
+	println("sm.Strategy.GetModel().Conditions.ContinueIfEnded", sm.Strategy.GetModel().Conditions.ContinueIfEnded)
 	if sm.Strategy.GetModel().Conditions.ContinueIfEnded == false {
+		println("disable strategy in stop", sm.Strategy.GetModel().ID)
 		sm.StateMgmt.DisableStrategy(sm.Strategy.GetModel().ID)
 	}
 	sm.StopLock = false
