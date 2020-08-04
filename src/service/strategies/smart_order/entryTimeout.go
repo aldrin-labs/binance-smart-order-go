@@ -3,6 +3,7 @@ package smart_order
 import (
 	"context"
 	"gitlab.com/crypto_project/core/strategy_service/src/trading"
+	"strconv"
 	"time"
 )
 
@@ -44,13 +45,14 @@ func (sm *SmartOrder) checkTimeouts() {
 					}
 				case 1:
 					println("orderId in check timeout")
-					res := sm.tryCancelEntryOrder()
 					if sm.Strategy.GetModel().State.Amount > 0 {
 						// if entry order was partially filled
 						println("amount in check sm.Strategy.GetModel().State.Amount pair", sm.Strategy.GetModel().State.Amount, sm.Strategy.GetModel().Conditions.Pair)
 						sm.Lock = false
 						return
 					}
+
+					res := sm.tryCancelEntryOrder()
 					// if ok then we canceled order and we can go to next iteration
 					if res.Status == "OK" {
 						println("order canceled continue timeout code")
@@ -93,6 +95,7 @@ func (sm *SmartOrder) checkTimeouts() {
 					} else {
 						activatePrice = activatePrice * (1 + sm.Strategy.GetModel().Conditions.ActivationMoveStep/100/sm.Strategy.GetModel().Conditions.Leverage)
 					}
+					println("changed activate price from " +  strconv.FormatFloat(sm.Strategy.GetModel().Conditions.EntryOrder.ActivatePrice, 'g', -1, 64) + " to " + strconv.FormatFloat(activatePrice, 'g', -1, 64))
 					sm.Strategy.GetModel().Conditions.EntryOrder.ActivatePrice = activatePrice
 				}
 			}
