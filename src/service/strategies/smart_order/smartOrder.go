@@ -667,7 +667,7 @@ func (sm *SmartOrder) Stop() {
 	}
 	println("sm.Strategy.GetModel().Conditions.ContinueIfEnded", sm.Strategy.GetModel().Conditions.ContinueIfEnded)
 	if sm.Strategy.GetModel().Conditions.ContinueIfEnded == false {
-		println("disable strategy in stop", sm.Strategy.GetModel().ID)
+		println("disable strategy in stop", sm.Strategy.GetModel().ID.String())
 		sm.StateMgmt.DisableStrategy(sm.Strategy.GetModel().ID)
 	}
 	sm.StopLock = false

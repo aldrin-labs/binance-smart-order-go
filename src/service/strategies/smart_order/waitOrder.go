@@ -23,6 +23,9 @@ func (sm *SmartOrder) orderCallback(order *models.MongoOrder) {
 		println("set amount to order.Filled pair", order.Filled, model.Conditions.Pair)
 		model.State.Amount = order.Filled
 	}
+	if order.Status == "expired" {
+		println("order expired", order)
+	}
 	if !(order.Status == "filled" || order.Status == "canceled")  {
 		return
 	}

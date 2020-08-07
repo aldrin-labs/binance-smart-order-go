@@ -148,6 +148,22 @@ func (sm *StateMgmt) DisableStrategy(strategyId *primitive.ObjectID) {
 	if err != nil {
 		println("error in arg", err.Error())
 	}
+	
+	sm.CheckDisabledStrategy(strategyId, 2, 30)
+}
+
+func (sm *StateMgmt) CheckDisabledStrategy(strategyId *primitive.ObjectID, times int, timeout int64) {
+	strategy := sm.GetStrategy(strategyId)
+	println("CheckDisabledStrategy times enabled ", times, strategy.Enabled)
+	if times <= 0 || strategy == nil || strategy.Enabled == false {
+		return
+	} else {
+		time.Sleep(time.Duration(timeout) * time.Second)
+		if strategy.Enabled {
+			sm.DisableStrategy(strategyId)
+		}
+		sm.CheckDisabledStrategy(strategyId, times - 1, timeout)
+	}
 }
 
 func (sm *StateMgmt) SubscribeToOrder(orderId string, onOrderStatusUpdate func(order *models.MongoOrder)) error {
