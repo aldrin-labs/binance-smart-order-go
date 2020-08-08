@@ -15,6 +15,32 @@ import (
 func TestSmartOrderEntryBySpread(t *testing.T) {
 	smartOrderModel := GetTestSmartOrderStrategy("entrySpread")
 	// price falls
+	fakeOHLCVDataStream := []interfaces.OHLCV{{
+		Open:   7800,
+		High:   7101,
+		Low:    7750,
+		Close:  7900,
+		Volume: 30,
+	}, {
+		Open:   7005,
+		High:   7100,
+		Low:    7800,
+		Close:  7900,
+		Volume: 30,
+	}, { // Hit entry
+		Open:   7950,
+		High:   7305,
+		Low:    7950,
+		Close:  7090,
+		Volume: 30,
+	}, { // Hit entry
+		Open:   7950,
+		High:   7305,
+		Low:    7950,
+		Close:  6990,
+		Volume: 30,
+	}}
+
 	fakeDataStream := []interfaces.SpreadData{{
 		BestAsk: 7006,
 		BestBid: 7005,
@@ -28,7 +54,8 @@ func TestSmartOrderEntryBySpread(t *testing.T) {
 		BestBid: 7005,
 		Close:  7005,
 	}}
-	df := tests.NewMockedSpreadDataFeed(fakeDataStream)
+	df := tests.NewMockedSpreadDataFeed(fakeDataStream, fakeOHLCVDataStream)
+
 	tradingApi := *tests.NewMockedTradingAPI()
 	strategy := strategies.Strategy{
 		Model: &smartOrderModel,

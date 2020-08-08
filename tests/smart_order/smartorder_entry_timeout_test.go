@@ -1,0 +1,153 @@
+package smart_order
+
+import (
+	"context"
+	"fmt"
+	"github.com/joho/godotenv"
+	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb"
+	"gitlab.com/crypto_project/core/strategy_service/src/sources/redis"
+	"gitlab.com/crypto_project/core/strategy_service/src/trading"
+	"log"
+	"os"
+	"strconv"
+	"testing"
+	"time"
+
+	"github.com/qmuntal/stateless"
+	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
+	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies"
+	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies/smart_order"
+	"gitlab.com/crypto_project/core/strategy_service/tests"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+)
+
+func TestSmartOrderEntryTimout(t *testing.T) {
+	smartOrderModelF := GetTestSmartOrderStrategy("entryLongTimeout")
+	smartOrderModelS := GetTestSmartOrderStrategy("entryLongTimeout")
+	// price rises (This has no meaning now, reuse and then remove fake data stream)
+	fakeOHLCVDataStream := []interfaces.OHLCV{{
+		Open:   7800,
+		High:   7101,
+		Low:    7750,
+		Close:  7900,
+		Volume: 30,
+	}, {
+		Open:   7005,
+		High:   7100,
+		Low:    7800,
+		Close:  7900,
+		Volume: 30,
+	}, { // Hit entry
+		Open:   7950,
+		High:   7305,
+		Low:    7950,
+		Close:  7090,
+		Volume: 30,
+	}, { // Hit entry
+		Open:   7950,
+		High:   7305,
+		Low:    7950,
+		Close:  6990,
+		Volume: 30,
+	}}
+
+	fakeDataStream := []interfaces.SpreadData{{
+		BestAsk: 7800,
+		BestBid: 7790,
+		Close:  7790,
+	}, {
+		BestAsk: 7990,
+		BestBid: 7980,
+		Close:  7980,
+	}, {
+		BestAsk: 6990,
+		BestBid: 6980,
+		Close:  6980,
+	}}
+	dfF := tests.NewMockedSpreadDataFeed(fakeDataStream, fakeOHLCVDataStream)
+	dfS := tests.NewMockedSpreadDataFeed(fakeDataStream, fakeOHLCVDataStream)
+	tradingApiF := tests.NewMockedTradingAPI()
+	tradingApiF.BuyDelay = 20
+	tradingApiF.SellDelay = 20
+	tradingApiS := tests.NewMockedTradingAPI()
+	tradingApiS.BuyDelay = 20
+	tradingApiS.SellDelay = 20
+	strategyF := strategies.Strategy{
+		Model: &smartOrderModelF,
+	}
+	strategyS := strategies.Strategy{
+		Model: &smartOrderModelS,
+	}
+	keyId := primitive.NewObjectID()
+	smF := tests.NewMockedStateMgmt(tradingApiF)
+	smS := tests.NewMockedStateMgmt(tradingApiS)
+	smartOrderF := smart_order.NewSmartOrder(&strategyF, dfF, tradingApiF, &keyId, &smF)
+
+	smartOrderS := smart_order.NewSmartOrder(&strategyS, dfS, tradingApiS, &keyId, &smS)
+	smartOrderF.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
+		println("transition SMF:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
+	})
+	go smartOrderF.Start()
+
+	smartOrderS.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
+		println("transition SMS:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
+	})
+	go smartOrderS.Start()
+	time.Sleep(5800 * time.Millisecond)
+
+	// one call with 'sell' and one with 'BTC_USDT' should be done
+	buyCallCountF, _ := tradingApiF.CallCount.Load("buy")
+	sellCallCountF, _ := tradingApiF.CallCount.Load("sell")
+	btcUsdtCallCountF, _ := tradingApiF.CallCount.Load("BTC_USDT")
+	canceledCallCountF, _ := tradingApiF.CanceledOrdersCount.Load("BTC_USDT")
+
+	buyCallCountS, _ := tradingApiS.CallCount.Load("buy")
+	sellCallCountS, _ := tradingApiS.CallCount.Load("sell")
+	btcUsdtCallCountS, _ := tradingApiS.CallCount.Load("BTC_USDT")
+	canceledCallCountS, _ := tradingApiS.CanceledOrdersCount.Load("BTC_USDT")
+
+	// and canceled " + strconv.Itoa(canceledCallCountF.(int))
+	fmt.Println("for SMF Success! There were " + strconv.Itoa(buyCallCountF.(int)) + " trading api calls with buy params and " + strconv.Itoa(sellCallCountF.(int)) + " with sell and " + strconv.Itoa(btcUsdtCallCountF.(int)) + " with BTC_USDT params and " + strconv.Itoa(canceledCallCountF.(int)) + " canceled")
+	fmt.Println("for SMS Success! There were " + strconv.Itoa(buyCallCountS.(int)) + " trading api calls with buy params and " + strconv.Itoa(sellCallCountS.(int)) + " with sell and " + strconv.Itoa(btcUsdtCallCountS.(int)) + " with BTC_USDT params and " + strconv.Itoa(canceledCallCountS.(int)) + " canceled")
+}
+
+func TestIntegrationalSmartOrderEntryTimout(t *testing.T) {
+	if err := godotenv.Load("../../.env"); err != nil {
+		log.Print("No .env file found")
+	}
+	smartOrderModelF := GetTestSmartOrderStrategy("entryLongTimeout")
+	smartOrderModelS := GetTestSmartOrderStrategy("entryLongTimeout2")
+	// price rises (This has no meaning now, reuse and then remove fake data stream)
+	dfF := redis.InitRedis()
+	tradingApiF := trading.InitTrading()
+	strategyF := strategies.Strategy{
+		Model: &smartOrderModelF,
+	}
+	strategyS := strategies.Strategy{
+		Model: &smartOrderModelS,
+	}
+	keyId, _ := primitive.ObjectIDFromHex(os.Getenv("ACCOUNT_ID"))
+	smF := mongodb.StateMgmt{}
+	go smF.InitOrdersWatch()
+	smartOrderF := smart_order.NewSmartOrder(&strategyF, dfF, tradingApiF, &keyId, &smF)
+	smartOrderS := smart_order.NewSmartOrder(&strategyS, dfF, tradingApiF, &keyId, &smF)
+
+	smartOrderF.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
+		println("transition SMF:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
+	})
+	go smartOrderF.Start()
+
+	smartOrderS.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
+		println("transition SMF:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
+	})
+	go smartOrderS.Start()
+
+	// go smartOrderS.Start()
+	time.Sleep(5 * time.Minute)
+
+	// one call with 'sell' and one with 'BTC_USDT' should be done
+
+	// and canceled " + strconv.Itoa(canceledCallCountF.(int))
+	// fmt.Println("for SMF Success! There were " + strconv.Itoa(buyCallCountF.(int)) + " trading api calls with buy params and " + strconv.Itoa(sellCallCountF.(int)) + " with sell and " + strconv.Itoa(btcUsdtCallCountF.(int)) + " with BTC_USDT params and " + strconv.Itoa(canceledCallCountF.(int)) + " canceled")
+	// fmt.Println("for SMS Success! There were " + strconv.Itoa(buyCallCountS.(int)) + " trading api calls with buy params and " + strconv.Itoa(sellCallCountS.(int)) + " with sell and " + strconv.Itoa(btcUsdtCallCountS.(int)) + " with BTC_USDT params and " + strconv.Itoa(canceledCallCountS.(int)) + " canceled")
+}

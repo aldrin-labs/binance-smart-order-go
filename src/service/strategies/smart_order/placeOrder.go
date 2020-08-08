@@ -378,7 +378,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 	case Canceled:
 		{
 			currentState, _ := sm.State.State(context.TODO())
-			thereIsNoEntryToExit := currentState == WaitForEntry || currentState == TrailingEntry || currentState == End || model.State.ExecutedAmount >= model.Conditions.EntryOrder.Amount
+			thereIsNoEntryToExit := (currentState == WaitForEntry && model.State.Amount == 0) || currentState == TrailingEntry || currentState == End || model.State.ExecutedAmount >= model.Conditions.EntryOrder.Amount
 			if thereIsNoEntryToExit {
 				return
 			}
@@ -388,6 +388,9 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 			orderType = "market"
 			if isSpot {
 				sm.TryCancelAllOrdersConsistently(sm.Strategy.GetModel().State.Orders)
+			}
+			if model.State.Amount > 0 && currentState == WaitForEntry {
+				baseAmount = model.State.Amount
 			}
 			break
 		}
@@ -455,6 +458,11 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 			} else {
 				request.KeyParams.PositionSide = "LONG"
 			}
+		}
+		println("create order step amount", step, sm.Strategy.GetModel().Conditions.EntryOrder.Amount)
+		if step == WaitForEntry {
+			println("sel isEntryOrderPlaced to true, amount", sm.Strategy.GetModel().Conditions.EntryOrder.Amount)
+			sm.IsEntryOrderPlaced = true
 		}
 		response := sm.ExchangeApi.CreateOrder(request)
 		if response.Status == "OK" && response.Data.Id != "0" && response.Data.Id != "" {

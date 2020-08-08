@@ -14,6 +14,10 @@ type MockStateMgmt struct {
 	Trading       *MockTrading
 }
 
+func (sm *MockStateMgmt) EnableStrategy(strategyId *primitive.ObjectID) {
+	return
+}
+
 func NewMockedStateMgmt(trading *MockTrading) MockStateMgmt {
 	stateMgmt := MockStateMgmt{
 		Trading: trading,
@@ -44,6 +48,7 @@ func (sm *MockStateMgmt) SubscribeToOrder(orderId string, onOrderStatusUpdate fu
 				}
 				time.Sleep(time.Duration(delay) * time.Millisecond)
 				order.Status = "filled"
+				sm.Trading.OrdersMap.Store(orderId, order)
 				onOrderStatusUpdate(&order)
 				break
 			}
@@ -104,7 +109,7 @@ func (sm *MockStateMgmt) SavePNL(templateStrategyId *primitive.ObjectID, profitA
 }
 
 func (sm *MockStateMgmt) SaveStrategyConditions(strategy *models.MongoStrategy) {
-	panic("implement me")
+	return
 }
 
 func (sm *MockStateMgmt) EnableHedgeLossStrategy(strategyId *primitive.ObjectID) {
