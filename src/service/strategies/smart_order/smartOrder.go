@@ -624,7 +624,7 @@ func (sm *SmartOrder) Start() {
 
 	state, _ := sm.State.State(ctx)
 	for state != End && state != Canceled && state != Timeout {
-		if sm.Strategy.GetModel().Enabled == false || sm.Strategy.GetModel().Conditions.PositionWasClosed {
+		if sm.Strategy.GetModel().Enabled == false {
 			state, _ = sm.State.State(ctx)
 			break
 		}

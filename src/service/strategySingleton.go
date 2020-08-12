@@ -201,6 +201,7 @@ func (ss *StrategyService) InitPositionsWatch() {
 					strategy := ss.strategies[strategyEventDecoded.ID.String()]
 					if strategy != nil && strategy.GetModel().Conditions.PositionWasClosed {
 						println("disabled by position close")
+						strategy.GetModel().Enabled = false
 						collStrategies.FindOneAndUpdate(ctx, bson.D{{"_id", strategyEventDecoded.ID}}, bson.M{"$set": bson.M{"enabled": false}})
 					}
 				}
@@ -218,10 +219,6 @@ func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
 
 	if model.State == nil || sm == nil { return }
 	if !isInEntry { return }
-
-	if model.Conditions.PositionWasClosed {
-		sm.Stop()
-	}
 
 	entryOrder := model.Conditions.EntryOrder
 
