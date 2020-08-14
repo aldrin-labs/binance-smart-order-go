@@ -60,7 +60,7 @@ func TestSmartOrderMandatoryForcedLoss(t *testing.T) {
 	// one call with 'sell' and one with 'BTC_USDT' should be done
 	sellCallCount, sellOk := tradingApi.CallCount.Load("sell")
 	btcUsdtCallCount, usdtBtcOk := tradingApi.CallCount.Load("BTC_USDT")
-	if !sellOk || !usdtBtcOk || sellCallCount != 1 || btcUsdtCallCount != 1 {
+	if !sellOk || !usdtBtcOk || sellCallCount != 1 || btcUsdtCallCount != 2 {
 		t.Error("Mandatory forced stop was not placed or another close orders was placed")
 	} else {
 		fmt.Println("Success! There were " + strconv.Itoa(sellCallCount.(int)) + " trading api calls with sell params, that is mandatory forced loss")

@@ -50,6 +50,7 @@ func NewMockedTradingAPIWithMarketAccess(feed *MockDataFeed) *MockTrading {
 		CreatedOrders:  list.New(),
 		CanceledOrders: list.New(),
 		OrdersMap:      &sync.Map{},
+		CanceledOrdersCount:  &sync.Map{},
 	}
 
 	return &mockTrading
