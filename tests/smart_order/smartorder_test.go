@@ -96,7 +96,7 @@ func GetTestSmartOrderStrategy(scenario string) models.MongoStrategy {
 				},
 			},
 		}
-		case "entryLongTimeout2":
+	case "entryLongTimeout2":
 		smartOrder.Conditions = &models.MongoStrategyCondition{
 			Pair: "BTC_USDT",
 			EntryOrder: &models.MongoEntryPoint{
@@ -115,6 +115,29 @@ func GetTestSmartOrderStrategy(scenario string) models.MongoStrategy {
 					Amount:    100,
 				},
 			},
+		}
+	case "mandatoryForcedLoss":
+		smartOrder.Conditions = &models.MongoStrategyCondition{
+			Pair: "BTC_USDT",
+			MarketType: 1,
+			EntryOrder: &models.MongoEntryPoint{
+				Side:      "buy",
+				OrderType: "market",
+				Amount:    0.0015,
+			},
+			ExitLevels: []*models.MongoEntryPoint{
+				{
+					Type:      1,
+					OrderType: "limit",
+					Price:     0.00001,
+					Amount:    100,
+				},
+			},
+			StopLossExternal: true,
+			TakeProfitExternal: true,
+			MandatoryForcedLoss: true,
+			ForcedLoss: 10,
+			StopLoss: 20,
 		}
 	case "trailingEntryLong":
 		smartOrder.Conditions = &models.MongoStrategyCondition{
