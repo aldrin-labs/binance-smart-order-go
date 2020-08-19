@@ -43,15 +43,15 @@ func TestSmartOrderEntryBySpread(t *testing.T) {
 
 	fakeDataStream := []interfaces.SpreadData{{
 		BestAsk: 7006,
-		BestBid: 7005,
+		BestBid: 6000,
 		Close:  7005,
 	}, {
 		BestAsk: 7006,
-		BestBid: 7005,
+		BestBid: 6000,
 		Close:  7005,
 	}, {
 		BestAsk: 7006,
-		BestBid: 7005,
+		BestBid: 6000,
 		Close:  7005,
 	}}
 	df := tests.NewMockedSpreadDataFeed(fakeDataStream, fakeOHLCVDataStream)

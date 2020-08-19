@@ -316,10 +316,7 @@ func TestSmartOrderReturnToInEntryAfterTimeoutLoss(t *testing.T) {
 		t.Error("There were " + strconv.Itoa(sellCallCount.(int)) + " trading api calls with buy params and " + strconv.Itoa(btcUsdtCallCount.(int)) + " with BTC_USDT params while timeoutLoss canceled")
 	}
 
-	// check if we are in right state
-	// after returning to InEntry state mocked OHLCV return wrong data
-	// that's why Stoploss, but here should be InEntry
-	isInState, _ := smartOrder.State.IsInState(smart_order.Stoploss)
+	isInState, _ := smartOrder.State.IsInState(smart_order.InEntry)
 	if !isInState {
 		state, _ := smartOrder.State.State(context.Background())
 		stateStr := fmt.Sprintf("%v", state)

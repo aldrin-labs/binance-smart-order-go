@@ -113,13 +113,13 @@ type MongoStrategyState struct {
 	EntryPointAmount       float64  `json:"entryPointAmount,omitempty" bson:"entryPointAmount"`
 	EntryPointDeviation    float64  `json:"entryPointDeviation,omitempty" bson:"entryPointDeviation"`
 	StopLoss               float64  `json:"stopLoss,omitempty" bson:"stopLoss"`
-	StopLossPrice          float64  `json:"stopLossPrice, omitempty" bson:"stopLossPrice"`
+	StopLossPrice          float64  `json:"stopLossPrice,omitempty" bson:"stopLossPrice"`
 	StopLossOrderIds       []string  `json:"stopLossOrderIds,omitempty" bson:"stopLossOrderIds"`
 	ForcedLoss             float64  `json:"forcedLoss,omitempty" bson:"forcedLoss"`
-	ForcedLossPrice        float64  `json:"forcedLossPrice, omitempty" bson:"forcedLossPrice"`
+	ForcedLossPrice        float64  `json:"forcedLossPrice,omitempty" bson:"forcedLossPrice"`
 	ForcedLossOrderIds     []string `json:"forcedLossOrderIds,omitempty" bson:"forcedLossOrderIds"`
 	TakeProfit  		   []*MongoEntryPoint `json:"takeProfit,omitempty" bson:"takeProfit"`
-	TakeProfitPrice        float64  `json:"takeProfitPrice, omitempty" bson:"takeProfitPrice"`
+	TakeProfitPrice        float64  `json:"takeProfitPrice,omitempty" bson:"takeProfitPrice"`
 	TakeProfitHedgePrice   float64  `json:"takeProfitHedgePrice,omitempty" bson:"takeProfitHedgePrice"`
 	TakeProfitOrderIds     []string `json:"takeProfitOrderIds,omitempty" bson:"takeProfitOrderIds"`
 
@@ -167,8 +167,8 @@ type MongoStrategyCondition struct {
 	HedgeStrategyId *primitive.ObjectID `json:"hedgeStrategyId,omitempty" bson:"hedgeStrategyId"`
 
 	TemplateToken          string   `json:"templateToken,omitempty" bson:"templateToken"`
-	PositionWasClosed      bool     `json:"positionWasClosed, omitempty" bson:"positionWasClosed"`
-	SkipInitialSetup       bool     `json:"skipInitialSetup, omitempty" bson:"skipInitialSetup"`
+	PositionWasClosed      bool     `json:"positionWasClosed,omitempty" bson:"positionWasClosed"`
+	SkipInitialSetup       bool     `json:"skipInitialSetup,omitempty" bson:"skipInitialSetup"`
 	CancelIfAnyActive      bool     `json:"cancelIfAnyActive,omitempty" bson:"cancelIfAnyActive"`
 	TrailingExitExternal   bool     `json:"trailingExitExternal,omitempty" bson:"trailingExitExternal"`
 	TrailingExitPrice  	   float64  `json:"trailingExitPrice,omitempty" bson:"trailingExitPrice"`
@@ -177,6 +177,7 @@ type MongoStrategyCondition struct {
 	TakeProfitPrice        float64  `json:"takeProfitPrice,omitempty" bson:"takeProfitPrice"`
 	TakeProfitHedgePrice   float64  `json:"takeProfitHedgePrice,omitempty" bson:"takeProfitHedgePrice"`
 	StopLossExternal       bool     `json:"stopLossExternal,omitempty" bson:"stopLossExternal"`
+	MandatoryForcedLoss    bool     `json:"mandatoryForcedLoss,omitempty" bson:"mandatoryForcedLoss"`
 	TakeProfitExternal     bool     `json:"takeProfitExternal,omitempty" bson:"takeProfitExternal"`
 	WithoutLossAfterProfit float64  `json:"withoutLossAfterProfit,omitempty" bson:"withoutLossAfterProfit"`
 	EntrySpreadHunter      bool     `json:"entrySpreadHunter,omitempty" bson:"entrySpreadHunter"`

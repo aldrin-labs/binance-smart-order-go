@@ -275,13 +275,13 @@ func (sm *SmartOrder) enterEntry(ctx context.Context, args ...interface{}) error
 	//if !sm.Strategy.GetModel().Conditions.EntrySpreadHunter {
 	if isSpot {
 		sm.PlaceOrder(sm.Strategy.GetModel().State.EntryPrice, InEntry)
-		if !sm.Strategy.GetModel().Conditions.TakeProfitExternal && !sm.Strategy.GetModel().Conditions.TakeProfitSpreadHunter {
+		if !sm.Strategy.GetModel().Conditions.TakeProfitExternal {
 			println("place take-profit from enterEntry")
 			sm.PlaceOrder(0, TakeProfit)
 		}
 	} else {
 		go sm.PlaceOrder(sm.Strategy.GetModel().State.EntryPrice, InEntry)
-		if !sm.Strategy.GetModel().Conditions.TakeProfitExternal && !sm.Strategy.GetModel().Conditions.TakeProfitSpreadHunter {
+		if !sm.Strategy.GetModel().Conditions.TakeProfitExternal  {
 			sm.PlaceOrder(0, TakeProfit)
 		}
 	}
@@ -291,11 +291,15 @@ func (sm *SmartOrder) enterEntry(ctx context.Context, args ...interface{}) error
 		go sm.PlaceOrder(0, Stoploss)
 	}
 
-	if sm.Strategy.GetModel().Conditions.ForcedLoss > 0 && !isSpot && !sm.Strategy.GetModel().Conditions.StopLossExternal {
+	forcedLossOnSpot := !isSpot || (sm.Strategy.GetModel().Conditions.MandatoryForcedLoss && sm.Strategy.GetModel().Conditions.TakeProfitExternal)
+
+	if sm.Strategy.GetModel().Conditions.ForcedLoss > 0 && forcedLossOnSpot &&
+		(!sm.Strategy.GetModel().Conditions.StopLossExternal || sm.Strategy.GetModel().Conditions.MandatoryForcedLoss) {
 		go sm.PlaceOrder(0, "ForcedLoss")
 	}
 	// wait for creating hedgeStrategy
-	if sm.Strategy.GetModel().Conditions.Hedging && sm.Strategy.GetModel().Conditions.HedgeStrategyId == nil || sm.Strategy.GetModel().Conditions.HedgeStrategyId != nil {
+	if sm.Strategy.GetModel().Conditions.Hedging && sm.Strategy.GetModel().Conditions.HedgeStrategyId == nil ||
+		sm.Strategy.GetModel().Conditions.HedgeStrategyId != nil {
 		for {
 			if sm.Strategy.GetModel().Conditions.HedgeStrategyId == nil {
 				time.Sleep(1 * time.Second)
@@ -408,13 +412,14 @@ func (sm *SmartOrder) checkLoss(ctx context.Context, args ...interface{}) bool {
 
 	isWaitingForOrder, ok := sm.IsWaitingForOrder.Load(Stoploss)
 	model := sm.Strategy.GetModel()
-	existTimeout := model.Conditions.TimeoutWhenLoss != 0 || model.Conditions.TimeoutLoss != 0
+	existTimeout := model.Conditions.TimeoutWhenLoss != 0 || model.Conditions.TimeoutLoss != 0 || model.Conditions.ForcedLoss != 0
 	isSpot := model.Conditions.MarketType == 0
+	forcedSLWithAlert := model.Conditions.StopLossExternal && model.Conditions.MandatoryForcedLoss
 
-	if ok && isWaitingForOrder.(bool) && !existTimeout && !isSpot {
+	if ok && isWaitingForOrder.(bool) && !existTimeout && !model.Conditions.MandatoryForcedLoss {
 		return false
 	}
-	if model.Conditions.StopLossExternal {
+	if model.Conditions.StopLossExternal && !model.Conditions.MandatoryForcedLoss {
 		return false
 	}
 	if model.State.ExecutedAmount >= model.Conditions.EntryOrder.Amount {
@@ -442,7 +447,7 @@ func (sm *SmartOrder) checkLoss(ctx context.Context, args ...interface{}) bool {
 	}
 
 	// try exit on timeout
-	if model.Conditions.TimeoutWhenLoss > 0 {
+	if model.Conditions.TimeoutWhenLoss > 0 && !forcedSLWithAlert {
 		isLoss := (model.Conditions.EntryOrder.Side == "buy" && model.State.EntryPrice > currentOHLCV.Close) || (model.Conditions.EntryOrder.Side == "sell" && model.State.EntryPrice < currentOHLCV.Close)
 		if isLoss && model.State.LossableAt == 0 {
 			model.State.LossableAt = time.Now().Unix()
@@ -463,6 +468,10 @@ func (sm *SmartOrder) checkLoss(ctx context.Context, args ...interface{}) bool {
 	case "buy":
 		if isSpot && forcedLoss > 0 && (1-currentOHLCV.Close/model.State.EntryPrice)*100 >= forcedLoss {
 			sm.PlaceOrder(currentOHLCV.Close, Stoploss)
+			return false
+		}
+
+		if forcedSLWithAlert {
 			return false
 		}
 
@@ -490,6 +499,10 @@ func (sm *SmartOrder) checkLoss(ctx context.Context, args ...interface{}) bool {
 	case "sell":
 		if isSpot && forcedLoss > 0 && (currentOHLCV.Close/model.State.EntryPrice-1)*100 >= forcedLoss {
 			sm.PlaceOrder(currentOHLCV.Close, Stoploss)
+			return false
+		}
+
+		if forcedSLWithAlert {
 			return false
 		}
 
@@ -624,7 +637,7 @@ func (sm *SmartOrder) Start() {
 
 	state, _ := sm.State.State(ctx)
 	for state != End && state != Canceled && state != Timeout {
-		if sm.Strategy.GetModel().Enabled == false || sm.Strategy.GetModel().Conditions.PositionWasClosed {
+		if sm.Strategy.GetModel().Enabled == false {
 			state, _ = sm.State.State(ctx)
 			break
 		}
