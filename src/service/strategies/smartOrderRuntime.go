@@ -10,6 +10,9 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
+type MongoKey struct {
+	Hostname string `json:"hostname" bson:"hostname"`
+}
 
 type KeyAsset struct {
 	KeyId primitive.ObjectID `json:"keyId" bson:"keyId"`
@@ -38,15 +41,30 @@ func RunSmartOrder(strategy *Strategy, df interfaces.IDataFeed, td trading.ITrad
 		}
 		keyId = &keyAsset.KeyId
 	}
+
+	Key := mongodb.GetCollection("core_keys")
+	var request bson.D
+	request = bson.D{
+		{"_id", keyId},
+	}
+	ctx := context.Background()
+	var userKey MongoKey
+	err := Key.FindOne(ctx, request).Decode(&userKey)
+	if err != nil {
+		println("keyAssetsCursor", err.Error())
+	}
+	hostname := userKey.Hostname
+
+
 	if strategy.Model.Conditions.MarketType == 1 && !strategy.Model.Conditions.SkipInitialSetup {
-		go td.UpdateLeverage(keyId, strategy.Model.Conditions.Leverage, strategy.Model.Conditions.Pair)
+		go td.UpdateLeverage(keyId, strategy.Model.Conditions.Leverage, strategy.Model.Conditions.Pair, hostname)
 	}
 	if strategy.Model.State == nil {
 		strategy.Model.State = &models.MongoStrategyState{}
 	}
 	strategy.StateMgmt.SaveStrategyConditions(strategy.Model)
 	strategy.StateMgmt.UpdateConditions(strategy.Model.ID, strategy.Model.Conditions)
-	runtime := smart_order.NewSmartOrder(strategy, df, td, keyId, strategy.StateMgmt)
+	runtime := smart_order.NewSmartOrder(strategy, df, td, keyId, strategy.StateMgmt, hostname)
 	go runtime.Start()
 
 	return runtime

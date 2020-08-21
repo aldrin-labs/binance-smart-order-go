@@ -3,6 +3,8 @@ package tests
 import (
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"log"
+	"strings"
 	"sync"
 	"time"
 )
@@ -12,15 +14,17 @@ type MockStateMgmt struct {
 	StateMap      sync.Map
 	ConditionsMap sync.Map
 	Trading       *MockTrading
+	DataFeed      *MockDataFeed
 }
 
 func (sm *MockStateMgmt) EnableStrategy(strategyId *primitive.ObjectID) {
 	return
 }
 
-func NewMockedStateMgmt(trading *MockTrading) MockStateMgmt {
+func NewMockedStateMgmt(trading *MockTrading, dataFeed *MockDataFeed) MockStateMgmt {
 	stateMgmt := MockStateMgmt{
 		Trading: trading,
+		DataFeed: dataFeed,
 	}
 
 	return stateMgmt
@@ -47,10 +51,20 @@ func (sm *MockStateMgmt) SubscribeToOrder(orderId string, onOrderStatusUpdate fu
 					delay = sm.Trading.SellDelay
 				}
 				time.Sleep(time.Duration(delay) * time.Millisecond)
-				order.Status = "filled"
-				sm.Trading.OrdersMap.Store(orderId, order)
-				onOrderStatusUpdate(&order)
-				break
+				isStopOrder := strings.Contains(order.Type, "stop")
+				isTapOrder := strings.Contains(order.Type, "take")
+				currentPrice := sm.DataFeed.GetPriceForPairAtExchange("BTC_USDT", "binance", 1).Close
+				log.Print("order price ", order.Average, "current price ", currentPrice)
+				if order.Type == "market" ||
+					order.Side == "sell" && order.Average <= currentPrice && (order.Type == "limit" || isTapOrder) ||
+					order.Side == "buy" && order.Average >= currentPrice && (order.Type == "limit" || isTapOrder) ||
+					order.Side == "buy" && order.Average <= currentPrice && isStopOrder ||
+					order.Side == "sell" && order.Average >= currentPrice && isStopOrder {
+					order.Status = "filled"
+					sm.Trading.OrdersMap.Store(orderId, order)
+					onOrderStatusUpdate(&order)
+					break
+				}
 			}
 		}
 	}()

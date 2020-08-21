@@ -109,7 +109,7 @@ func (sm *SmartOrder) tryCancelEntryOrder() trading.OrderResponse {
 				MarketType: sm.Strategy.GetModel().Conditions.MarketType,
 				Pair:       sm.Strategy.GetModel().Conditions.Pair,
 			},
-		})
+		}, sm.Hostname)
 	} else {
 		res = trading.OrderResponse{
 			Status: "ERR",

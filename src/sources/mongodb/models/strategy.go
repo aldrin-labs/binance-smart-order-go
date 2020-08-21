@@ -65,6 +65,7 @@ type MongoOrder struct {
 	Type       string             `json:"type,omitempty" bson:"type"`
 	Symbol     string             `json:"symbol,omitempty" bson:"symbol"`
 	ReduceOnly bool               `json:"reduceOnly,omitempty" bson:"reduceOnly"`
+	Price      float64            `json:"price,omitempty" bson:"price"`
 	StopPrice  float64            `json:"stopPrice,omitempty" bson:"stopPrice"`
 }
 type MongoPosition struct {
@@ -153,6 +154,7 @@ type MongoEntryPoint struct {
 	HedgeEntry              float64 `json:"hedgeEntry,omitempty" bson:"hedgeEntry"`
 	HedgeActivation         float64 `json:"hedgeActivation,omitempty" bson:"hedgeActivation"`
 	HedgeOppositeActivation float64 `json:"hedgeOppositeActivation,omitempty" bson:"hedgeOppositeActivation"`
+	PlaceWithoutLoss        bool    `json:"placeWithoutLoss,omitempty" bson:"placeWithoutLoss"`
 	// Type: 0 means absolute price, 1 means price is relative to entry price
 	Type      int64  `json:"type,omitempty" bson:"type"`
 	OrderType string `json:"orderType,omitempty" bson:"orderType"`
@@ -215,7 +217,9 @@ type MongoStrategyCondition struct {
 	CreatedByTemplate  bool                `json:"createdByTemplate,omitempty" bson:"createdByTemplate"`
 	TemplateStrategyId *primitive.ObjectID `json:"templateStrategyId,omitempty" bson:"templateStrategyId"`
 
-	Leverage    float64            `json:"leverage,omitempty" bson:"leverage"`
-	EntryLevels []*MongoEntryPoint `json:"entryLevels,omitempty" bson:"entryLevels"`
-	ExitLevels  []*MongoEntryPoint `json:"exitLevels,omitempty" bson:"exitLevels"`
+	Leverage    float64             `json:"leverage,omitempty" bson:"leverage"`
+	EntryLevels []*MongoEntryPoint  `json:"entryLevels,omitempty" bson:"entryLevels"`
+	ExitLevels  []*MongoEntryPoint  `json:"exitLevels,omitempty" bson:"exitLevels"`
+	CloseStrategyAfterFirstTAP bool `json:"closeStrategyAfterFirstTAP,omitempty" bson:"closeStrategyAfterFirstTAP"`
+	PlaceEntryAfterTAP bool `json:"placeEntryAfterTAP,omitempty" bson:"placeEntryAfterTAP"`
 }

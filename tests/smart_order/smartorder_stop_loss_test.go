@@ -51,7 +51,7 @@ func TestSmartExitOnStopMarket(t *testing.T) {
 		Model: &smartOrderModel,
 	}
 	keyId := primitive.NewObjectID()
-	sm := tests.NewMockedStateMgmt(tradingApi)
+	sm := tests.NewMockedStateMgmt(tradingApi, df)
 	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
@@ -126,7 +126,7 @@ func TestSmartExitOnStopMarketTimeout(t *testing.T) {
 		Model: &smartOrderModel,
 	}
 	keyId := primitive.NewObjectID()
-	sm := tests.NewMockedStateMgmt(tradingApi)
+	sm := tests.NewMockedStateMgmt(tradingApi, df)
 	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
@@ -181,7 +181,7 @@ func TestSmartExitAfterTimeoutLoss(t *testing.T) {
 		Model: &smartOrderModel,
 	}
 	keyId := primitive.NewObjectID()
-	sm := tests.NewMockedStateMgmt(tradingApi)
+	sm := tests.NewMockedStateMgmt(tradingApi, df)
 	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
@@ -285,7 +285,7 @@ func TestSmartOrderReturnToInEntryAfterTimeoutLoss(t *testing.T) {
 		Model: &smartOrderModel,
 	}
 	keyId := primitive.NewObjectID()
-	sm := tests.NewMockedStateMgmt(tradingApi)
+	sm := tests.NewMockedStateMgmt(tradingApi, df)
 	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())

@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/qmuntal/stateless"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
+	"log"
 )
 
 func (sm *SmartOrder) exit(ctx context.Context, args ...interface{}) (stateless.State, error) {
@@ -14,8 +15,8 @@ func (sm *SmartOrder) exit(ctx context.Context, args ...interface{}) (stateless.
 	if model.Conditions.MarketType == 0 {
 		amount = amount * 0.99
 	}
-	//println("model.State.ExecutedAmount >= amount  in exit", model.State.ExecutedAmount >= amount )
-	if model.State.State != WaitLossHedge && model.State.ExecutedAmount >= amount { // all trades executed, nothing more to trade
+	log.Print("model.State.ExecutedAmount >= amount in exit ", model.State.ExecutedAmount >= amount )
+	if model.State.State != WaitLossHedge && model.State.ExecutedAmount >= amount || model.Conditions.CloseStrategyAfterFirstTAP { // all trades executed, nothing more to trade
 		if model.Conditions.ContinueIfEnded {
 			isParentHedge := model.Conditions.Hedging == true
 			isTrailingHedgeOrder := model.Conditions.HedgeStrategyId != nil || isParentHedge
@@ -71,8 +72,17 @@ func (sm *SmartOrder) exit(ctx context.Context, args ...interface{}) (stateless.
 		case WaitLossHedge:
 			nextState = WaitLossHedge
 			break
+		case InMultiEntry:
+			nextState = InMultiEntry
+			break
 		}
 		break
+	case InMultiEntry:
+		switch model.State.State {
+		case InMultiEntry:
+			nextState = InMultiEntry
+			break
+		}
 	case TakeProfit:
 		switch model.State.State {
 		case "EnterNextTarget":

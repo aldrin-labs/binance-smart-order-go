@@ -4,6 +4,7 @@ import (
 	"context"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
+	"log"
 )
 
 func (sm *SmartOrder) waitForOrder(orderId string, orderStatus string) {
@@ -87,18 +88,29 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			sm.StateMgmt.UpdateEntryPrice(model.ID, model.State)
 			return true
 		case WaitForEntry:
-			println("model.State.EntryPrice in waitForEntry", model.State.EntryPrice)
-			if model.State.EntryPrice > 0 {
+			isMultiEntry := len(model.Conditions.EntryLevels) > 0
+			log.Print("model.State.EntryPrice in waitForEntry ", model.State.EntryPrice)
+			if model.State.EntryPrice > 0 && !isMultiEntry {
 				return false
 			}
-			println("waitoForEntry in waitOrder average", order.Average)
+			log.Print("waitoForEntry in waitOrder average ", order.Average)
 			model.State.EntryPrice = order.Average
 			model.State.State = InEntry
+			log.Print("isMultiEntry ", isMultiEntry)
+			if isMultiEntry {
+				model.State.State = InMultiEntry
+			}
+			// approx here we should place new take profit
 			sm.StateMgmt.UpdateEntryPrice(model.ID, model.State)
 			return true
 		case TakeProfit:
+			sm.IsWaitingForOrder.Store(TakeProfit, false)
+			isMultiEntry := len(model.Conditions.EntryLevels) > 0
 			if order.Filled > 0 {
 				model.State.ExecutedAmount += order.Filled
+			}
+			if isMultiEntry && model.Conditions.PlaceEntryAfterTAP {
+				sm.SelectedEntryTarget -= 1
 			}
 			model.State.ExitPrice = order.Average
 			amount := model.Conditions.EntryOrder.Amount
@@ -106,15 +118,23 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 				amount = amount * 0.99
 			}
 			println("model.State.ExecutedAmount >= amount", model.State.ExecutedAmount >= amount)
-			if model.State.ExecutedAmount >= amount {
+			if model.State.ExecutedAmount >= amount || model.Conditions.CloseStrategyAfterFirstTAP {
+				// here we gonna close SM if CloseStrategyAfterFirstTAP enabled or we executed all entry && TAP orders
+				if model.Conditions.CloseStrategyAfterFirstTAP || sm.SelectedEntryTarget == len(model.Conditions.EntryLevels) - 1 {
+					model.State.State = End
+				// here we place all entry
+				} else if model.Conditions.PlaceEntryAfterTAP {
+					// place entry orders again
+					model.State.ExecutedAmount -= order.Filled
+					sm.placeMultiEntryOrders()
+				}
 			} else {
 				go sm.PlaceOrder(0, Stoploss)
 			}
-
 			calculateAndSavePNL(model, sm.StateMgmt)
 			sm.StateMgmt.UpdateExecutedAmount(model.ID, model.State)
 
-			if model.State.ExecutedAmount >= amount {
+			if model.State.ExecutedAmount >= amount || model.Conditions.CloseStrategyAfterFirstTAP {
 				isTrailingHedgeOrder := model.Conditions.HedgeStrategyId != nil || model.Conditions.Hedging == true
 
 				if isTrailingHedgeOrder {
@@ -134,6 +154,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			}
 			calculateAndSavePNL(model, sm.StateMgmt)
 			sm.StateMgmt.UpdateExecutedAmount(model.ID, model.State)
+			log.Print("model.State.ExecutedAmount >= amount in SL", model.State.ExecutedAmount >= amount)
 			if model.State.ExecutedAmount >= amount {
 				return true
 			}

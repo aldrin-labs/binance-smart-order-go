@@ -139,6 +139,45 @@ func GetTestSmartOrderStrategy(scenario string) models.MongoStrategy {
 			ForcedLoss: 10,
 			StopLoss: 20,
 		}
+	case "multiEntryPlacing":
+		smartOrder.Conditions = &models.MongoStrategyCondition{
+			Pair: "BTC_USDT",
+			MarketType: 1,
+			Leverage: 125,
+			SkipInitialSetup: true,
+			EntryOrder: &models.MongoEntryPoint{
+				Side:      "buy",
+				OrderType: "limit",
+				Amount:    0.003,
+			},
+			EntryLevels: []*models.MongoEntryPoint{
+				{
+					Price: 6000,
+					Amount: 0.001,
+					Type: 0,
+				},
+				{
+					Price: 20,
+					Amount: 0.001,
+					Type: 1,
+				},
+				{
+					Price: 20,
+					Amount: 0.001,
+					Type: 1,
+				},
+			},
+			ExitLevels: []*models.MongoEntryPoint{
+				{
+					Type:      1,
+					OrderType: "limit",
+					Price:     20,
+					Amount:    100,
+				},
+			},
+			ForcedLoss: 10,
+			StopLoss: 20,
+		}
 	case "trailingEntryLong":
 		smartOrder.Conditions = &models.MongoStrategyCondition{
 			Pair: "BTC_USDT",
