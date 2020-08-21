@@ -740,7 +740,7 @@ func (sm *SmartOrder) Start() {
 	for state != End && state != Canceled && state != Timeout {
 		if sm.Strategy.GetModel().Enabled == false {
 			state , ok= sm.State.State(ctx)
-			log.Print("ok ", ok)
+			//log.Print("ok ", ok)
 			break
 		}
 		if !sm.Lock {
@@ -752,8 +752,8 @@ func (sm *SmartOrder) Start() {
 		}
 		time.Sleep(60 * time.Millisecond)
 		state, _ = sm.State.State(ctx)
-		log.Print("ok ", ok)
-		log.Print("state", state)
+		//log.Print("ok ", ok)
+		//log.Print("state", state)
 	}
 	sm.Stop()
 	println("STOPPED smartorder", state.(string))

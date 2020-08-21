@@ -23,7 +23,7 @@ type MockTrading struct {
 	SellDelay      int
 }
 
-func (mt MockTrading) UpdateLeverage(keyId *primitive.ObjectID, leverage float64, symbol string) interface{} {
+func (mt MockTrading) UpdateLeverage(keyId *primitive.ObjectID, leverage float64, symbol string, hostname string) interface{} {
 	panic("implement me")
 }
 
@@ -56,7 +56,7 @@ func NewMockedTradingAPIWithMarketAccess(feed *MockDataFeed) *MockTrading {
 	return &mockTrading
 }
 
-func (mt MockTrading) CreateOrder(req trading.CreateOrderRequest) trading.OrderResponse {
+func (mt MockTrading) CreateOrder(req trading.CreateOrderRequest, hostname string) trading.OrderResponse {
 	fmt.Printf("Create Order Request: %v %f \n", req, req.KeyParams.Amount)
 
 	callCount, _ := mt.CallCount.LoadOrStore(req.KeyParams.Side, 0)
@@ -111,7 +111,7 @@ func (mt MockTrading) CreateOrder(req trading.CreateOrderRequest) trading.OrderR
 	}}
 }
 
-func (mt MockTrading) CancelOrder(req trading.CancelOrderRequest) trading.OrderResponse {
+func (mt MockTrading) CancelOrder(req trading.CancelOrderRequest, hostname string) trading.OrderResponse {
 	fmt.Printf("Cancel Order Request: %v %f \n", req, req.KeyParams.Pair)
 	callCount, callOk := mt.CallCount.Load(req.KeyParams.Pair)
 
@@ -149,15 +149,15 @@ func (mt MockTrading) CancelOrder(req trading.CancelOrderRequest) trading.OrderR
 	return response
 }
 
-func (mt MockTrading) PlaceHedge(parentSmarOrder *models.MongoStrategy) trading.OrderResponse {
+func (mt MockTrading) PlaceHedge(parentSmarOrder *models.MongoStrategy, hostname string) trading.OrderResponse {
 	panic("implement me")
 }
 
-func (mt MockTrading) Transfer(request trading.TransferRequest) trading.OrderResponse {
+func (mt MockTrading) Transfer(request trading.TransferRequest, hostname string) trading.OrderResponse {
 	panic("implement me")
 }
 
-func (mt MockTrading) SetHedgeMode(keyId *primitive.ObjectID, hedgeMode bool) trading.OrderResponse {
+func (mt MockTrading) SetHedgeMode(keyId *primitive.ObjectID, hedgeMode bool, hostname string) trading.OrderResponse {
 	response := trading.OrderResponse{
 		Status: "OK",
 	}
