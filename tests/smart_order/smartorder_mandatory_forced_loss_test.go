@@ -1,10 +1,5 @@
 package smart_order
 
-/*
-	This file contains test cases for entry in smart order
-	for normal and trailing smart orders
-*/
-
 import (
 	"context"
 	"fmt"
@@ -49,8 +44,8 @@ func TestSmartOrderMandatoryForcedLoss(t *testing.T) {
 		Model: &smartOrderModel,
 	}
 	keyId := primitive.NewObjectID()
-	sm := tests.NewMockedStateMgmt(tradingApi)
-	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
+	sm := tests.NewMockedStateMgmt(tradingApi, df)
+	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm, "")
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
 	})

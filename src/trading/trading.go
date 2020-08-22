@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"math"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/mitchellh/mapstructure"
@@ -40,13 +39,13 @@ type TransferRequest struct {
 }
 
 type ITrading interface {
-	CreateOrder(order CreateOrderRequest) OrderResponse
-	CancelOrder(params CancelOrderRequest) OrderResponse
-	PlaceHedge(parentSmarOrder *models.MongoStrategy) OrderResponse
+	CreateOrder(order CreateOrderRequest, hostname string) OrderResponse
+	CancelOrder(params CancelOrderRequest, hostname string) OrderResponse
+	PlaceHedge(parentSmarOrder *models.MongoStrategy, hostname string) OrderResponse
 
-	UpdateLeverage(keyId *primitive.ObjectID, leverage float64, symbol string) interface{}
-	Transfer(request TransferRequest) OrderResponse
-	SetHedgeMode(keyId *primitive.ObjectID, hedgeMode bool) OrderResponse
+	UpdateLeverage(keyId *primitive.ObjectID, leverage float64, symbol string, hostname string) interface{}
+	Transfer(request TransferRequest, hostname string) OrderResponse
+	SetHedgeMode(keyId *primitive.ObjectID, hedgeMode bool, hostname string) OrderResponse
 }
 
 type Trading struct {
@@ -58,8 +57,8 @@ func InitTrading() ITrading {
 	return tr
 }
 
-func Request(method string, data interface{}) interface{} {
-	url := "http://" + os.Getenv("EXCHANGESERVICE") + "/" + method
+func Request(method string, data interface{}, hostname string) interface{} {
+	url := "http://" + hostname + "/" + method
 	fmt.Println("URL:>", url)
 
 	var jsonStr, err = json.Marshal(data)
@@ -71,7 +70,7 @@ func Request(method string, data interface{}) interface{} {
 	if err != nil {
 		println(err.Error())
 
-		return Request(method, data)
+		return Request(method, data, hostname)
 	}
 	defer resp.Body.Close()
 
@@ -176,7 +175,7 @@ func toFixed(num float64, precision int) float64 {
 	return float64(round(num*output)) / output
 }
 
-func (t *Trading) CreateOrder(order CreateOrderRequest) OrderResponse {
+func (t *Trading) CreateOrder(order CreateOrderRequest, hostname string) OrderResponse {
 	order.KeyParams.Params.Update = true
 	if order.KeyParams.MarketType == 1 && (order.KeyParams.Type == "limit" || order.KeyParams.Params.Type == "stop-limit") {
 		order.KeyParams.TimeInForce = "GTC"
@@ -187,7 +186,7 @@ func (t *Trading) CreateOrder(order CreateOrderRequest) OrderResponse {
 	if order.KeyParams.ReduceOnly != nil && *order.KeyParams.ReduceOnly == false {
 		order.KeyParams.ReduceOnly = nil
 	}
-	rawResponse := Request("createOrder", order)
+	rawResponse := Request("createOrder", order, hostname)
 	var response OrderResponse
 	_ = mapstructure.Decode(rawResponse, &response)
 
@@ -201,7 +200,7 @@ type UpdateLeverageParams struct {
 	KeyId    *primitive.ObjectID `json:"keyId"`
 }
 
-func (t *Trading) UpdateLeverage(keyId *primitive.ObjectID, leverage float64, symbol string) interface{} {
+func (t *Trading) UpdateLeverage(keyId *primitive.ObjectID, leverage float64, symbol string, hostname string) interface{} {
 	if leverage < 1 {
 		leverage = 1
 	}
@@ -211,11 +210,11 @@ func (t *Trading) UpdateLeverage(keyId *primitive.ObjectID, leverage float64, sy
 		Leverage: leverage,
 		Symbol:   symbol,
 	}
-	return Request("updateLeverage", request)
+	return Request("updateLeverage", request, hostname)
 }
 
-func (t *Trading) CancelOrder(cancelRequest CancelOrderRequest) OrderResponse {
-	rawResponse := Request("cancelOrder", cancelRequest)
+func (t *Trading) CancelOrder(cancelRequest CancelOrderRequest, hostname string) OrderResponse {
+	rawResponse := Request("cancelOrder", cancelRequest, hostname)
 	var response OrderResponse
 	_ = mapstructure.Decode(rawResponse, &response)
 	return response
@@ -223,16 +222,16 @@ func (t *Trading) CancelOrder(cancelRequest CancelOrderRequest) OrderResponse {
 
 // maybe its not the best place and should be in SM, coz its SM related, not trading
 // but i dont care atm sorry not sorry
-func (t *Trading) PlaceHedge(parentSmarOrder *models.MongoStrategy) OrderResponse {
+func (t *Trading) PlaceHedge(parentSmartOrder *models.MongoStrategy, hostname string) OrderResponse {
 
-	var jsonStr, _ = json.Marshal(parentSmarOrder)
+	var jsonStr, _ = json.Marshal(parentSmartOrder)
 	var hedgedStrategy models.MongoStrategy
 	_ = json.Unmarshal(jsonStr, &hedgedStrategy)
 
-	hedgedStrategy.Conditions.HedgeStrategyId = parentSmarOrder.ID
+	hedgedStrategy.Conditions.HedgeStrategyId = parentSmartOrder.ID
 	// dont need it for now i guess
 	//accountId, _ := primitive.ObjectIDFromHex(hedgedStrategy.Conditions.HedgeKeyId.Hex())
-	hedgedStrategy.Conditions.AccountId = parentSmarOrder.AccountId
+	hedgedStrategy.Conditions.AccountId = parentSmartOrder.AccountId
 	hedgedStrategy.Conditions.Hedging = false
 	oppositeSide := hedgedStrategy.Conditions.EntryOrder.Side
 	if oppositeSide == "buy" {
@@ -254,26 +253,26 @@ func (t *Trading) PlaceHedge(parentSmarOrder *models.MongoStrategy) OrderRespons
 		},
 	}
 
-	rawResponse := Request("createOrder", createRequest)
+	rawResponse := Request("createOrder", createRequest, hostname)
 	var response OrderResponse
 	_ = mapstructure.Decode(rawResponse, &response)
 	return response
 }
 
-func (t *Trading) Transfer(request TransferRequest) OrderResponse {
-	rawResponse := Request("transfer", request)
+func (t *Trading) Transfer(request TransferRequest, hostname string) OrderResponse {
+	rawResponse := Request("transfer", request, hostname)
 
 	var response OrderResponse
 	_ = mapstructure.Decode(rawResponse, &response)
 	return response
 }
 
-func (t *Trading) SetHedgeMode(keyId *primitive.ObjectID, hedgeMode bool) OrderResponse {
+func (t *Trading) SetHedgeMode(keyId *primitive.ObjectID, hedgeMode bool, hostname string) OrderResponse {
 	request := HedgeRequest{
 		KeyId:     keyId,
 		HedgeMode: hedgeMode,
 	}
-	rawResponse := Request("changePositionMode", request)
+	rawResponse := Request("changePositionMode", request, hostname)
 
 	var response OrderResponse
 	_ = mapstructure.Decode(rawResponse, &response)

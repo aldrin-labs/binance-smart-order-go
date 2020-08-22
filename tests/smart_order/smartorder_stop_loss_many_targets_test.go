@@ -46,8 +46,8 @@ func TestSmartPlaceStopLossForEachTarget(t *testing.T) {
 		Model: &smartOrderModel,
 	}
 	keyId := primitive.NewObjectID()
-	sm := tests.NewMockedStateMgmt(tradingApi)
-	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
+	sm := tests.NewMockedStateMgmt(tradingApi, df)
+	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm, "")
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
 	})

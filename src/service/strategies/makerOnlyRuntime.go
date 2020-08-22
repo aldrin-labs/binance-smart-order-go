@@ -37,7 +37,7 @@ func RunPostOnlyOrder(strategy *Strategy, df interfaces.IDataFeed, td trading.IT
 		keyId = &keyAsset.KeyId
 	}
 	if strategy.Model.Conditions.MarketType == 1 && !strategy.Model.Conditions.SkipInitialSetup {
-		go td.UpdateLeverage(keyId, strategy.Model.Conditions.Leverage, strategy.Model.Conditions.Pair)
+		go td.UpdateLeverage(keyId, strategy.Model.Conditions.Leverage, strategy.Model.Conditions.Pair, "")
 	}
 	if strategy.Model.State == nil {
 		strategy.Model.State = &models.MongoStrategyState{}

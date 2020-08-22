@@ -49,8 +49,8 @@ func TestSmartOrderGetInEntryLong(t *testing.T) {
 		Model: &smartOrderModel,
 	}
 	keyId := primitive.NewObjectID()
-	sm := tests.NewMockedStateMgmt(tradingApi)
-	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
+	sm := tests.NewMockedStateMgmt(tradingApi, df)
+	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm, "")
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
 	})
@@ -97,8 +97,8 @@ func TestSmartOrderGetInEntryShort(t *testing.T) {
 		Model: &smartOrderModel,
 	}
 	keyId := primitive.NewObjectID()
-	sm := tests.NewMockedStateMgmt(tradingApi)
-	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
+	sm := tests.NewMockedStateMgmt(tradingApi, df)
+	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm, "")
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
 	})
@@ -145,8 +145,8 @@ func TestSmartOrderGetInTrailingEntryLong(t *testing.T) {
 	}
 	keyId := primitive.NewObjectID()
 	//sm := mongodb.StateMgmt{}
-	sm := tests.NewMockedStateMgmt(&tradingApi)
-	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
+	sm := tests.NewMockedStateMgmt(&tradingApi, df)
+	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm, "")
 	go smartOrder.Start()
 	time.Sleep(800 * time.Millisecond)
 	isInState, _ := smartOrder.State.IsInState(smart_order.TrailingEntry)
@@ -228,8 +228,8 @@ func TestSmartOrderGetInTrailingEntryShort(t *testing.T) {
 		Model: &smartOrderModel,
 	}
 	keyId := primitive.NewObjectID()
-	sm := tests.NewMockedStateMgmt(&tradingApi)
-	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
+	sm := tests.NewMockedStateMgmt(&tradingApi, df)
+	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm, "")
 	go smartOrder.Start()
 	time.Sleep(800 * time.Millisecond)
 	isInState, _ := smartOrder.State.IsInState(smart_order.TrailingEntry)

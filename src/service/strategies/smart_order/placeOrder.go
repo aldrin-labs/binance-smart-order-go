@@ -2,6 +2,7 @@ package smart_order
 
 import (
 	"context"
+	"log"
 	"strings"
 	"time"
 
@@ -87,15 +88,16 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 
 		side = model.Conditions.EntryOrder.Side
 		baseAmount = model.Conditions.EntryOrder.Amount
+
+		if len(model.Conditions.EntryLevels) > 0 {
+			baseAmount = model.Conditions.EntryLevels[sm.SelectedEntryTarget].Amount
+		}
 		//println("orderPrice in waitForEntry", orderPrice)
 		break
 	case HedgeLoss:
 		reduceOnly = true
 		baseAmount = model.Conditions.EntryOrder.Amount - model.State.ExecutedAmount
-		side = "buy"
-		if model.Conditions.EntryOrder.Side == side {
-			side = "sell"
-		}
+		side = oppositeSide
 		orderType = model.Conditions.StopLossType
 
 		stopLoss := model.Conditions.HedgeLossDeviation
@@ -114,14 +116,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 	case Stoploss:
 		reduceOnly = true
 		baseAmount = model.Conditions.EntryOrder.Amount - model.State.ExecutedAmount
-		//if isSpot {
-		//	baseAmount = baseAmount * 0.99
-		//}
-
-		side = "buy"
-		if model.Conditions.EntryOrder.Side == side {
-			side = "sell"
-		}
+		side = oppositeSide
 
 		if model.Conditions.StopLossPrice > 0 {
 			orderPrice = model.Conditions.StopLossPrice
@@ -130,6 +125,11 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 			} else {
 				orderType = model.Conditions.StopLossType
 			}
+			break
+		}
+
+		if len(model.Conditions.EntryLevels) > 0 {
+			orderType = prefix + model.Conditions.StopLossType
 			break
 		}
 
@@ -186,13 +186,10 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 		break
 	case "ForcedLoss":
 		reduceOnly = true
-		side = "buy"
+		side = oppositeSide
 		baseAmount = model.Conditions.EntryOrder.Amount
 		orderType = "market"
 
-		if model.Conditions.EntryOrder.Side == side {
-			side = "sell"
-		}
 		isTrailingHedgeOrder := model.Conditions.HedgeStrategyId != nil || model.Conditions.HedgeKeyId != nil
 		if isTrailingHedgeOrder {
 			return
@@ -224,14 +221,10 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 	case "WithoutLoss":
 		// entry price + commission
 		reduceOnly = true
-		side = "buy"
+		side = oppositeSide
 		baseAmount = model.Conditions.EntryOrder.Amount
 		orderType = prefix + "limit"
 		fee := 0.12
-
-		if model.Conditions.EntryOrder.Side == side {
-			side = "sell"
-		}
 
 		// if price 0 then market price == entry price for spot market order
 		if isSpot && price != 0 {
@@ -372,6 +365,15 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 		} else {
 			baseAmount = sm.getLastTargetAmount()
 		}
+
+		if len(model.Conditions.EntryLevels) > 0 {
+			baseAmount = 0.0
+			for i, target := range model.Conditions.EntryLevels {
+				if i <= sm.SelectedEntryTarget {
+					baseAmount += target.Amount
+				}
+			}
+		}
 		//println("take profit price, orderPrice in the end", price, orderPrice)
 		// model.State.ExecutedAmount += amount
 		break
@@ -446,7 +448,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 					MarketType: model.Conditions.MarketType,
 					Pair:       model.Conditions.Pair,
 				},
-			})
+			}, sm.Hostname)
 			if response.Status == "ERR" { // looks like order was already executed or canceled in other thread
 				return
 			}
@@ -459,12 +461,11 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 				request.KeyParams.PositionSide = "LONG"
 			}
 		}
-		println("create order step amount", step, sm.Strategy.GetModel().Conditions.EntryOrder.Amount)
+		log.Print("create order step ", step, " amount ", baseAmount)
 		if step == WaitForEntry {
-			println("sel isEntryOrderPlaced to true, amount", sm.Strategy.GetModel().Conditions.EntryOrder.Amount)
 			sm.IsEntryOrderPlaced = true
 		}
-		response := sm.ExchangeApi.CreateOrder(request)
+		response := sm.ExchangeApi.CreateOrder(request, sm.Hostname)
 		if response.Status == "OK" && response.Data.Id != "0" && response.Data.Id != "" {
 			sm.IsWaitingForOrder.Store(step, true)
 			if ifShouldCancelPreviousOrder {
@@ -479,7 +480,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 							MarketType: model.Conditions.MarketType,
 							Pair:       model.Conditions.Pair,
 						},
-					})
+					}, sm.Hostname)
 				}
 				model.State.ExecutedOrders = append(model.State.ExecutedOrders, response.Data.Id)
 			}

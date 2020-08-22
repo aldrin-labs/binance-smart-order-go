@@ -58,12 +58,12 @@ func (sm *SmartOrder) waitForHedge() {
 func (sm *SmartOrder) hedge() {
 	if sm.Strategy.GetModel().Conditions.MarketType == 1 && sm.Strategy.GetModel().Conditions.Hedging {
 		if !sm.Strategy.GetModel().Conditions.SkipInitialSetup {
-			sm.ExchangeApi.SetHedgeMode(sm.Strategy.GetModel().AccountId, true)
+			sm.ExchangeApi.SetHedgeMode(sm.Strategy.GetModel().AccountId, true, sm.Hostname)
 			time.Sleep(5 * time.Second)
 		}
 
 		if (sm.Strategy.GetModel().Conditions.HedgeStrategyId == nil || sm.Strategy.GetModel().Conditions.ContinueIfEnded) && sm.Strategy.GetModel().Enabled {
-			hedgedOrder := sm.ExchangeApi.PlaceHedge(sm.Strategy.GetModel())
+			hedgedOrder := sm.ExchangeApi.PlaceHedge(sm.Strategy.GetModel(), sm.Hostname)
 			if hedgedOrder.Data.OrderId != "" {
 				objId, _ := primitive.ObjectIDFromHex(hedgedOrder.Data.OrderId)
 				sm.Strategy.GetModel().Conditions.HedgeStrategyId = &objId
@@ -75,12 +75,12 @@ func (sm *SmartOrder) hedge() {
 
 	if sm.Strategy.GetModel().Conditions.MarketType == 1 && !sm.Strategy.GetModel().Conditions.SkipInitialSetup {
 		if sm.Strategy.GetModel().Conditions.HedgeMode {
-			sm.ExchangeApi.SetHedgeMode(sm.Strategy.GetModel().AccountId, true)
+			sm.ExchangeApi.SetHedgeMode(sm.Strategy.GetModel().AccountId, true, sm.Hostname)
 			time.Sleep(5 * time.Second)
 			return
 		}
 
-		sm.ExchangeApi.SetHedgeMode(sm.Strategy.GetModel().AccountId, false)
+		sm.ExchangeApi.SetHedgeMode(sm.Strategy.GetModel().AccountId, false, sm.Hostname)
 		time.Sleep(5 * time.Second)
 	}
 }
