@@ -176,6 +176,28 @@ func (sm *StateMgmt) SubscribeToOrder(orderId string, onOrderStatusUpdate func(o
 	return nil
 }
 
+func (sm *StateMgmt) SaveOrder(order models.MongoOrder) {
+	opts := options.Update().SetUpsert(true)
+	filter := bson.D{{"_id", order.ID}}
+	update := bson.D{{"$set", bson.D{
+		{"_id", order.ID},
+		{"orderId", order.OrderId},
+		{"filled", order.Filled},
+		{"average", order.Average},
+		{"status", order.Status},
+		{"symbol", order.Symbol},
+		{"type",order.Type},
+		{"reduceOnly",order.ReduceOnly},
+	}}}
+	CollName := "core_orders"
+	ctx := context.Background()
+	var coll = GetCollection(CollName)
+	_, err := coll.UpdateOne(ctx, filter, update, opts)
+	if err != nil {
+		println(err)
+	}
+}
+
 func (sm *StateMgmt) SubscribeToHedge(strategyId *primitive.ObjectID, onStrategyUpdate func(strategy *models.MongoStrategy)) error {
 	go func() {
 		var strategy *models.MongoStrategy
@@ -266,6 +288,20 @@ func (sm *StateMgmt) GetOrder(orderId string) *models.MongoOrder {
 		println(err.Error())
 	}
 	return order
+}
+
+func (sm *StateMgmt) SaveStrategy(strategy *models.MongoStrategy) *models.MongoStrategy {
+	opts := options.Update().SetUpsert(true)
+	filter := bson.D{{"_id", strategy.ID}}
+	update := strategy
+	CollName := "core_strategies"
+	ctx := context.Background()
+	var coll = GetCollection(CollName)
+	_, err := coll.UpdateOne(ctx, filter, update, opts)
+	if err != nil {
+		println(err)
+	}
+	return strategy
 }
 
 func (sm *StateMgmt) GetStrategy(strategyId *primitive.ObjectID) *models.MongoStrategy {

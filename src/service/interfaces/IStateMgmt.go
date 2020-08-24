@@ -23,5 +23,7 @@ type IStateMgmt interface {
 	InitOrdersWatch()
 	SavePNL(templateStrategyId *primitive.ObjectID, profitAmount float64)
 	SaveStrategyConditions(strategy *models.MongoStrategy)
+	SaveStrategy(strategy *models.MongoStrategy) *models.MongoStrategy
 	EnableHedgeLossStrategy(strategyId *primitive.ObjectID)
+	SaveOrder(order models.MongoOrder)
 }

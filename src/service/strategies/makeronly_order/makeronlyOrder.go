@@ -48,33 +48,29 @@ type MakerOnlyOrder struct {
 	OrderParams trading.Order
 }
 
-func (po *MakerOnlyOrder) createTemplateOrder() {
-
-}
 
 func (sm *MakerOnlyOrder) IsOrderExistsInMap(orderId string) bool {
 	return false
 }
 
-func (sm *MakerOnlyOrder) SetSelectedExitTarget(selectedExitTarget int){
-
-}
+func (sm *MakerOnlyOrder) SetSelectedExitTarget(selectedExitTarget int){}
 
 
 func (sm *MakerOnlyOrder) Stop(){}
 
 func (sm *MakerOnlyOrder) TryCancelAllOrders(orderIds []string){}
 func (sm *MakerOnlyOrder) TryCancelAllOrdersConsistently(orderIds []string){}
-func NewPostOnlyOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed, TradingAPI trading.ITrading, keyId *primitive.ObjectID, stateMgmt interfaces.IStateMgmt) *MakerOnlyOrder {
+func NewMakerOnlyOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed, TradingAPI trading.ITrading, keyId *primitive.ObjectID, stateMgmt interfaces.IStateMgmt) *MakerOnlyOrder {
 
 	PO := &MakerOnlyOrder{Strategy: strategy, DataFeed: DataFeed, ExchangeApi: TradingAPI, KeyId: keyId, StateMgmt: stateMgmt, Lock: false, SelectedExitTarget: 0, OrdersMap: map[string]bool{}}
 	initState := PlaceOrder
-	pricePrecision, amountPrecision := stateMgmt.GetMarketPrecision(strategy.GetModel().Conditions.Pair, strategy.GetModel().Conditions.MarketType)
+	model := strategy.GetModel()
+	pricePrecision, amountPrecision := stateMgmt.GetMarketPrecision(model.Conditions.Pair, model.Conditions.MarketType)
 	PO.QuantityPricePrecision = pricePrecision
 	PO.QuantityAmountPrecision = amountPrecision
 	// if state is not empty but if its in the end and open ended, then we skip state value, since want to start over
-	if strategy.GetModel().State != nil && strategy.GetModel().State.State != "" && !(strategy.GetModel().State.State == Filled && strategy.GetModel().Conditions.ContinueIfEnded == true) {
-		initState = strategy.GetModel().State.State
+	if model.State != nil && model.State.State != "" && !(model.State.State == Filled && model.Conditions.ContinueIfEnded == true) {
+		initState = model.State.State
 	}
 	State := stateless.NewStateMachine(initState)
 
@@ -88,15 +84,8 @@ func NewPostOnlyOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataFe
 			2) wait N time
 			3) if possible place at better/worse price or stay
 	*/
-	State.Configure(PlaceOrder).Permit(TriggerSpread, Filled,
-		PO.checkSpread).Permit(CheckExistingOrders, Filled,
-		PO.checkSpread)
-
-	State.Configure(PartiallyFilled).Permit(TriggerSpread, Filled,
-		PO.checkSpread).Permit(CheckExistingOrders, Filled,
-		PO.checkSpread)
-
-	State.Configure(Filled)
+	State.Configure(PlaceOrder).Permit(CheckExistingOrders, Filled)
+	State.Configure(Filled).OnEntry(PO.enterFilled)
 
 	State.Activate()
 
@@ -104,6 +93,9 @@ func NewPostOnlyOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataFe
 	PO.ExchangeName = "binance"
 	// fmt.Printf(PO.State.ToGraph())
 	// fmt.Printf("DONE\n")
+	if model.State.ColdStart {
+		go strategy.GetStateMgmt().SaveStrategy(model)
+	}
 	return PO
 }
 
@@ -116,15 +108,24 @@ func (sm *MakerOnlyOrder) Start() {
 			break
 		}
 		if !sm.Lock {
-			if sm.Strategy.GetModel().Conditions.EntrySpreadHunter {
-				//sm.processSpreadEventLoop()
-			} else {
-				//sm.processEventLoop()
-			}
+			sm.processEventLoop()
 		}
-		time.Sleep(15 * time.Millisecond)
+		time.Sleep(5 * time.Second)
 		state, _ = sm.State.State(ctx)
 	}
 	//sm.Stop()
 	println("STOPPED postonly")
+}
+
+
+func (sm *MakerOnlyOrder) processEventLoop() {
+	currentSpread := sm.DataFeed.GetSpreadForPairAtExchange(sm.Strategy.GetModel().Conditions.Pair, sm.ExchangeName, sm.Strategy.GetModel().Conditions.MarketType)
+	if currentSpread != nil {
+		if sm.Strategy.GetModel().State.EntryOrderId == "" {
+			sm.PlaceOrder(0, PlaceOrder)
+		}
+		if sm.Strategy.GetModel().State.EntryPrice != currentSpread.BestBid && sm.Strategy.GetModel().State.EntryPrice != currentSpread.BestAsk {
+			sm.PlaceOrder(0, PlaceOrder)
+		}
+	}
 }

@@ -103,6 +103,100 @@ func (ss *StrategyService) AddStrategy(strategy * models.MongoStrategy) {
 	}
 }
 
+func (ss *StrategyService) CreateOrder(request trading.CreateOrderRequest) trading.OrderResponse {
+	id := primitive.NewObjectID()
+	order := models.MongoOrder{
+		ID:                     id,
+		Status:                 "open",
+		OrderId:                id.Hex(),
+		Filled:                 0,
+		Average:                0,
+		Side:                   request.KeyParams.Side,
+		Type:                   "maker-only",
+		Symbol:                 request.KeyParams.Symbol,
+		ReduceOnly:             *request.KeyParams.ReduceOnly,
+	}
+	go ss.stateMgmt.SaveOrder(order)
+	strategy := models.MongoStrategy{
+		ID:              &id,
+		Type:            2,
+		Enabled:         true,
+		AccountId:       request.KeyId,
+		Conditions:      &models.MongoStrategyCondition{
+			AccountId:                 request.KeyId,
+			Hedging:                   request.KeyParams.Params.SmartOrder.Hedging,
+			HedgeMode:                 request.KeyParams.Params.SmartOrder.HedgeMode,
+			MakerOrderId: id.Hex(),
+			HedgeKeyId:                nil,
+			HedgeStrategyId:           nil,
+			TemplateToken:             "",
+			PositionWasClosed:         false,
+			SkipInitialSetup:          false,
+			ForcedLossPrice:           0,
+			TakeProfitPrice:           0,
+			TakeProfitHedgePrice:      0,
+			StopLossExternal:          false,
+			TakeProfitExternal:        false,
+			WithoutLossAfterProfit:    0,
+			EntrySpreadHunter:         false,
+			EntryWaitingTime:          0,
+			TakeProfitSpreadHunter:    false,
+			TakeProfitWaitingTime:     0,
+			KeyAssetId:                nil,
+			Pair:                      request.KeyParams.Params.SmartOrder.Pair,
+			MarketType:                request.KeyParams.Params.SmartOrder.MarketType,
+			EntryOrder:                nil,
+			WaitingEntryTimeout:       0,
+			ActivationMoveStep:        0,
+			ActivationMoveTimeout:     0,
+			TimeoutIfProfitable:       0,
+			TimeoutWhenProfit:         0,
+			ContinueIfEnded:           false,
+			TimeoutBeforeOpenPosition: 0,
+			ChangeTrendIfLoss:         false,
+			ChangeTrendIfProfit:       false,
+			MoveStopCloser:            false,
+			MoveForcedStopAtEntry:     false,
+			TimeoutWhenLoss:           0,
+			TimeoutLoss:               0,
+			StopLoss:                  0,
+			StopLossType:              "",
+			ForcedLoss:                0,
+			HedgeLossDeviation:        0,
+			CreatedByTemplate:         false,
+			TemplateStrategyId:        nil,
+			Leverage:                  0,
+			EntryLevels:               nil,
+			ExitLevels:                nil,
+		},
+		State:           nil,
+		TriggerWhen:     models.TriggerOptions{},
+		Expiration:      models.ExpirationSchema{},
+		LastUpdate:      0,
+		SignalIds:       nil,
+		OrderIds:        nil,
+		WaitForOrderIds: nil,
+		OwnerId:         primitive.ObjectID{},
+		Social:          models.MongoSocial{},
+		CreatedAt:       time.Time{},
+	}
+	go ss.AddStrategy(&strategy)
+	response := trading.OrderResponse{
+		Status: "OK",
+		Data:   trading.OrderResponseData{
+			Id:      id.Hex(),
+			Msg:     "",
+			OrderId: id.Hex(),
+			Status:  "open",
+			Price:   0,
+			Average: 0,
+			Filled:  0,
+			Code:    0,
+		},
+	}
+	return response
+}
+
 const CollName = "core_strategies"
 func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) error {
 //func (ss *StrategyService) WatchStrategies() error {

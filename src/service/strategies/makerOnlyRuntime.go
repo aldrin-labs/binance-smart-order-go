@@ -13,7 +13,7 @@ import (
 )
 
 
-func RunPostOnlyOrder(strategy *Strategy, df interfaces.IDataFeed, td trading.ITrading, keyId *primitive.ObjectID) interfaces.IStrategyRuntime {
+func RunMakerOnlyOrder(strategy *Strategy, df interfaces.IDataFeed, td trading.ITrading, keyId *primitive.ObjectID) interfaces.IStrategyRuntime {
 	if strategy.Model.Conditions.Leverage == 0 {
 		strategy.Model.Conditions.Leverage = 1
 	}
@@ -42,8 +42,9 @@ func RunPostOnlyOrder(strategy *Strategy, df interfaces.IDataFeed, td trading.IT
 	if strategy.Model.State == nil {
 		strategy.Model.State = &models.MongoStrategyState{}
 	}
-	strategy.StateMgmt.SaveStrategyConditions(strategy.Model)
-	runtime := makeronly_order.NewPostOnlyOrder(strategy, df, td, keyId, strategy.StateMgmt)
+	// go strategy.StateMgmt.SaveStrategy(strategy.Model)
+	// strategy.StateMgmt.SaveStrategyConditions(strategy.Model)
+	runtime := makeronly_order.NewMakerOnlyOrder(strategy, df, td, keyId, strategy.StateMgmt)
 	go runtime.Start()
 
 	return runtime
