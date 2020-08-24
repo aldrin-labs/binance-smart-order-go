@@ -177,6 +177,128 @@ func GetTestSmartOrderStrategy(scenario string) models.MongoStrategy {
 			},
 			ForcedLoss: 10,
 			StopLoss: 20,
+			StopLossType: "market",
+		}
+	case "multiEntryPlacingTAP":
+		smartOrder.Conditions = &models.MongoStrategyCondition{
+			Pair: "BTC_USDT",
+			MarketType: 1,
+			Leverage: 125,
+			SkipInitialSetup: true,
+			EntryOrder: &models.MongoEntryPoint{
+				Side:      "buy",
+				OrderType: "limit",
+				Amount:    0.003,
+			},
+			EntryLevels: []*models.MongoEntryPoint{
+				{
+					Price: 6000,
+					Amount: 0.001,
+					Type: 0,
+				},
+				{
+					Price: 20,
+					Amount: 0.001,
+					Type: 1,
+				},
+				{
+					Price: 20,
+					Amount: 0.001,
+					Type: 1,
+				},
+			},
+			ExitLevels: []*models.MongoEntryPoint{
+				{
+					Type:      1,
+					OrderType: "limit",
+					Price:     20,
+					Amount:    100,
+				},
+			},
+			StopLoss: 2000,
+			StopLossType: "market",
+		}
+	case "multiEntryPlacingClosingAfterFirstTAP":
+		smartOrder.Conditions = &models.MongoStrategyCondition{
+			Pair: "BTC_USDT",
+			MarketType: 1,
+			Leverage: 125,
+			SkipInitialSetup: true,
+			EntryOrder: &models.MongoEntryPoint{
+				Side:      "buy",
+				OrderType: "limit",
+				Amount:    0.003,
+			},
+			EntryLevels: []*models.MongoEntryPoint{
+				{
+					Price: 5700,
+					Amount: 0.001,
+					Type: 0,
+					PlaceWithoutLoss: true,
+				},
+				{
+					Price: 20,
+					Amount: 0.001,
+					Type: 1,
+				},
+				{
+					Price: 20,
+					Amount: 0.001,
+					Type: 1,
+				},
+			},
+			ExitLevels: []*models.MongoEntryPoint{
+				{
+					Type:      1,
+					OrderType: "limit",
+					Price:     2,
+					Amount:    100,
+				},
+			},
+			StopLoss: 2000,
+			StopLossType: "market",
+			CloseStrategyAfterFirstTAP: true,
+		}
+	case "multiEntryPlacingClosingByWithoutLoss":
+		smartOrder.Conditions = &models.MongoStrategyCondition{
+			Pair: "BTC_USDT",
+			MarketType: 1,
+			Leverage: 125,
+			SkipInitialSetup: true,
+			EntryOrder: &models.MongoEntryPoint{
+				Side:      "buy",
+				OrderType: "limit",
+				Amount:    0.003,
+			},
+			EntryLevels: []*models.MongoEntryPoint{
+				{
+					Price: 5700,
+					Amount: 0.001,
+					Type: 0,
+					PlaceWithoutLoss: true,
+				},
+				{
+					Price: 20,
+					Amount: 0.001,
+					Type: 1,
+				},
+				{
+					Price: 20,
+					Amount: 0.001,
+					Type: 1,
+				},
+			},
+			ExitLevels: []*models.MongoEntryPoint{
+				{
+					Type:      1,
+					OrderType: "limit",
+					Price:     20,
+					Amount:    100,
+				},
+			},
+			StopLoss: 2000,
+			StopLossType: "market",
+			CloseStrategyAfterFirstTAP: true,
 		}
 	case "trailingEntryLong":
 		smartOrder.Conditions = &models.MongoStrategyCondition{

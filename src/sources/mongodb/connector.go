@@ -82,20 +82,20 @@ func (sm *StateMgmt) InitOrdersWatch() {
 		var eventDecoded models.MongoOrderUpdateEvent
 		err := cs.Decode(&eventDecoded)
 		//	data := next.String()
-		// println(data)
+		// log.Print(data)
 		//		err := json.Unmarshal([]byte(data), &event)
 		if err != nil {
-			println("event decode", err.Error())
+			log.Print("event decode", err.Error())
 		}
 		go func(event models.MongoOrderUpdateEvent) {
 			if event.FullDocument.Status == "filled" || event.FullDocument.Status == "canceled" {
 				orderId := event.FullDocument.OrderId
-				println("event.FullDocument.PostOnlyInitialOrderId", event.FullDocument.PostOnlyInitialOrderId)
+				log.Print("event.FullDocument.PostOnlyInitialOrderId", event.FullDocument.PostOnlyInitialOrderId)
 				if event.FullDocument.PostOnlyInitialOrderId != "" {
 					orderId = event.FullDocument.PostOnlyInitialOrderId
 				}
 
-				println("orderId", orderId)
+				log.Print("orderId", orderId)
 				getCallBackRaw, ok := sm.OrderCallbacks.Load(orderId)
 				if ok {
 					callback := getCallBackRaw.(func(order *models.MongoOrder))
@@ -124,7 +124,7 @@ func (sm *StateMgmt) EnableStrategy(strategyId *primitive.ObjectID) {
 	}
 	_, err := col.UpdateOne(context.TODO(), request, update)
 	if err != nil {
-		println("error in arg", err.Error())
+		log.Print("error in arg", err.Error())
 	}
 }
 
@@ -146,7 +146,7 @@ func (sm *StateMgmt) DisableStrategy(strategyId *primitive.ObjectID) {
 	}
 	_, err := col.UpdateOne(context.TODO(), request, update)
 	if err != nil {
-		println("error in arg", err.Error())
+		log.Print("error in arg", err.Error())
 	}
 	
 	sm.CheckDisabledStrategy(strategyId, 2, 30)
@@ -154,7 +154,7 @@ func (sm *StateMgmt) DisableStrategy(strategyId *primitive.ObjectID) {
 
 func (sm *StateMgmt) CheckDisabledStrategy(strategyId *primitive.ObjectID, times int, timeout int64) {
 	strategy := sm.GetStrategy(strategyId)
-	println("CheckDisabledStrategy times enabled ", times, strategy.Enabled)
+	log.Print("CheckDisabledStrategy times enabled ", times, strategy.Enabled)
 	if times <= 0 || strategy == nil || strategy.Enabled == false {
 		return
 	} else {
@@ -169,7 +169,7 @@ func (sm *StateMgmt) CheckDisabledStrategy(strategyId *primitive.ObjectID, times
 func (sm *StateMgmt) SubscribeToOrder(orderId string, onOrderStatusUpdate func(order *models.MongoOrder)) error {
 	sm.OrderCallbacks.Store(orderId, onOrderStatusUpdate)
 	executedOrder := sm.GetOrder(orderId)
-	println("executedOrder", executedOrder == nil)
+	log.Print("executedOrder", executedOrder == nil)
 	if executedOrder != nil {
 		onOrderStatusUpdate(executedOrder)
 	}
@@ -232,10 +232,10 @@ func (sm *StateMgmt) SubscribeToHedge(strategyId *primitive.ObjectID, onStrategy
 		var event models.MongoStrategyUpdateEvent
 		err := cs.Decode(&event)
 		//	data := next.String()
-		// println(data)
+		// log.Print(data)
 		//		err := json.Unmarshal([]byte(data), &event)
 		if err != nil {
-			println("event decode", err.Error())
+			log.Print("event decode", err.Error())
 		}
 		onStrategyUpdate(&event.FullDocument)
 	}
@@ -262,7 +262,7 @@ func (sm *StateMgmt) AnyActiveStrats(strategy *models.MongoStrategy) bool {
 	var foundStrategy *models.MongoStrategy
 	err := coll.FindOne(ctx, request).Decode(&foundStrategy)
 	if err != nil {
-		println("strategy decode error: ", err.Error())
+		log.Print("strategy decode error: ", err.Error())
 		return false
 	}
 
@@ -285,7 +285,7 @@ func (sm *StateMgmt) GetOrder(orderId string) *models.MongoOrder {
 	var order *models.MongoOrder
 	err := coll.FindOne(ctx, request).Decode(&order)
 	if err != nil {
-		println(err.Error())
+		log.Print(err.Error())
 	}
 	return order
 }
@@ -316,7 +316,7 @@ func (sm *StateMgmt) GetStrategy(strategyId *primitive.ObjectID) *models.MongoSt
 	var strategy *models.MongoStrategy
 	err := coll.FindOne(ctx, request).Decode(&strategy)
 	if err != nil {
-		println(err.Error())
+		log.Print(err.Error())
 	}
 	return strategy
 }
@@ -334,7 +334,7 @@ func (sm *StateMgmt) GetMarketPrecision(pair string, marketType int64) (int64, i
 	var market *models.MongoMarket
 	err := coll.FindOne(ctx, request).Decode(&market)
 	if err != nil {
-		println(err.Error())
+		log.Print(err.Error())
 	}
 
 	return market.Properties.Binance.PricePrecision, market.Properties.Binance.QuantityPrecision
@@ -358,9 +358,9 @@ func (sm *StateMgmt) UpdateConditions(strategyId *primitive.ObjectID, state *mod
 	}
 	_, err := col.UpdateOne(context.TODO(), request, update)
 	if err != nil {
-		println("error in arg", err.Error())
+		log.Print("error in arg", err.Error())
 	}
-	// println(res)
+	// log.Print(res)
 }
 func (sm *StateMgmt) UpdateState(strategyId *primitive.ObjectID, state *models.MongoStrategyState) {
 	col := GetCollection("core_strategies")
@@ -384,10 +384,10 @@ func (sm *StateMgmt) UpdateState(strategyId *primitive.ObjectID, state *models.M
 	}
 	updated, err := col.UpdateOne(context.TODO(), request, update)
 	if err != nil {
-		println("error in arg", err.Error())
+		log.Print("error in arg", err.Error())
 		return
 	}
-	println("updated state", updated.ModifiedCount, state.State)
+	log.Print("updated state", updated.ModifiedCount, state.State)
 }
 func (sm *StateMgmt) UpdateExecutedAmount(strategyId *primitive.ObjectID, state *models.MongoStrategyState) {
 	col := GetCollection("core_strategies")
@@ -417,10 +417,10 @@ func (sm *StateMgmt) UpdateExecutedAmount(strategyId *primitive.ObjectID, state 
 	}
 	updated, err := col.UpdateOne(context.TODO(), request, update)
 	if err != nil {
-		println("error in arg", err.Error())
+		log.Print("error in arg", err.Error())
 		return
 	}
-	println("updated executed amount state", updated.ModifiedCount, state.State)
+	log.Print("updated executed amount state", updated.ModifiedCount, state.State)
 }
 func (sm *StateMgmt) UpdateOrders(strategyId *primitive.ObjectID, state *models.MongoStrategyState) {
 	col := GetCollection("core_strategies")
@@ -447,10 +447,10 @@ func (sm *StateMgmt) UpdateOrders(strategyId *primitive.ObjectID, state *models.
 	}
 	updated, err := col.UpdateOne(context.TODO(), request, update)
 	if err != nil {
-		println("error in arg", err.Error())
+		log.Print("error in arg", err.Error())
 		return
 	}
-	println("updated orders state", updated.ModifiedCount, state.State)
+	log.Print("updated orders state", updated.ModifiedCount, state.State)
 }
 func (sm *StateMgmt) UpdateEntryPrice(strategyId *primitive.ObjectID, state *models.MongoStrategyState) {
 	col := GetCollection("core_strategies")
@@ -473,10 +473,10 @@ func (sm *StateMgmt) UpdateEntryPrice(strategyId *primitive.ObjectID, state *mod
 	}
 	updated, err := col.UpdateOne(context.TODO(), request, update)
 	if err != nil {
-		println("error in arg", err.Error())
+		log.Print("error in arg", err.Error())
 		return
 	}
-	println("updated entryPrice state", updated.ModifiedCount, state.State)
+	log.Print("updated entryPrice state", updated.ModifiedCount, state.State)
 }
 
 func (sm *StateMgmt) SwitchToHedgeMode(keyId *primitive.ObjectID, trading trading.ITrading) {
@@ -488,7 +488,7 @@ func (sm *StateMgmt) SwitchToHedgeMode(keyId *primitive.ObjectID, trading tradin
 	var keyFound models.MongoKey
 	err := col.FindOne(context.TODO(), request).Decode(&keyFound)
 	if err != nil {
-		println("no such key found: error in arg", err.Error())
+		log.Print("no such key found: error in arg", err.Error())
 		return
 	}
 	if keyFound.HedgeMode {
@@ -516,10 +516,10 @@ func (sm *StateMgmt) UpdateHedgeExitPrice(strategyId *primitive.ObjectID, state 
 	}
 	updated, err := col.UpdateOne(context.TODO(), request, update)
 	if err != nil {
-		println("error in arg", err.Error())
+		log.Print("error in arg", err.Error())
 		return
 	}
-	println("updated hedgeExitPrice state", updated.ModifiedCount, state.State)
+	log.Print("updated hedgeExitPrice state", updated.ModifiedCount, state.State)
 }
 
 func (sm *StateMgmt) SavePNL(templateStrategyId *primitive.ObjectID, profitAmount float64) {
@@ -542,7 +542,7 @@ func (sm *StateMgmt) SavePNL(templateStrategyId *primitive.ObjectID, profitAmoun
 	}
 	_, err := col.UpdateOne(context.TODO(), request, update)
 	if err != nil {
-		println("error in arg", err.Error())
+		log.Print("error in arg", err.Error())
 		return
 	}
 
@@ -567,9 +567,9 @@ func (sm *StateMgmt) EnableHedgeLossStrategy(strategyId *primitive.ObjectID) {
 	}
 	_, err := col.UpdateOne(context.TODO(), request, update)
 	if err != nil {
-		println("error in arg", err.Error())
+		log.Print("error in arg", err.Error())
 	}
-	// println(res)
+	// log.Print(res)
 }
 
 func (sm *StateMgmt) SaveStrategyConditions(strategy *models.MongoStrategy) {

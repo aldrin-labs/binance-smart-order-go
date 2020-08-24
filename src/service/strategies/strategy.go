@@ -48,7 +48,7 @@ func (strategy *Strategy) Start() {
 		println("makerOnly")
 		strategy.StrategyRuntime = RunMakerOnlyOrder(strategy, strategy.Datafeed, strategy.Trading, strategy.Model.AccountId, )
 	default:
-		fmt.Println("this type of strategy is not supported yet:", strategy.Model.ID.String(), strategy.Model.Type)
+		fmt.Println("this type of strategy is not supported yet: ", strategy.Model.ID.String(), strategy.Model.Type)
 	}
 }
 

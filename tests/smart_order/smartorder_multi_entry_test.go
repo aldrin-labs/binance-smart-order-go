@@ -48,9 +48,9 @@ func TestSmartOrderMultiEntryPlacing(t *testing.T) {
 	tradingApi.SellDelay = 5000
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
-	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm, "")
+	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
-		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
+		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
 	go smartOrder.Start()
 	time.Sleep(1000 * time.Millisecond)
@@ -60,7 +60,7 @@ func TestSmartOrderMultiEntryPlacing(t *testing.T) {
 	sellCallCount, sellOk := tradingApi.CallCount.Load("sell")
 	btcUsdtCallCount, usdtBtcOk := tradingApi.CallCount.Load("BTC_USDT")
 	if !sellOk || !buyOk || !usdtBtcOk || sellCallCount != 1 || btcUsdtCallCount != 4 || buyCallCount != 3 {
-		t.Error("Something went wrong")
+		t.Error("3 Entry orders or 1 SL was not placed")
 	} else {
 		fmt.Println("Success! There were " + strconv.Itoa(sellCallCount.(int)) + " trading api calls with sell params, and " + strconv.Itoa(buyCallCount.(int)) + " with buy side")
 	}
@@ -87,49 +87,7 @@ func TestSmartOrderMultiEntryStopLoss(t *testing.T) {
 		Low:    6800,
 		Close:  5900,
 		Volume: 30,
-	},{
-		Open:   7005,
-		High:   7100,
-		Low:    6800,
-		Close:  5900,
-		Volume: 30,
-	},{
-		Open:   7005,
-		High:   7100,
-		Low:    6800,
-		Close:  5900,
-		Volume: 30,
-	},{
-		Open:   7005,
-		High:   7100,
-		Low:    6800,
-		Close:  5900,
-		Volume: 30,
-	},{
-		Open:   7005,
-		High:   7100,
-		Low:    6800,
-		Close:  5900,
-		Volume: 30,
-	},{
-		Open:   7005,
-		High:   7100,
-		Low:    6800,
-		Close:  5900,
-		Volume: 30,
-	},{
-		Open:   7005,
-		High:   7100,
-		Low:    6800,
-		Close:  5900,
-		Volume: 30,
-	},{
-		Open:   7005,
-		High:   7100,
-		Low:    6800,
-		Close:  5900,
-		Volume: 30,
-	}, { // Hit entry
+	},{ // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
@@ -143,9 +101,9 @@ func TestSmartOrderMultiEntryStopLoss(t *testing.T) {
 	}
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
-	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm, "")
+	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
-		println("transition:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
+		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
 	go smartOrder.Start()
 	time.Sleep(15000 * time.Millisecond)
@@ -153,5 +111,725 @@ func TestSmartOrderMultiEntryStopLoss(t *testing.T) {
 	isInState, _ := smartOrder.State.IsInState(smart_order.End)
 	if isInState {
 		log.Print("Multi-Entry was closed by SL")
+	} else {
+		state, _ := smartOrder.State.State(context.TODO())
+		t.Error("State is not End, currentState: ", state)
 	}
 }
+
+func TestSmartOrderMultiEntryTAP(t *testing.T) {
+	smartOrderModel := GetTestSmartOrderStrategy("multiEntryPlacingTAP")
+	// price rises (This has no meaning now, reuse and then remove fake data stream)
+	fakeDataStream := []interfaces.OHLCV{{
+		Open:   6000,
+		High:   7101,
+		Low:    6750,
+		Close:  6000,
+		Volume: 30,
+	}, {
+		Open:   7005,
+		High:   7100,
+		Low:    6800,
+		Close:  5900,
+		Volume: 30,
+	},{
+		Open:   7005,
+		High:   7100,
+		Low:    6800,
+		Close:  5900,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{
+		Open:   7005,
+		High:   7100,
+		Low:    6800,
+		Close:  5900,
+		Volume: 30,
+	},{
+		Open:   7005,
+		High:   7100,
+		Low:    6800,
+		Close:  5950,
+		Volume: 30,
+	},{
+		Open:   7005,
+		High:   7100,
+		Low:    6800,
+		Close:  6000,
+		Volume: 30,
+	}}
+	df := tests.NewMockedDataFeed(fakeDataStream)
+	tradingApi := tests.NewMockedTradingAPI()
+	strategy := strategies.Strategy{
+		Model: &smartOrderModel,
+	}
+	keyId := primitive.NewObjectID()
+	sm := tests.NewMockedStateMgmt(tradingApi, df)
+	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
+	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
+		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
+	})
+	go smartOrder.Start()
+	time.Sleep(15000 * time.Millisecond)
+
+	isInState, _ := smartOrder.State.IsInState(smart_order.End)
+	sellCallCount, sellOk := tradingApi.CallCount.Load("sell")
+
+	if isInState && sellOk && sellCallCount == 4 {
+		log.Print("Multi-Entry was closed by TAP")
+	} else {
+		t.Error("Multi-Entry wasn't closed by TAP or SM placed not 3 TAP and 1 SL orders")
+	}
+}
+
+func TestSmartOrderMultiEntryClosingAfterFirstTAP(t *testing.T) {
+	smartOrderModel := GetTestSmartOrderStrategy("multiEntryPlacingClosingAfterFirstTAP")
+	// price rises (This has no meaning now, reuse and then remove fake data stream)
+	fakeDataStream := []interfaces.OHLCV{{
+		Open:   6000,
+		High:   7101,
+		Low:    6750,
+		Close:  6000,
+		Volume: 30,
+	}, {
+		Open:   7005,
+		High:   7100,
+		Low:    6800,
+		Close:  5900,
+		Volume: 30,
+	},{
+		Open:   7005,
+		High:   7100,
+		Low:    6800,
+		Close:  5900,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5700,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5700,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5700,
+		Volume: 30,
+	},{
+		Open:   7005,
+		High:   7100,
+		Low:    6800,
+		Close:  5700,
+		Volume: 30,
+	},{
+		Open:   7005,
+		High:   7100,
+		Low:    6800,
+		Close:  5700,
+		Volume: 30,
+	},{
+		Open:   7005,
+		High:   7100,
+		Low:    6800,
+		Close:  5700,
+		Volume: 30,
+	},{
+		Open:   7005,
+		High:   7100,
+		Low:    6800,
+		Close:  5700,
+		Volume: 30,
+	},{
+		Open:   7005,
+		High:   7100,
+		Low:    6800,
+		Close:  5700,
+		Volume: 30,
+	},{
+		Open:   7005,
+		High:   7100,
+		Low:    6800,
+		Close:  5700,
+		Volume: 30,
+	},{
+		Open:   7005,
+		High:   7100,
+		Low:    6800,
+		Close:  5700,
+		Volume: 30,
+	},{
+		Open:   7005,
+		High:   7100,
+		Low:    6800,
+		Close:  5700,
+		Volume: 30,
+	},{
+		Open:   7005,
+		High:   7100,
+		Low:    6800,
+		Close:  5700,
+		Volume: 30,
+	},{
+		Open:   7005,
+		High:   7100,
+		Low:    6800,
+		Close:  5704,
+		Volume: 30,
+	}}
+	df := tests.NewMockedDataFeed(fakeDataStream)
+	tradingApi := tests.NewMockedTradingAPI()
+	strategy := strategies.Strategy{
+		Model: &smartOrderModel,
+	}
+	keyId := primitive.NewObjectID()
+	sm := tests.NewMockedStateMgmt(tradingApi, df)
+	tradingApi.BuyDelay = 30
+	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
+	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
+		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
+	})
+	go smartOrder.Start()
+	time.Sleep(3000 * time.Millisecond)
+
+	isInState, _ := smartOrder.State.IsInState(smart_order.End)
+	sellCallCount, sellOk := tradingApi.CallCount.Load("sell")
+
+	log.Print("sellOk ", sellOk)
+
+	if isInState && sellOk && sellCallCount == 3 {
+		log.Print("Multi-Entry was closed by first TAP")
+	} else {
+		state, _ := smartOrder.State.State(context.TODO())
+		t.Error("Without loss order was not placed or SM was not closed by CloseAfterFirstTAP option. sellCallCount ", sellCallCount, " state ", state)
+	}
+}
+
+func TestSmartOrderMultiEntryClosingByWithoutLoss(t *testing.T) {
+	smartOrderModel := GetTestSmartOrderStrategy("multiEntryPlacingClosingByWithoutLoss")
+	// price rises (This has no meaning now, reuse and then remove fake data stream)
+	fakeDataStream := []interfaces.OHLCV{{
+		Open:   6000,
+		High:   7101,
+		Low:    6750,
+		Close:  6000,
+		Volume: 30,
+	}, {
+		Open:   7005,
+		High:   7100,
+		Low:    6800,
+		Close:  5900,
+		Volume: 30,
+	},{
+		Open:   7005,
+		High:   7100,
+		Low:    6800,
+		Close:  5900,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5800,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5700,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5700,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6950,
+		Close:  5700,
+		Volume: 30,
+	},{
+		Open:   7005,
+		High:   7100,
+		Low:    6800,
+		Close:  5700,
+		Volume: 30,
+	},{
+		Open:   7005,
+		High:   7100,
+		Low:    6800,
+		Close:  5700,
+		Volume: 30,
+	},{
+		Open:   7005,
+		High:   7100,
+		Low:    6800,
+		Close:  5700,
+		Volume: 30,
+	},{
+		Open:   7005,
+		High:   7100,
+		Low:    6800,
+		Close:  5700,
+		Volume: 30,
+	},{
+		Open:   7005,
+		High:   7100,
+		Low:    6800,
+		Close:  5700,
+		Volume: 30,
+	},{
+		Open:   7005,
+		High:   7100,
+		Low:    6800,
+		Close:  5700,
+		Volume: 30,
+	},{
+		Open:   7005,
+		High:   7100,
+		Low:    6800,
+		Close:  5700,
+		Volume: 30,
+	},{
+		Open:   7005,
+		High:   7100,
+		Low:    6800,
+		Close:  5700,
+		Volume: 30,
+	},{
+		Open:   7005,
+		High:   7100,
+		Low:    6800,
+		Close:  5700,
+		Volume: 30,
+	},{
+		Open:   7005,
+		High:   7100,
+		Low:    6800,
+		Close:  5705,
+		Volume: 30,
+	}}
+	df := tests.NewMockedDataFeed(fakeDataStream)
+	tradingApi := tests.NewMockedTradingAPI()
+	strategy := strategies.Strategy{
+		Model: &smartOrderModel,
+	}
+	keyId := primitive.NewObjectID()
+	sm := tests.NewMockedStateMgmt(tradingApi, df)
+	tradingApi.BuyDelay = 30
+	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
+	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
+		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
+	})
+	go smartOrder.Start()
+	time.Sleep(3000 * time.Millisecond)
+
+	isInState, _ := smartOrder.State.IsInState(smart_order.End)
+	sellCallCount, sellOk := tradingApi.CallCount.Load("sell")
+
+	log.Print("sellOk ", sellOk)
+
+	if isInState && sellOk && sellCallCount == 3 {
+		log.Print("Multi-Entry was closed by Without Loss")
+	} else {
+		state, _ := smartOrder.State.State(context.TODO())
+		t.Error("Without loss order was not placed or SM was not closed by Without Loss. sellCallCount ", sellCallCount, " state ", state)
+	}
+}
+

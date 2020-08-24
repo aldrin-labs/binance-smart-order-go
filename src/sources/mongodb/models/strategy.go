@@ -195,6 +195,7 @@ type MongoStrategyCondition struct {
 	MarketType             int64               `json:"marketType,omitempty" bson:"marketType"`
 	EntryOrder             *MongoEntryPoint    `json:"entryOrder,omitempty" bson:"entryOrder"`
 
+
 	WaitingEntryTimeout   float64 `json:"waitingEntryTimeout,omitempty" bson:"waitingEntryTimeout"`
 	ActivationMoveStep    float64 `json:"activationMoveStep,omitempty" bson:"activationMoveStep"`
 	ActivationMoveTimeout float64 `json:"activationMoveTimeout,omitempty" bson:"activationMoveTimeout"`

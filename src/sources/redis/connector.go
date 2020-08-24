@@ -21,7 +21,7 @@ func GetRedisClientInstance(pubsub bool, master bool, newClient bool) redis.Conn
 	var con redis.Conn
 	if pubsub {
 		if pubsubredisPool == nil || newClient {
-			println("connect to pubsub redis")
+			log.Print("connect to pubsub redis")
 			pubsubredisPool = &redis.Pool{
 				MaxActive: 3000000,
 				MaxIdle:     3000000,
@@ -31,16 +31,16 @@ func GetRedisClientInstance(pubsub bool, master bool, newClient bool) redis.Conn
 				Dial: func() (redis.Conn, error) {
 					c, err := redis.Dial("tcp", os.Getenv("REDIS_HOST")+":"+os.Getenv("REDIS_PORT"))
 					if err != nil {
-						println("pubsub dial1 error", err.Error())
+						log.Print("pubsub dial1 error", err.Error())
 						return nil, err
 					}
 					if _, err := c.Do("AUTH", os.Getenv("REDIS_PASSWORD")); err != nil {
-						println("pubsub dial2 error", err.Error())
+						log.Print("pubsub dial2 error", err.Error())
 						c.Close()
 						return nil, err
 					}
 					if _, err := c.Do("SELECT", 0); err != nil {
-						println("pubsub dial3 error", err.Error())
+						log.Print("pubsub dial3 error", err.Error())
 						c.Close()
 						return nil, err
 					}
@@ -52,7 +52,7 @@ func GetRedisClientInstance(pubsub bool, master bool, newClient bool) redis.Conn
 		con = pubsubredisPool.Get()
 	}
 	if redisPool == nil {
-		println("connect to redis")
+		log.Print("connect to redis")
 		redisPool = &redis.Pool{
 			MaxActive: 300000,
 			MaxIdle:     300000,
@@ -62,16 +62,16 @@ func GetRedisClientInstance(pubsub bool, master bool, newClient bool) redis.Conn
 			Dial: func() (redis.Conn, error) {
 				c, err := redis.Dial("tcp", os.Getenv("REDIS_HOST")+":"+os.Getenv("REDIS_PORT"))
 				if err != nil {
-					println("dial1 error", err.Error())
+					log.Print("dial1 error", err.Error())
 					return nil, err
 				}
 				if _, err := c.Do("AUTH", os.Getenv("REDIS_PASSWORD")); err != nil {
-					println("dial2 error", err.Error())
+					log.Print("dial2 error", err.Error())
 					c.Close()
 					return nil, err
 				}
 				if _, err := c.Do("SELECT", 0); err != nil {
-					println("dial3 error", err.Error())
+					log.Print("dial3 error", err.Error())
 					c.Close()
 					return nil, err
 				}
@@ -164,16 +164,16 @@ Loop:
 	err = psc.Unsubscribe()
 	_ = psc.Close()
 	if err != nil {
-		println("EXIT1 EOF")
-		println(err.Error())
+		log.Print("EXIT1 EOF")
+		log.Print(err.Error())
 	}
 
 	// Wait for goroutine to complete.
 	<-done
-	println("EXIT EOF")
+	log.Print("EXIT EOF")
 	// os.Exit(1)
 	//if resp != nil {
-	//	println("recursive call")
+	//	log.Print("recursive call")
 	//	return ListenPubSubChannels(ctx, onStart, onMessage, channels[0])
 	//}
 	return ListenPubSubChannels(ctx, onStart, onMessage, channels[0])
