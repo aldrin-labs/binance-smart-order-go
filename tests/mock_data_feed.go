@@ -46,7 +46,7 @@ func (df *MockDataFeed) GetPriceForPairAtExchange(pair string, exchange string, 
 func (df *MockDataFeed) GetSpreadForPairAtExchange(pair string, exchange string, marketType int64) *interfaces.SpreadData {
 	df.currentSpreadTick += 1
 	length := len(df.spreadData)
-	// println(len, df.currentTick)
+	// log.Print(len, df.currentTick)
 	if df.currentSpreadTick >= length {
 		df.currentSpreadTick = length - 1
 		return &df.spreadData[df.currentSpreadTick]

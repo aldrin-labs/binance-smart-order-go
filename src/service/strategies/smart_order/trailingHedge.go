@@ -58,12 +58,12 @@ func (sm *SmartOrder) waitForHedge() {
 func (sm *SmartOrder) hedge() {
 	if sm.Strategy.GetModel().Conditions.MarketType == 1 && sm.Strategy.GetModel().Conditions.Hedging {
 		if !sm.Strategy.GetModel().Conditions.SkipInitialSetup {
-			sm.ExchangeApi.SetHedgeMode(sm.Strategy.GetModel().AccountId, true, sm.Hostname)
+			sm.ExchangeApi.SetHedgeMode(sm.Strategy.GetModel().AccountId, true)
 			time.Sleep(5 * time.Second)
 		}
 
 		if (sm.Strategy.GetModel().Conditions.HedgeStrategyId == nil || sm.Strategy.GetModel().Conditions.ContinueIfEnded) && sm.Strategy.GetModel().Enabled {
-			hedgedOrder := sm.ExchangeApi.PlaceHedge(sm.Strategy.GetModel(), sm.Hostname)
+			hedgedOrder := sm.ExchangeApi.PlaceHedge(sm.Strategy.GetModel())
 			if hedgedOrder.Data.OrderId != "" {
 				objId, _ := primitive.ObjectIDFromHex(hedgedOrder.Data.OrderId)
 				sm.Strategy.GetModel().Conditions.HedgeStrategyId = &objId
@@ -75,12 +75,12 @@ func (sm *SmartOrder) hedge() {
 
 	if sm.Strategy.GetModel().Conditions.MarketType == 1 && !sm.Strategy.GetModel().Conditions.SkipInitialSetup {
 		if sm.Strategy.GetModel().Conditions.HedgeMode {
-			sm.ExchangeApi.SetHedgeMode(sm.Strategy.GetModel().AccountId, true, sm.Hostname)
+			sm.ExchangeApi.SetHedgeMode(sm.Strategy.GetModel().AccountId, true)
 			time.Sleep(5 * time.Second)
 			return
 		}
 
-		sm.ExchangeApi.SetHedgeMode(sm.Strategy.GetModel().AccountId, false, sm.Hostname)
+		sm.ExchangeApi.SetHedgeMode(sm.Strategy.GetModel().AccountId, false)
 		time.Sleep(5 * time.Second)
 	}
 }
@@ -89,7 +89,7 @@ func (sm *SmartOrder) hedgeCallback(winStrategy *models.MongoStrategy) {
 	if winStrategy.State != nil && winStrategy.State.ExitPrice > 0 {
 		err := sm.State.Fire(CheckHedgeLoss, *winStrategy)
 		if err != nil {
-			// println(err.Error())
+			// log.Print(err.Error())
 		}
 	}
 }
@@ -113,7 +113,7 @@ func (sm *SmartOrder) checkLossHedge(ctx context.Context, args ...interface{}) b
 				sideCoefficient = -1.0
 			}
 
-			winStrategyProfitPercentage := ((strategy.State.ExitPrice / strategy.State.EntryPrice) * 100 - 100) * strategy.Conditions.Leverage * sideCoefficient
+			winStrategyProfitPercentage := ((strategy.State.ExitPrice/strategy.State.EntryPrice)*100 - 100) * strategy.Conditions.Leverage * sideCoefficient
 			winStrategyProfitPercentage = winStrategyProfitPercentage - (fee * model.Conditions.Leverage)
 
 			zeroProfitPrice := model.State.EntryPrice * (1 - winStrategyProfitPercentage/100/model.Conditions.Leverage)

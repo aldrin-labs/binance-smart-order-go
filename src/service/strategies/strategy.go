@@ -6,6 +6,7 @@ import (
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
 	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"go.mongodb.org/mongo-driver/mongo"
+	"log"
 )
 
 
@@ -42,10 +43,10 @@ func (strategy *Strategy) GetStateMgmt() interfaces.IStateMgmt {
 func (strategy *Strategy) Start() {
 	switch strategy.Model.Type {
 	case 1:
-		println("runSmartOrder")
+		log.Print("runSmartOrder")
 		strategy.StrategyRuntime = RunSmartOrder(strategy, strategy.Datafeed, strategy.Trading, nil, )
 	default:
-		fmt.Println("this type of strategy is not supported yet:", strategy.Model.ID.String(), strategy.Model.Type)
+		fmt.Println("this type of strategy is not supported yet: ", strategy.Model.ID.String(), strategy.Model.Type)
 	}
 }
 

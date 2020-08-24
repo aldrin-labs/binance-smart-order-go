@@ -3,6 +3,7 @@ package smart_order
 import (
 	"context"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
+	"log"
 	"time"
 )
 
@@ -21,11 +22,11 @@ func (sm *SmartOrder) checkTrailingEntry(ctx context.Context, args ...interface{
 	edgePrice := sm.Strategy.GetModel().State.TrailingEntryPrice
 	activateTrailing := false
 	if edgePrice == 0 {
-		println("edgePrice=0, set TrailingEntryPrice", currentOHLCV.Close)
+		log.Print("edgePrice=0, set TrailingEntryPrice ", currentOHLCV.Close)
 		sm.Strategy.GetModel().State.TrailingEntryPrice = currentOHLCV.Close
 		activateTrailing = true
 	}
-	// println(currentOHLCV.Close, edgePrice, currentOHLCV.Close/edgePrice-1)
+	// log.Print(currentOHLCV.Close, edgePrice, currentOHLCV.Close/edgePrice-1)
 	deviation := sm.Strategy.GetModel().Conditions.EntryOrder.EntryDeviation / sm.Strategy.GetModel().Conditions.Leverage
 	side := sm.Strategy.GetModel().Conditions.EntryOrder.Side
 	isSpotMarketEntry := sm.Strategy.GetModel().Conditions.MarketType == 0 && sm.Strategy.GetModel().Conditions.EntryOrder.OrderType == "market"

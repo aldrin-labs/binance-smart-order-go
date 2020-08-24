@@ -7,6 +7,7 @@ import (
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
 	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"log"
 	"reflect"
 	"sync"
 	"time"
@@ -126,5 +127,5 @@ func (sm *MakerOnlyOrder) Start() {
 		state, _ = sm.State.State(ctx)
 	}
 	//sm.Stop()
-	println("STOPPED postonly")
+	log.Print("STOPPED postonly")
 }
