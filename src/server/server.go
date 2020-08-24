@@ -30,7 +30,7 @@ func RunServer(wg *sync.WaitGroup) {
 
 func CreateOrder(ctx *fasthttp.RequestCtx) {
 	var createOrder trading.CreateOrderRequest
-	_ := json.Unmarshal(ctx.PostBody(), &createOrder)
+	_ = json.Unmarshal(ctx.PostBody(), &createOrder)
 	service.GetStrategyService().CreateOrder(createOrder)
 }
 func Index(ctx *fasthttp.RequestCtx) {

@@ -54,19 +54,19 @@ type MongoMarket struct {
 }
 
 type MongoOrder struct {
-	ID         primitive.ObjectID `json:"_id" bson:"_id"`
-	Status     string             `json:"status,omitempty" bson:"status"`
-	OrderId    string             `json:"id,omitempty" bson:"id"`
-	PostOnlyFinalOrderId string   `json:"postOnlyFinalOrderId,omitempty" bson:"postOnlyFinalOrderId"`
-	PostOnlyInitialOrderId string `json:"postOnlyInitialOrderId,omitempty" bson:"postOnlyInitialOrderId"`
-	Filled     float64            `json:"filled,omitempty" bson:"filled"`
-	Average    float64            `json:"average,omitempty" bson:"average"`
-	Side       string             `json:"side,omitempty" bson:"side"`
-	Type       string             `json:"type,omitempty" bson:"type"`
-	Symbol     string             `json:"symbol,omitempty" bson:"symbol"`
-	ReduceOnly bool               `json:"reduceOnly,omitempty" bson:"reduceOnly"`
-	Price      float64            `json:"price,omitempty" bson:"price"`
-	StopPrice  float64            `json:"stopPrice,omitempty" bson:"stopPrice"`
+	ID                     primitive.ObjectID `json:"_id" bson:"_id"`
+	Status                 string             `json:"status,omitempty" bson:"status"`
+	OrderId                string             `json:"id,omitempty" bson:"id"`
+	PostOnlyFinalOrderId   string             `json:"postOnlyFinalOrderId,omitempty" bson:"postOnlyFinalOrderId"`
+	PostOnlyInitialOrderId string             `json:"postOnlyInitialOrderId,omitempty" bson:"postOnlyInitialOrderId"`
+	Filled                 float64            `json:"filled,omitempty" bson:"filled"`
+	Average                float64            `json:"average,omitempty" bson:"average"`
+	Side                   string             `json:"side,omitempty" bson:"side"`
+	Type                   string             `json:"type,omitempty" bson:"type"`
+	Symbol                 string             `json:"symbol,omitempty" bson:"symbol"`
+	ReduceOnly             bool               `json:"reduceOnly,omitempty" bson:"reduceOnly"`
+	Price                  float64            `json:"price,omitempty" bson:"price"`
+	StopPrice              float64            `json:"stopPrice,omitempty" bson:"stopPrice"`
 }
 type MongoPosition struct {
 	ID          primitive.ObjectID `json:"_id" bson:"_id"`
@@ -174,6 +174,7 @@ type MongoStrategyCondition struct {
 	MakerOrderId string `json:"makerOrderId,omitempty" bson:"makerOrderId"`
 
 	TemplateToken          string              `json:"templateToken,omitempty" bson:"templateToken"`
+	MandatoryForcedLoss    bool                `json:"mandatoryForcedLoss,omitempty" bson:"mandatoryForcedLoss"`
 	PositionWasClosed      bool                `json:"positionWasClosed, omitempty" bson:"positionWasClosed"`
 	SkipInitialSetup       bool                `json:"skipInitialSetup, omitempty" bson:"skipInitialSetup"`
 	CancelIfAnyActive      bool                `json:"cancelIfAnyActive,omitempty" bson:"cancelIfAnyActive"`
@@ -194,7 +195,6 @@ type MongoStrategyCondition struct {
 	Pair                   string              `json:"pair,omitempty" bson:"pair"`
 	MarketType             int64               `json:"marketType,omitempty" bson:"marketType"`
 	EntryOrder             *MongoEntryPoint    `json:"entryOrder,omitempty" bson:"entryOrder"`
-
 
 	WaitingEntryTimeout   float64 `json:"waitingEntryTimeout,omitempty" bson:"waitingEntryTimeout"`
 	ActivationMoveStep    float64 `json:"activationMoveStep,omitempty" bson:"activationMoveStep"`
@@ -222,9 +222,9 @@ type MongoStrategyCondition struct {
 	CreatedByTemplate  bool                `json:"createdByTemplate,omitempty" bson:"createdByTemplate"`
 	TemplateStrategyId *primitive.ObjectID `json:"templateStrategyId,omitempty" bson:"templateStrategyId"`
 
-	Leverage    float64             `json:"leverage,omitempty" bson:"leverage"`
-	EntryLevels []*MongoEntryPoint  `json:"entryLevels,omitempty" bson:"entryLevels"`
-	ExitLevels  []*MongoEntryPoint  `json:"exitLevels,omitempty" bson:"exitLevels"`
-	CloseStrategyAfterFirstTAP bool `json:"closeStrategyAfterFirstTAP,omitempty" bson:"closeStrategyAfterFirstTAP"`
-	PlaceEntryAfterTAP bool `json:"placeEntryAfterTAP,omitempty" bson:"placeEntryAfterTAP"`
+	Leverage                   float64            `json:"leverage,omitempty" bson:"leverage"`
+	EntryLevels                []*MongoEntryPoint `json:"entryLevels,omitempty" bson:"entryLevels"`
+	ExitLevels                 []*MongoEntryPoint `json:"exitLevels,omitempty" bson:"exitLevels"`
+	CloseStrategyAfterFirstTAP bool               `json:"closeStrategyAfterFirstTAP,omitempty" bson:"closeStrategyAfterFirstTAP"`
+	PlaceEntryAfterTAP         bool               `json:"placeEntryAfterTAP,omitempty" bson:"placeEntryAfterTAP"`
 }
