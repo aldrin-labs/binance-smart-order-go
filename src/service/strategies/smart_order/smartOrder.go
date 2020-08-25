@@ -235,6 +235,9 @@ func (sm *SmartOrder) placeMultiEntryOrders() {
 	// here we should place one SL for all entries
 	//weightedAverage := sumTotal / sumAmount
 	sm.PlaceOrder(currentPrice, Stoploss)
+	if model.Conditions.ForcedLoss > 0 {
+		sm.PlaceOrder(currentPrice, "ForcedLoss")
+	}
 }
 
 func (sm *SmartOrder) getLastTargetAmount() float64 {
