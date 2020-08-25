@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/qmuntal/stateless"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
-	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
 	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"reflect"
@@ -65,9 +64,11 @@ func NewMakerOnlyOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataF
 	PO := &MakerOnlyOrder{Strategy: strategy, DataFeed: DataFeed, ExchangeApi: TradingAPI, KeyId: keyId, StateMgmt: stateMgmt, Lock: false, SelectedExitTarget: 0, OrdersMap: map[string]bool{}}
 	initState := PlaceOrder
 	model := strategy.GetModel()
-	pricePrecision, amountPrecision := stateMgmt.GetMarketPrecision(model.Conditions.Pair, model.Conditions.MarketType)
-	PO.QuantityPricePrecision = pricePrecision
-	PO.QuantityAmountPrecision = amountPrecision
+	go func(){
+		pricePrecision, amountPrecision := stateMgmt.GetMarketPrecision(model.Conditions.Pair, model.Conditions.MarketType)
+		PO.QuantityPricePrecision = pricePrecision
+		PO.QuantityAmountPrecision = amountPrecision
+	}()
 	// if state is not empty but if its in the end and open ended, then we skip state value, since want to start over
 	if model.State != nil && model.State.State != "" && !(model.State.State == Filled && model.Conditions.ContinueIfEnded == true) {
 		initState = model.State.State
@@ -75,7 +76,6 @@ func NewMakerOnlyOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataF
 	State := stateless.NewStateMachine(initState)
 
 	// define triggers and input types:
-	State.SetTriggerParameters(CheckExistingOrders, reflect.TypeOf(models.MongoOrder{}))
 	State.SetTriggerParameters(TriggerSpread, reflect.TypeOf(interfaces.SpreadData{}))
 
 	/*
@@ -110,7 +110,7 @@ func (sm *MakerOnlyOrder) Start() {
 		if !sm.Lock {
 			sm.processEventLoop()
 		}
-		time.Sleep(5 * time.Second)
+		time.Sleep(15 * time.Second)
 		state, _ = sm.State.State(ctx)
 	}
 	//sm.Stop()
@@ -123,8 +123,7 @@ func (sm *MakerOnlyOrder) processEventLoop() {
 	if currentSpread != nil {
 		if sm.Strategy.GetModel().State.EntryOrderId == "" {
 			sm.PlaceOrder(0, PlaceOrder)
-		}
-		if sm.Strategy.GetModel().State.EntryPrice != currentSpread.BestBid && sm.Strategy.GetModel().State.EntryPrice != currentSpread.BestAsk {
+		} else if sm.Strategy.GetModel().State.EntryPrice != currentSpread.BestBid && sm.Strategy.GetModel().State.EntryPrice != currentSpread.BestAsk {
 			sm.PlaceOrder(0, PlaceOrder)
 		}
 	}

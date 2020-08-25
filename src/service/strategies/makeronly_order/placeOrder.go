@@ -15,6 +15,7 @@ func (mo *MakerOnlyOrder) PlaceOrder(anything float64, step string){
 				Pair:       model.Conditions.Pair,
 			},
 		})
+		model.State.EntryOrderId = ""
 		if response.Data.Id == "" {
 			// order was executed should be processed in other thread
 			return
@@ -34,6 +35,7 @@ func (mo *MakerOnlyOrder) PlaceOrder(anything float64, step string){
 		}
 		postOnly := true
 		order := trading.Order{
+			Side: model.Conditions.EntryOrder.Side,
 			Price: price,
 			Amount: model.Conditions.EntryOrder.Amount,
 			PostOnly: &postOnly,
@@ -50,8 +52,15 @@ func (mo *MakerOnlyOrder) PlaceOrder(anything float64, step string){
 			KeyId:     model.AccountId,
 			KeyParams: order,
 		})
+
 		orderId = response.Data.Id
+		if orderId != "" {
+			mo.OrdersMux.Lock()
+			mo.OrdersMap[response.Data.Id] = true
+			mo.OrdersMux.Unlock()
+		}
 	}
 	model.State.EntryOrderId = orderId
-	mo.StateMgmt.UpdateState(model.ID, model.State)
+	go mo.StateMgmt.UpdateState(model.ID, model.State)
+	go mo.waitForOrder(orderId, model.State.State)
 }
