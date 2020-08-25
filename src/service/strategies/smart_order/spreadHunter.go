@@ -3,6 +3,7 @@ package smart_order
 import (
 	"context"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
+	"log"
 )
 
 func (sm *SmartOrder) checkSpreadCondition(spread interfaces.SpreadData) bool {
@@ -25,7 +26,7 @@ func (sm *SmartOrder) checkSpreadEntry(ctx context.Context, args ...interface{})
 	currentSpread := args[0].(interfaces.SpreadData)
 
 	if sm.checkSpreadCondition(currentSpread) {
-		println("place waitForEntry bestBid, close", currentSpread.BestBid, currentSpread.Close, sm.Strategy.GetModel().Conditions.EntryOrder.Amount)
+		log.Print("place waitForEntry bestBid", currentSpread.BestBid, ", close ", currentSpread.Close, ", amount ", sm.Strategy.GetModel().Conditions.EntryOrder.Amount)
 		sm.PlaceOrder(currentSpread.BestBid, WaitForEntry)
 	}
 

@@ -38,7 +38,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 	}
 	switch step {
 	case TrailingEntry:
-		println("trailing entry order placing")
+		log.Print("trailing entry order placing")
 		orderType = model.Conditions.EntryOrder.OrderType // TODO find out to remove duplicate lines with 154 & 164
 		isStopOrdersSupport := isFutures || orderType == "limit"
 		if isStopOrdersSupport { // we can place stop order, lets place it
@@ -92,7 +92,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 		if len(model.Conditions.EntryLevels) > 0 {
 			baseAmount = model.Conditions.EntryLevels[sm.SelectedEntryTarget].Amount
 		}
-		//println("orderPrice in waitForEntry", orderPrice)
+		//log.Print("orderPrice in waitForEntry", orderPrice)
 		break
 	case HedgeLoss:
 		reduceOnly = true
@@ -129,6 +129,12 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 		}
 
 		if len(model.Conditions.EntryLevels) > 0 {
+			stopLoss := model.Conditions.StopLoss
+			if side == "sell" {
+				orderPrice = price * (1 - stopLoss/100/leverage)
+			} else {
+				orderPrice = price * (1 + stopLoss/100/leverage)
+			}
 			orderType = prefix + model.Conditions.StopLossType
 			break
 		}
@@ -276,7 +282,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 		isSpotMarketOrder := target.OrderType == "market" && isSpot
 		baseAmount = model.Conditions.EntryOrder.Amount
 		side = oppositeSide
-		//println("take profit price, orderPrice", price, orderPrice)
+		//log.Print("take profit price, orderPrice", price, orderPrice)
 
 		//if model.Conditions.TakeProfitSpreadHunter && price > 0 {
 		//	orderType = "maker-only"
@@ -374,7 +380,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 				}
 			}
 		}
-		//println("take profit price, orderPrice in the end", price, orderPrice)
+		//log.Print("take profit price, orderPrice in the end", price, orderPrice)
 		// model.State.ExecutedAmount += amount
 		break
 	case Canceled:
@@ -398,9 +404,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 		}
 	}
 	baseAmount = sm.toFixed(baseAmount, sm.QuantityAmountPrecision)
-	//println("orderPrice before toFixed", orderPrice)
 	orderPrice = sm.toFixed(orderPrice, sm.QuantityPricePrecision)
-	//println("orderPrice after toFixed", orderPrice)
 
 	advancedOrderType := orderType
 	if strings.Contains(orderType, "stop") || strings.Contains(orderType, "take-profit") {
@@ -422,7 +426,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 				Price:      orderPrice,
 				ReduceOnly: &reduceOnly,
 				StopPrice:  stopPrice,
-				Frequency: frequency,
+				Frequency:  frequency,
 			},
 		}
 		if request.KeyParams.Type == "stop" {
@@ -448,7 +452,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 					MarketType: model.Conditions.MarketType,
 					Pair:       model.Conditions.Pair,
 				},
-			}, sm.Hostname)
+			})
 			if response.Status == "ERR" { // looks like order was already executed or canceled in other thread
 				return
 			}
@@ -465,7 +469,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 		if step == WaitForEntry {
 			sm.IsEntryOrderPlaced = true
 		}
-		response := sm.ExchangeApi.CreateOrder(request, sm.Hostname)
+		response := sm.ExchangeApi.CreateOrder(request)
 		if response.Status == "OK" && response.Data.Id != "0" && response.Data.Id != "" {
 			sm.IsWaitingForOrder.Store(step, true)
 			if ifShouldCancelPreviousOrder {
@@ -480,16 +484,14 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 							MarketType: model.Conditions.MarketType,
 							Pair:       model.Conditions.Pair,
 						},
-					}, sm.Hostname)
+					})
 				}
 				model.State.ExecutedOrders = append(model.State.ExecutedOrders, response.Data.Id)
 			}
 			if response.Data.Id != "0" {
-				//println("response.Data.Id", response.Data.Id)
 				sm.OrdersMux.Lock()
 				sm.OrdersMap[response.Data.Id] = true
 				sm.OrdersMux.Unlock()
-				//println("waitForOrder execute")
 				go sm.waitForOrder(response.Data.Id, step)
 
 				// save placed orders id to state SL/TAP
@@ -501,7 +503,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 					model.State.TakeProfitOrderIds = append(model.State.TakeProfitOrderIds, response.Data.Id)
 				}
 			} else {
-				println("order 0")
+				log.Print("order 0")
 			}
 			if step != Canceled {
 				model.State.Orders = append(model.State.Orders, response.Data.Id)
@@ -509,7 +511,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 			}
 			break
 		} else {
-			println(response.Status)
+			log.Print(response.Status)
 			// need correct message from exchange_service when down
 			//if len(response.Data.Msg) > 0 && strings.Contains(response.Data.Msg, "network error") {
 			//	time.Sleep(time.Second * 5)

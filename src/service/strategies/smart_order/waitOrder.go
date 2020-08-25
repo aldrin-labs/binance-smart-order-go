@@ -8,12 +8,12 @@ import (
 )
 
 func (sm *SmartOrder) waitForOrder(orderId string, orderStatus string) {
-	//println("in wait for order")
+	//log.Print("in wait for order")
 	sm.StatusByOrderId.Store(orderId, orderStatus)
 	_ = sm.StateMgmt.SubscribeToOrder(orderId, sm.orderCallback)
 }
 func (sm *SmartOrder) orderCallback(order *models.MongoOrder) {
-	//println("order callback in")
+	//log.Print("order callback in")
 	if order == nil || (order.OrderId == "" && order.PostOnlyInitialOrderId == "") {
 		return
 	}
@@ -31,7 +31,7 @@ func (sm *SmartOrder) orderCallback(order *models.MongoOrder) {
 	}
 	sm.OrdersMux.Unlock()
 
-	println("before firing CheckExistingOrders")
+	log.Print("before firing CheckExistingOrders")
 	err := sm.State.Fire(CheckExistingOrders, *order)
 	// when checkExisitingOrders wasn't called
 	if (currentState == Stoploss || currentState == End || (currentState == InEntry && model.State.StopLossAt > 0)) && order.Status == "filled" {
@@ -43,11 +43,11 @@ func (sm *SmartOrder) orderCallback(order *models.MongoOrder) {
 		sm.StateMgmt.UpdateExecutedAmount(model.ID, model.State)
 	}
 	if err != nil {
-		println(err.Error())
+		log.Print(err.Error())
 	}
 }
 func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface{}) bool {
-	println("in checkExisitingFunc")
+	log.Print("in checkExisitingFunc")
 	if args == nil {
 		return false
 	}
@@ -55,14 +55,14 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 	orderId := order.OrderId
 	step, ok := sm.StatusByOrderId.Load(orderId)
 	orderStatus := order.Status
-	//println("step ok", step, ok, order.OrderId)
+	//log.Print("step ok", step, ok, order.OrderId)
 	if orderStatus == "filled" || orderStatus == "canceled" && (step == WaitForEntry || step == TrailingEntry) {
 		sm.StatusByOrderId.Delete(orderId)
 	}
 	if !ok {
 		return false
 	}
-	println("orderStatus, step", orderStatus, step.(string))
+	log.Print("orderStatus, ", orderStatus, " step ", step.(string))
 	model := sm.Strategy.GetModel()
 	if order.Type == "post-only" {
 		order = *sm.StateMgmt.GetOrder(order.PostOnlyFinalOrderId)
@@ -117,7 +117,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			if model.Conditions.MarketType == 0 {
 				amount = amount * 0.99
 			}
-			println("model.State.ExecutedAmount >= amount", model.State.ExecutedAmount >= amount)
+			log.Print("model.State.ExecutedAmount >= amount ", model.State.ExecutedAmount >= amount)
 			if model.State.ExecutedAmount >= amount || model.Conditions.CloseStrategyAfterFirstTAP {
 				// here we gonna close SM if CloseStrategyAfterFirstTAP enabled or we executed all entry && TAP orders
 				if model.Conditions.CloseStrategyAfterFirstTAP || sm.SelectedEntryTarget == len(model.Conditions.EntryLevels) - 1 {
@@ -154,7 +154,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			}
 			calculateAndSavePNL(model, sm.StateMgmt)
 			sm.StateMgmt.UpdateExecutedAmount(model.ID, model.State)
-			log.Print("model.State.ExecutedAmount >= amount in SL", model.State.ExecutedAmount >= amount)
+			log.Print("model.State.ExecutedAmount >= amount in SL ", model.State.ExecutedAmount >= amount)
 			if model.State.ExecutedAmount >= amount {
 				return true
 			}

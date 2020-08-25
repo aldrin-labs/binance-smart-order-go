@@ -43,9 +43,12 @@ func (strategy *Strategy) Start() {
 	switch strategy.Model.Type {
 	case 1:
 		println("runSmartOrder")
-		strategy.StrategyRuntime = RunSmartOrder(strategy, strategy.Datafeed, strategy.Trading, nil, )
+		strategy.StrategyRuntime = RunSmartOrder(strategy, strategy.Datafeed, strategy.Trading, strategy.Model.AccountId, )
+	case 2:
+		println("makerOnly")
+		strategy.StrategyRuntime = RunMakerOnlyOrder(strategy, strategy.Datafeed, strategy.Trading, strategy.Model.AccountId, )
 	default:
-		fmt.Println("this type of strategy is not supported yet:", strategy.Model.ID.String(), strategy.Model.Type)
+		fmt.Println("this type of strategy is not supported yet: ", strategy.Model.ID.String(), strategy.Model.Type)
 	}
 }
 

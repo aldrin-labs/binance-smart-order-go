@@ -63,7 +63,7 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 	//cur, err := coll.Find(ctx, bson.D{{"enabled",true}})
 	cur, err := coll.Find(ctx, bson.D{{"enabled", true}, additionalCondition})
 	if err != nil {
-		println("log.Fatal on finding enabled strategies")
+		log.Print("log.Fatal on finding enabled strategies")
 		wg.Done()
 		log.Fatal(err)
 	}
@@ -73,10 +73,10 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 		// create a value into which the single document can be decoded
 		strategy, err := strategies.GetStrategy(cur, ss.dataFeed, ss.trading, ss.stateMgmt)
 		if err != nil {
-			println("log.Fatal on processing enabled strategy")
+			log.Print("log.Fatal on processing enabled strategy")
 			log.Fatal(err)
 		}
-		println("objid " + strategy.Model.ID.String())
+		log.Print("objid " + strategy.Model.ID.String())
 		GetStrategyService().strategies[strategy.Model.ID.String()] = strategy
 		go strategy.Start()
 	}
@@ -84,7 +84,7 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 	ss.WatchStrategies(isLocalBuild, accountId)
 	//ss.WatchStrategies()
 	if err := cur.Err(); err != nil {
-		println("log.Fatal at the end of init func")
+		log.Print("log.Fatal at the end of init func")
 		wg.Done()
 		log.Fatal(err)
 	}
@@ -97,10 +97,124 @@ func GetStrategy(strategy *models.MongoStrategy, df interfaces.IDataFeed, tr tra
 func (ss *StrategyService) AddStrategy(strategy * models.MongoStrategy) {
 	if ss.strategies[strategy.ID.String()] == nil {
 		sig := GetStrategy(strategy, ss.dataFeed, ss.trading, ss.stateMgmt)
-		println("start objid ", sig.Model.ID.String())
+		log.Print("start objid ", sig.Model.ID.String())
 		ss.strategies[sig.Model.ID.String()] = sig
 		go sig.Start()
 	}
+}
+
+func (ss *StrategyService) CreateOrder(request trading.CreateOrderRequest) trading.OrderResponse {
+	id := primitive.NewObjectID()
+	order := models.MongoOrder{
+		ID:                     id,
+		Status:                 "open",
+		OrderId:                id.Hex(),
+		Filled:                 0,
+		Average:                0,
+		Side:                   request.KeyParams.Side,
+		Type:                   "maker-only",
+		Symbol:                 request.KeyParams.Symbol,
+		ReduceOnly:             *request.KeyParams.ReduceOnly,
+	}
+	go ss.stateMgmt.SaveOrder(order)
+	strategy := models.MongoStrategy{
+		ID:              &id,
+		Type:            2,
+		Enabled:         true,
+		AccountId:       request.KeyId,
+		Conditions:      &models.MongoStrategyCondition{
+			AccountId:                  request.KeyId,
+			Hedging:                    false,
+			HedgeMode:                  false,
+			HedgeKeyId:                 nil,
+			HedgeStrategyId:            nil,
+			MakerOrderId:               id.Hex(),
+			TemplateToken:              "",
+			MandatoryForcedLoss:        false,
+			PositionWasClosed:          false,
+			SkipInitialSetup:           false,
+			CancelIfAnyActive:          false,
+			TrailingExitExternal:       false,
+			TrailingExitPrice:          0,
+			StopLossPrice:              0,
+			ForcedLossPrice:            0,
+			TakeProfitPrice:            0,
+			TakeProfitHedgePrice:       0,
+			StopLossExternal:           false,
+			TakeProfitExternal:         false,
+			WithoutLossAfterProfit:     0,
+			EntrySpreadHunter:          false,
+			EntryWaitingTime:           0,
+			TakeProfitSpreadHunter:     false,
+			TakeProfitWaitingTime:      0,
+			KeyAssetId:                 nil,
+			Pair:                       request.KeyParams.Symbol,
+			MarketType:                 request.KeyParams.MarketType,
+			EntryOrder:                 &models.MongoEntryPoint{
+				ActivatePrice:           0,
+				EntryDeviation:          0,
+				Price:                   0,
+				Side:                    request.KeyParams.Side,
+				ReduceOnly:              *request.KeyParams.ReduceOnly,
+				Amount:                  request.KeyParams.Amount,
+				HedgeEntry:              0,
+				HedgeActivation:         0,
+				HedgeOppositeActivation: 0,
+				PlaceWithoutLoss:        false,
+				Type:                    0,
+				OrderType:               "limit",
+			},
+			WaitingEntryTimeout:        0,
+			ActivationMoveStep:         0,
+			ActivationMoveTimeout:      0,
+			TimeoutIfProfitable:        0,
+			TimeoutWhenProfit:          0,
+			ContinueIfEnded:            false,
+			TimeoutBeforeOpenPosition:  0,
+			ChangeTrendIfLoss:          false,
+			ChangeTrendIfProfit:        false,
+			MoveStopCloser:             false,
+			MoveForcedStopAtEntry:      false,
+			TimeoutWhenLoss:            0,
+			TimeoutLoss:                0,
+			StopLoss:                   0,
+			StopLossType:               "",
+			ForcedLoss:                 0,
+			HedgeLossDeviation:         0,
+			CreatedByTemplate:          false,
+			TemplateStrategyId:         nil,
+			Leverage:                   0,
+			EntryLevels:                nil,
+			ExitLevels:                 nil,
+			CloseStrategyAfterFirstTAP: false,
+			PlaceEntryAfterTAP:         false,
+		},
+		State:           nil,
+		TriggerWhen:     models.TriggerOptions{},
+		Expiration:      models.ExpirationSchema{},
+		LastUpdate:      0,
+		SignalIds:       nil,
+		OrderIds:        nil,
+		WaitForOrderIds: nil,
+		OwnerId:         primitive.ObjectID{},
+		Social:          models.MongoSocial{},
+		CreatedAt:       time.Time{},
+	}
+	go ss.AddStrategy(&strategy)
+	response := trading.OrderResponse{
+		Status: "OK",
+		Data:   trading.OrderResponseData{
+			Id:      id.Hex(),
+			Msg:     "",
+			OrderId: id.Hex(),
+			Status:  "open",
+			Price:   0,
+			Average: 0,
+			Filled:  0,
+			Code:    0,
+		},
+	}
+	return response
 }
 
 const CollName = "core_strategies"
@@ -112,7 +226,7 @@ func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) 
 	cs, err := coll.Watch(ctx, mongo.Pipeline{}, options.ChangeStream().SetFullDocument(options.UpdateLookup))
 	//cs, err := coll.Watch(ctx, mongo.Pipeline{}, options.ChangeStream().SetFullDocument(options.UpdateLookup))
 	if err != nil {
-		println("log.Fatal on watching strategies")
+		log.Print("log.Fatal on watching strategies")
 		return err
 	}
 	//require.NoError(cs, err)
@@ -123,10 +237,10 @@ func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) 
 		err := cs.Decode(&event)
 
 		//	data := next.String()
-		// println(data)
+		// log.Print(data)
 		//		err := json.Unmarshal([]byte(data), &event)
 		if err != nil {
-			println("event decode error on processing strategy", err.Error())
+			log.Print("event decode error on processing strategy", err.Error())
 		}
 
 		if isLocalBuild && (event.FullDocument.AccountId == nil || event.FullDocument.AccountId.Hex() != accountId) {
@@ -156,7 +270,7 @@ func (ss *StrategyService) InitPositionsWatch() {
 
 	cs, err := collPositions.Watch(ctx, pipeline, options.ChangeStream().SetFullDocument(options.UpdateLookup))
 	if err != nil {
-		println("panic error on watching positions")
+		log.Print("panic error on watching positions")
 		panic(err.Error())
 	}
 	//require.NoError(cs, err)
@@ -165,10 +279,10 @@ func (ss *StrategyService) InitPositionsWatch() {
 		var positionEventDecoded models.MongoPositionUpdateEvent
 		err := cs.Decode(&positionEventDecoded)
 		//	data := next.String()
-		// println(data)
+		// log.Print(data)
 		//		err := json.Unmarshal([]byte(data), &event)
 		if err != nil {
-			println("event decode in processing position", err.Error())
+			log.Print("event decode in processing position", err.Error())
 		}
 
 		go func(event models.MongoPositionUpdateEvent) {
@@ -181,7 +295,7 @@ func (ss *StrategyService) InitPositionsWatch() {
 			)
 
 			if err != nil {
-				println("log.Fatal on finding enabled strategies by position")
+				log.Print("log.Fatal on finding enabled strategies by position")
 				log.Fatal(err)
 			}
 
@@ -192,7 +306,7 @@ func (ss *StrategyService) InitPositionsWatch() {
 				err := cur.Decode(&strategyEventDecoded)
 
 				if err != nil {
-					println("event decode on processing strategy found by position close", err.Error())
+					log.Print("event decode on processing strategy found by position close", err.Error())
 				}
 
 				// if SM created before last position update
@@ -200,7 +314,7 @@ func (ss *StrategyService) InitPositionsWatch() {
 				if positionEventDecoded.FullDocument.PositionAmt == 0 {
 					strategy := ss.strategies[strategyEventDecoded.ID.String()]
 					if strategy != nil && strategy.GetModel().Conditions.PositionWasClosed {
-						println("disabled by position close")
+						log.Print("disabled by position close")
 						strategy.GetModel().Enabled = false
 						collStrategies.FindOneAndUpdate(ctx, bson.D{{"_id", strategyEventDecoded.ID}}, bson.M{"$set": bson.M{"enabled": false}})
 					}
@@ -282,6 +396,8 @@ func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
 		}
 	}
 
+	log.Print("len(model.State.TrailingExitPrices) ", len(model.State.TrailingExitPrices))
+
 	// TAP change
 	// split targets
 	if len(model.Conditions.ExitLevels) > 0 {
@@ -328,7 +444,9 @@ func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
 
 				sm.PlaceOrder(0, smart_order.TakeProfit)
 			}
-		} else if model.Conditions.ExitLevels[0].ActivatePrice > 0 && (model.Conditions.ExitLevels[0].EntryDeviation != model.State.TakeProfit[0].EntryDeviation) {
+		} else if model.Conditions.ExitLevels[0].ActivatePrice > 0 &&
+			(model.Conditions.ExitLevels[0].EntryDeviation != model.State.TakeProfit[0].EntryDeviation) &&
+			len(model.State.TrailingExitPrices) > 0 {
 			// trailing TAP
 			ids := model.State.TakeProfitOrderIds[:]
 			if isSpot {
