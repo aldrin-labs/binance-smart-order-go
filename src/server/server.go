@@ -20,12 +20,17 @@ var (
 func RunServer(wg *sync.WaitGroup) {
 	router := fasthttprouter.New()
 	router.GET("/", Index)
+	router.GET("/healthz", Healthz)
 	router.POST("/createOrder", CreateOrder)
-	println("Listening on port :5901")
+	println("Listening on port :8080")
 	if err := fasthttp.ListenAndServe(*addr, router.Handler); err != nil {
 		wg.Done()
 		log.Fatalf("Error in ListenAndServe: %s", err)
 	}
+}
+
+func Healthz(ctx *fasthttp.RequestCtx) {
+	fmt.Fprint(ctx, "alive!\n")
 }
 
 func CreateOrder(ctx *fasthttp.RequestCtx) {
