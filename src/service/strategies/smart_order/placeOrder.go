@@ -16,7 +16,6 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 	frequency := 0.0
 	side := ""
 	orderPrice := price
-
 	recursiveCall := false
 	reduceOnly := false
 
