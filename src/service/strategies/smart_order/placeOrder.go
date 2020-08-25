@@ -545,6 +545,10 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 					stopPrice = 0.0
 					ifShouldCancelPreviousOrder = false
 					continue
+				} else if step == Stoploss || step == "ForcedLoss" {
+					if len(model.Conditions.EntryLevels) > 0 {
+						break
+					}
 				} else {
 					sm.PlaceOrder(0, Canceled)
 					break
