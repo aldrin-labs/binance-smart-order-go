@@ -9,10 +9,8 @@ import (
 	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"log"
 )
-type MongoKey struct {
-	Hostname string `json:"hostname" bson:"hostname"`
-}
 
 type KeyAsset struct {
 	KeyId primitive.ObjectID `json:"keyId" bson:"keyId"`
@@ -32,39 +30,25 @@ func RunSmartOrder(strategy *Strategy, df interfaces.IDataFeed, td trading.ITrad
 		request = bson.D{
 			{"_id", strategy.Model.Conditions.KeyAssetId},
 		}
-		println(keyAssetId)
+		log.Print(keyAssetId)
 		ctx := context.Background()
 		var keyAsset KeyAsset
 		err := KeyAssets.FindOne(ctx, request).Decode(&keyAsset)
 		if err != nil {
-			println("keyAssetsCursor", err.Error())
+			log.Print("keyAssetsCursor ", err.Error())
 		}
 		keyId = &keyAsset.KeyId
 	}
 
-	Key := mongodb.GetCollection("core_keys")
-	var request bson.D
-	request = bson.D{
-		{"_id", keyId},
-	}
-	ctx := context.Background()
-	var userKey MongoKey
-	err := Key.FindOne(ctx, request).Decode(&userKey)
-	if err != nil {
-		println("keyAssetsCursor", err.Error())
-	}
-	hostname := userKey.Hostname
-
-
 	if strategy.Model.Conditions.MarketType == 1 && !strategy.Model.Conditions.SkipInitialSetup {
-		go td.UpdateLeverage(keyId, strategy.Model.Conditions.Leverage, strategy.Model.Conditions.Pair, hostname)
+		go td.UpdateLeverage(keyId, strategy.Model.Conditions.Leverage, strategy.Model.Conditions.Pair)
 	}
 	if strategy.Model.State == nil {
 		strategy.Model.State = &models.MongoStrategyState{}
 	}
 	strategy.StateMgmt.SaveStrategyConditions(strategy.Model)
 	strategy.StateMgmt.UpdateConditions(strategy.Model.ID, strategy.Model.Conditions)
-	runtime := smart_order.NewSmartOrder(strategy, df, td, keyId, strategy.StateMgmt, hostname)
+	runtime := smart_order.NewSmartOrder(strategy, df, td, keyId, strategy.StateMgmt)
 	go runtime.Start()
 
 	return runtime

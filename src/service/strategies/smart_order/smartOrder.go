@@ -2,16 +2,17 @@ package smart_order
 
 import (
 	"context"
-	"github.com/qmuntal/stateless"
-	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
-	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
-	"gitlab.com/crypto_project/core/strategy_service/src/trading"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"log"
 	"math"
 	"reflect"
 	"sync"
 	"time"
+
+	"github.com/qmuntal/stateless"
+	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
+	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
+	"gitlab.com/crypto_project/core/strategy_service/src/trading"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 const (
@@ -44,8 +45,8 @@ const (
 	CheckTrailingLossTrade   = "CheckTrailingLossTrade"
 	CheckSpreadProfitTrade   = "CheckSpreadProfitTrade"
 	CheckLossTrade           = "CheckLossTrade"
-	Restart             	 = "Restart"
-	ReEntry          	     = "ReEntry"
+	Restart                  = "Restart"
+	ReEntry                  = "ReEntry"
 	TriggerTimeout           = "TriggerTimeout"
 )
 
@@ -58,12 +59,11 @@ type SmartOrder struct {
 	ExchangeApi             trading.ITrading
 	StateMgmt               interfaces.IStateMgmt
 	IsWaitingForOrder       sync.Map // TODO: this must be filled on start of SM if not first start (e.g. restore the state by checking order statuses)
-	IsEntryOrderPlaced      bool // we need it for case when response from createOrder was returned after entryTimeout was executed
+	IsEntryOrderPlaced      bool     // we need it for case when response from createOrder was returned after entryTimeout was executed
 	OrdersMap               map[string]bool
 	StatusByOrderId         sync.Map
 	QuantityAmountPrecision int64
 	QuantityPricePrecision  int64
-	Hostname                string
 	Lock                    bool
 	StopLock                bool
 	LastTrailingTimestamp   int64
@@ -82,14 +82,13 @@ func (sm *SmartOrder) toFixed(num float64, precision int64) float64 {
 	return float64(round(num*output)) / output
 }
 
-func NewSmartOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed, TradingAPI trading.ITrading, keyId *primitive.ObjectID, stateMgmt interfaces.IStateMgmt, hostname string) *SmartOrder {
+func NewSmartOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed, TradingAPI trading.ITrading, keyId *primitive.ObjectID, stateMgmt interfaces.IStateMgmt) *SmartOrder {
 
 	sm := &SmartOrder{Strategy: strategy, DataFeed: DataFeed, ExchangeApi: TradingAPI, KeyId: keyId, StateMgmt: stateMgmt, Lock: false, SelectedExitTarget: 0, OrdersMap: map[string]bool{}}
 	initState := WaitForEntry
 	pricePrecision, amountPrecision := stateMgmt.GetMarketPrecision(strategy.GetModel().Conditions.Pair, strategy.GetModel().Conditions.MarketType)
 	sm.QuantityPricePrecision = pricePrecision
 	sm.QuantityAmountPrecision = amountPrecision
-	sm.Hostname = hostname
 	// if state is not empty but if its in the end and open ended, then we skip state value, since want to start over
 	if strategy.GetModel().State != nil && strategy.GetModel().State.State != "" && !(strategy.GetModel().State.State == End && strategy.GetModel().Conditions.ContinueIfEnded == true) {
 		initState = strategy.GetModel().State.State
@@ -176,7 +175,7 @@ func (sm *SmartOrder) checkIfShouldCancelIfAnyActive() {
 }
 
 func (sm *SmartOrder) onStart(ctx context.Context, args ...interface{}) error {
-	println("onStart executed")
+	log.Print("onStart executed")
 	sm.checkIfShouldCancelIfAnyActive()
 	sm.hedge()
 	sm.checkIfPlaceOrderInstantlyOnStart()
@@ -190,7 +189,7 @@ func (sm *SmartOrder) checkIfPlaceOrderInstantlyOnStart() {
 	isFirstRunSoStateIsEmpty := model.State.State == "" ||
 		(model.State.State == WaitForEntry && model.Conditions.ContinueIfEnded && model.Conditions.WaitingEntryTimeout > 0)
 	if isFirstRunSoStateIsEmpty && model.Enabled &&
-		!model.Conditions.EntrySpreadHunter  && !isMultiEntry {
+		!model.Conditions.EntrySpreadHunter && !isMultiEntry {
 		entryIsNotTrailing := model.Conditions.EntryOrder.ActivatePrice == 0
 		if entryIsNotTrailing { // then we must know exact price
 			sm.IsWaitingForOrder.Store(WaitForEntry, true)
@@ -216,16 +215,15 @@ func (sm *SmartOrder) placeMultiEntryOrders() {
 	// here we should place all entry orders
 	for _, target := range model.Conditions.EntryLevels {
 
-
 		if target.Type == 0 {
 			currentPrice = target.Price
 			sm.PlaceOrder(currentPrice, WaitForEntry)
 
 		} else {
 			if model.Conditions.EntryOrder.Side == "buy" {
-				currentPrice = currentPrice*(100-target.Price/model.Conditions.Leverage)/100
+				currentPrice = currentPrice * (100 - target.Price/model.Conditions.Leverage) / 100
 			} else {
-				currentPrice = currentPrice*(100+target.Price/model.Conditions.Leverage)/100
+				currentPrice = currentPrice * (100 + target.Price/model.Conditions.Leverage) / 100
 			}
 			sm.PlaceOrder(currentPrice, WaitForEntry)
 		}
@@ -235,9 +233,8 @@ func (sm *SmartOrder) placeMultiEntryOrders() {
 	}
 
 	// here we should place one SL for all entries
-	weightedAverage := sumTotal / sumAmount
-	time.Sleep(3 * time.Second)
-	sm.PlaceOrder(weightedAverage, Stoploss)
+	//weightedAverage := sumTotal / sumAmount
+	sm.PlaceOrder(currentPrice, Stoploss)
 }
 
 func (sm *SmartOrder) getLastTargetAmount() float64 {
@@ -262,14 +259,14 @@ func (sm *SmartOrder) getLastTargetAmount() float64 {
 
 func (sm *SmartOrder) exitWaitEntry(ctx context.Context, args ...interface{}) (stateless.State, error) {
 	if sm.Strategy.GetModel().Conditions.EntryOrder.ActivatePrice != 0 {
-		println("move to", TrailingEntry)
+		log.Print("move to", TrailingEntry)
 		return TrailingEntry, nil
 	}
 	if len(sm.Strategy.GetModel().Conditions.EntryLevels) > 0 {
 		log.Print("move to ", InMultiEntry)
 		return InMultiEntry, nil
 	}
-		println("move to", InEntry)
+	log.Print("move to", InEntry)
 	return InEntry, nil
 }
 
@@ -320,10 +317,7 @@ func (sm *SmartOrder) entryMultiEntry(ctx context.Context, args ...interface{}) 
 	// cancel old TAP
 	isWaitingForOrder, ok := sm.IsWaitingForOrder.Load(TakeProfit)
 	if ok && isWaitingForOrder.(bool) {
-		time.Sleep(3 * time.Second)
 		state, _ := sm.State.State(ctx)
-		state2, _ := sm.State.State(context.TODO())
-		log.Print("state in entry ", state, state2)
 		if state == End {
 			return nil
 		}
@@ -331,7 +325,7 @@ func (sm *SmartOrder) entryMultiEntry(ctx context.Context, args ...interface{}) 
 
 	sm.IsWaitingForOrder.Store(TakeProfit, true)
 	ids := model.State.TakeProfitOrderIds[:]
-	sm.TryCancelAllOrders(ids)
+	sm.TryCancelAllOrdersConsistently(ids)
 	sm.PlaceOrder(0, TakeProfit)
 
 	sm.SelectedEntryTarget += 1
@@ -339,13 +333,12 @@ func (sm *SmartOrder) entryMultiEntry(ctx context.Context, args ...interface{}) 
 	return nil
 }
 
-
 func (sm *SmartOrder) enterEntry(ctx context.Context, args ...interface{}) error {
 
 	if len(sm.Strategy.GetModel().Conditions.EntryLevels) > 0 {
 		return nil
 	}
-	//println("enter entry")
+	//log.Print("enter entry")
 	isSpot := sm.Strategy.GetModel().Conditions.MarketType == 0
 	// if we returned to InEntry from Stoploss timeout
 	if sm.Strategy.GetModel().State.StopLossAt == -1 {
@@ -370,12 +363,12 @@ func (sm *SmartOrder) enterEntry(ctx context.Context, args ...interface{}) error
 	if isSpot {
 		sm.PlaceOrder(sm.Strategy.GetModel().State.EntryPrice, InEntry)
 		if !sm.Strategy.GetModel().Conditions.TakeProfitExternal {
-			println("place take-profit from enterEntry")
+			log.Print("place take-profit from enterEntry")
 			sm.PlaceOrder(0, TakeProfit)
 		}
 	} else {
 		go sm.PlaceOrder(sm.Strategy.GetModel().State.EntryPrice, InEntry)
-		if !sm.Strategy.GetModel().Conditions.TakeProfitExternal  {
+		if !sm.Strategy.GetModel().Conditions.TakeProfitExternal {
 			sm.PlaceOrder(0, TakeProfit)
 		}
 	}
@@ -712,7 +705,7 @@ func (sm *SmartOrder) TryCancelAllOrdersConsistently(orderIds []string) {
 					MarketType: sm.Strategy.GetModel().Conditions.MarketType,
 					Pair:       sm.Strategy.GetModel().Conditions.Pair,
 				},
-			}, sm.Hostname)
+			})
 		}
 	}
 }
@@ -727,7 +720,7 @@ func (sm *SmartOrder) TryCancelAllOrders(orderIds []string) {
 					MarketType: sm.Strategy.GetModel().Conditions.MarketType,
 					Pair:       sm.Strategy.GetModel().Conditions.Pair,
 				},
-			}, sm.Hostname)
+			})
 		}
 	}
 }
@@ -735,12 +728,11 @@ func (sm *SmartOrder) TryCancelAllOrders(orderIds []string) {
 func (sm *SmartOrder) Start() {
 	ctx := context.TODO()
 
-	state, ok := sm.State.State(context.Background())
-	log.Print("ok ", ok)
-	for state != End && state != Canceled && state != Timeout {
+	state, _ := sm.State.State(context.Background())
+	localState := sm.Strategy.GetModel().State.State
+	for state != End && localState != End && state != Canceled && state != Timeout {
 		if sm.Strategy.GetModel().Enabled == false {
-			state , ok= sm.State.State(ctx)
-			//log.Print("ok ", ok)
+			state, _ = sm.State.State(ctx)
 			break
 		}
 		if !sm.Lock {
@@ -752,43 +744,39 @@ func (sm *SmartOrder) Start() {
 		}
 		time.Sleep(60 * time.Millisecond)
 		state, _ = sm.State.State(ctx)
-		//log.Print("ok ", ok)
-		//log.Print("state", state)
+		localState = sm.Strategy.GetModel().State.State
 	}
 	sm.Stop()
-	println("STOPPED smartorder", state.(string))
+	log.Print("STOPPED smartorder ", state.(string))
 }
 
 func (sm *SmartOrder) Stop() {
-	println("stop func orders len", len(sm.Strategy.GetModel().State.Orders))
+	log.Print("stop func orders len", len(sm.Strategy.GetModel().State.Orders))
 	if sm.StopLock {
 		if sm.Strategy.GetModel().Conditions.ContinueIfEnded == false {
 			sm.StateMgmt.DisableStrategy(sm.Strategy.GetModel().ID)
 		}
-		println("cancel orders in stop at start")
+		log.Print("cancel orders in stop at start")
 		go sm.TryCancelAllOrders(sm.Strategy.GetModel().State.Orders)
 		return
 	}
 	sm.StopLock = true
 	state, _ := sm.State.State(context.Background())
 	if sm.Strategy.GetModel().Conditions.MarketType == 0 && state != End {
-		println("cancel orders in stop")
+		log.Print("cancel orders in stop")
 		sm.TryCancelAllOrdersConsistently(sm.Strategy.GetModel().State.Orders)
 	} else {
-		println("cancel orders a bit lower than start of stop")
+		log.Print("cancel orders a bit lower than start of stop")
 		go sm.TryCancelAllOrders(sm.Strategy.GetModel().State.Orders)
 	}
 	StateS := sm.Strategy.GetModel().State.State
 	if state != End && StateS != Timeout && sm.Strategy.GetModel().Conditions.EntrySpreadHunter == false {
 		sm.PlaceOrder(0, Canceled)
 	}
-	println("sm.Strategy.GetModel().Conditions.ContinueIfEnded", sm.Strategy.GetModel().Conditions.ContinueIfEnded)
 	if sm.Strategy.GetModel().Conditions.ContinueIfEnded == false {
-		println("disable strategy in stop", sm.Strategy.GetModel().ID.String())
 		sm.StateMgmt.DisableStrategy(sm.Strategy.GetModel().ID)
 	}
 	sm.StopLock = false
-	println("pair stateS state", sm.Strategy.GetModel().Conditions.Pair, StateS, state.(string))
 	if (StateS == Timeout || state == Timeout) && sm.Strategy.GetModel().Conditions.ContinueIfEnded == true && !sm.Strategy.GetModel().Conditions.PositionWasClosed {
 		sm.IsWaitingForOrder = sync.Map{}
 		sm.IsEntryOrderPlaced = false
@@ -837,7 +825,7 @@ func (sm *SmartOrder) processEventLoop() {
 				return
 			}
 		}
-		// println(sm.Strategy.GetModel().Conditions.Pair, sm.Strategy.GetModel().State.TrailingEntryPrice, currentOHLCV.Close, err.Error())
+		// log.Print(sm.Strategy.GetModel().Conditions.Pair, sm.Strategy.GetModel().State.TrailingEntryPrice, currentOHLCV.Close, err.Error())
 	}
 }
 
@@ -875,6 +863,6 @@ func (sm *SmartOrder) processSpreadEventLoop() {
 				return
 			}
 		}
-		// println(sm.Strategy.GetModel().Conditions.Pair, sm.Strategy.GetModel().State.TrailingEntryPrice, currentOHLCV.Close, err.Error())
+		// log.Print(sm.Strategy.GetModel().Conditions.Pair, sm.Strategy.GetModel().State.TrailingEntryPrice, currentOHLCV.Close, err.Error())
 	}
 }

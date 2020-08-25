@@ -1,8 +1,9 @@
-
 package strategies
 
 import (
 	"context"
+	"log"
+
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies/makeronly_order"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb"
@@ -12,8 +13,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-
-func RunPostOnlyOrder(strategy *Strategy, df interfaces.IDataFeed, td trading.ITrading, keyId *primitive.ObjectID) interfaces.IStrategyRuntime {
+func RunMakerOnlyOrder(strategy *Strategy, df interfaces.IDataFeed, td trading.ITrading, keyId *primitive.ObjectID) interfaces.IStrategyRuntime {
 	if strategy.Model.Conditions.Leverage == 0 {
 		strategy.Model.Conditions.Leverage = 1
 	}
@@ -27,23 +27,24 @@ func RunPostOnlyOrder(strategy *Strategy, df interfaces.IDataFeed, td trading.IT
 		request = bson.D{
 			{"_id", strategy.Model.Conditions.KeyAssetId},
 		}
-		println(keyAssetId)
+		log.Print(keyAssetId)
 		ctx := context.Background()
 		var keyAsset KeyAsset
 		err := KeyAssets.FindOne(ctx, request).Decode(&keyAsset)
 		if err != nil {
-			println("keyAssetsCursor", err.Error())
+			log.Print("keyAssetsCursor", err.Error())
 		}
 		keyId = &keyAsset.KeyId
 	}
-	if strategy.Model.Conditions.MarketType == 1 && !strategy.Model.Conditions.SkipInitialSetup {
-		go td.UpdateLeverage(keyId, strategy.Model.Conditions.Leverage, strategy.Model.Conditions.Pair, "")
-	}
+	//if strategy.Model.Conditions.MarketType == 1 && !strategy.Model.Conditions.SkipInitialSetup {
+	//	go td.UpdateLeverage(keyId, strategy.Model.Conditions.Leverage, strategy.Model.Conditions.Pair)
+	//}
 	if strategy.Model.State == nil {
 		strategy.Model.State = &models.MongoStrategyState{}
 	}
-	strategy.StateMgmt.SaveStrategyConditions(strategy.Model)
-	runtime := makeronly_order.NewPostOnlyOrder(strategy, df, td, keyId, strategy.StateMgmt)
+	// go strategy.StateMgmt.SaveStrategy(strategy.Model)
+	// strategy.StateMgmt.SaveStrategyConditions(strategy.Model)
+	runtime := makeronly_order.NewMakerOnlyOrder(strategy, df, td, keyId, strategy.StateMgmt)
 	go runtime.Start()
 
 	return runtime

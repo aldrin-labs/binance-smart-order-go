@@ -3,6 +3,7 @@ module gitlab.com/crypto_project/core/strategy_service
 go 1.13
 
 require (
+	github.com/buaazp/fasthttprouter v0.1.1
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/golang/snappy v0.0.1 // indirect

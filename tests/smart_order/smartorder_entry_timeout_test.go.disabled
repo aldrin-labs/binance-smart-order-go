@@ -85,12 +85,12 @@ func TestSmartOrderEntryTimout(t *testing.T) {
 
 	smartOrderS := smart_order.NewSmartOrder(&strategyS, dfS, tradingApiS, &keyId, &smS)
 	smartOrderF.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
-		println("transition SMF:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
+		log.Print("transition SMF:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
 	})
 	go smartOrderF.Start()
 
 	smartOrderS.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
-		println("transition SMS:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
+		log.Print("transition SMS:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
 	})
 	go smartOrderS.Start()
 	time.Sleep(5800 * time.Millisecond)
@@ -133,12 +133,12 @@ func TestIntegrationalSmartOrderEntryTimout(t *testing.T) {
 	smartOrderS := smart_order.NewSmartOrder(&strategyS, dfF, tradingApiF, &keyId, &smF)
 
 	smartOrderF.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
-		println("transition SMF:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
+		log.Print("transition SMF:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
 	})
 	go smartOrderF.Start()
 
 	smartOrderS.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
-		println("transition SMF:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
+		log.Print("transition SMF:", transition.Source.(string), transition.Destination.(string), transition.Trigger.(string), transition.IsReentry())
 	})
 	go smartOrderS.Start()
 

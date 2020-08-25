@@ -1,10 +1,13 @@
 package server
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"github.com/valyala/fasthttp"
+	"github.com/buaazp/fasthttprouter"
 	"gitlab.com/crypto_project/core/strategy_service/src/service"
+	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"log"
 	"sync"
 )
@@ -15,20 +18,22 @@ var (
 )
 
 func RunServer(wg *sync.WaitGroup) {
-	flag.Parse()
-
-	h := requestHandler
-	if *compress {
-		h = fasthttp.CompressHandler(h)
-	}
-
-	if err := fasthttp.ListenAndServe(*addr, h); err != nil {
+	router := fasthttprouter.New()
+	router.GET("/", Index)
+	router.POST("/createOrder", CreateOrder)
+	println("Listening on port :5901")
+	if err := fasthttp.ListenAndServe(*addr, router.Handler); err != nil {
 		wg.Done()
 		log.Fatalf("Error in ListenAndServe: %s", err)
 	}
 }
 
-func requestHandler(ctx *fasthttp.RequestCtx) {
+func CreateOrder(ctx *fasthttp.RequestCtx) {
+	var createOrder trading.CreateOrderRequest
+	_ = json.Unmarshal(ctx.PostBody(), &createOrder)
+	service.GetStrategyService().CreateOrder(createOrder)
+}
+func Index(ctx *fasthttp.RequestCtx) {
 	fmt.Fprintf(ctx, "Hello, world!\n\n")
 
 	fmt.Fprintf(ctx, "Request method is %q\n", ctx.Method())

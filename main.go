@@ -4,6 +4,7 @@ import (
     "github.com/joho/godotenv"
     "gitlab.com/crypto_project/core/strategy_service/src/server"
     "gitlab.com/crypto_project/core/strategy_service/src/service"
+    "log"
     "os"
     "sync"
 )
@@ -11,7 +12,7 @@ import (
 func main() {
     err := godotenv.Load()
     if err != nil {
-        println("Error loading .env file")
+        log.Print("Error loading .env file")
     }
     var wg sync.WaitGroup
     //TODO: init top-level context
