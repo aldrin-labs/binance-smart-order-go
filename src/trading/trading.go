@@ -17,12 +17,14 @@ import (
 )
 
 type OrderResponseData struct {
-	Id      string  `json:"orderId"`
-	Msg     string  `json:"msg,string"`
-	OrderId string  `json:"orderId"`
+	OrderId string `json:"orderId, string"`
+	Msg     string `json:"msg,string"`
+	//OrderId string  `json:"orderId, string"`
 	Status  string  `json:"status"`
+	Type  string  `json:"type"`
 	Price   float64 `json:"price"`
 	Average float64 `json:"average"`
+	Amount float64 `json:"amount"`
 	Filled  float64 `json:"filled"`
 	Code    int64   `json:"code" bson:"code"`
 }
@@ -192,7 +194,7 @@ func (t *Trading) CreateOrder(order CreateOrderRequest) OrderResponse {
 	var response OrderResponse
 	_ = mapstructure.Decode(rawResponse, &response)
 
-	response.Data.Id = string(response.Data.OrderId)
+	response.Data.OrderId = string(response.Data.OrderId)
 	return response
 }
 

@@ -71,7 +71,7 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 
 	for cur.Next(ctx) {
 		// create a value into which the single document can be decoded
-		strategy, err := strategies.GetStrategy(cur, ss.dataFeed, ss.trading, ss.stateMgmt)
+		strategy, err := strategies.GetStrategy(cur, ss.dataFeed, ss.trading, ss.stateMgmt, ss)
 		if err != nil {
 			log.Print("log.Fatal on processing enabled strategy")
 			log.Fatal(err)
@@ -116,7 +116,7 @@ func (ss *StrategyService) CreateOrder(request trading.CreateOrderRequest) tradi
 		Symbol:                 request.KeyParams.Symbol,
 		ReduceOnly:             *request.KeyParams.ReduceOnly,
 	}
-	go ss.stateMgmt.SaveOrder(order)
+	go ss.stateMgmt.SaveOrder(order, request.KeyId.Hex())
 	strategy := models.MongoStrategy{
 		ID:              &id,
 		Type:            2,
@@ -201,13 +201,14 @@ func (ss *StrategyService) CreateOrder(request trading.CreateOrderRequest) tradi
 		CreatedAt:       time.Time{},
 	}
 	go ss.AddStrategy(&strategy)
+	hex := id.Hex()
 	response := trading.OrderResponse{
 		Status: "OK",
 		Data:   trading.OrderResponseData{
-			Id:      id.Hex(),
-			Msg:     "",
-			OrderId: id.Hex(),
+			OrderId: hex,
 			Status:  "open",
+			Amount:	 request.KeyParams.Amount,
+			Type: 	"maker-only",
 			Price:   0,
 			Average: 0,
 			Filled:  0,

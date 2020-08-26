@@ -9,10 +9,10 @@ import (
 )
 
 
-func GetStrategy(cur *mongo.Cursor, df interfaces.IDataFeed, tr trading.ITrading, sm interfaces.IStateMgmt) (*Strategy, error) {
+func GetStrategy(cur *mongo.Cursor, df interfaces.IDataFeed, tr trading.ITrading, sm interfaces.IStateMgmt, createOrder interfaces.ICreateRequest) (*Strategy, error) {
 	var result models.MongoStrategy
 	err := cur.Decode(&result)
-	return &Strategy{Model: &result, Datafeed: df, Trading: tr, StateMgmt: sm }, err
+	return &Strategy{Model: &result, Datafeed: df, Trading: tr, StateMgmt: sm, Singleton: createOrder }, err
 }
 
 // Strategy object
@@ -22,9 +22,13 @@ type Strategy struct {
 	Datafeed        interfaces.IDataFeed
 	Trading         trading.ITrading
 	StateMgmt       interfaces.IStateMgmt
+	Singleton		interfaces.ICreateRequest
 }
 func (strategy *Strategy) GetModel() *models.MongoStrategy {
 	return strategy.Model
+}
+func (strategy *Strategy) GetSingleton() interfaces.ICreateRequest  {
+	return strategy.Singleton
 }
 func (strategy *Strategy) GetRuntime() interfaces.IStrategyRuntime {
 	return strategy.StrategyRuntime

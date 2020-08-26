@@ -16,7 +16,7 @@ func(po *MakerOnlyOrder) run() {
 		KeyParams: po.OrderParams,
 	})
 
-	if response.Data.Id == "" {
+	if response.Data.OrderId == "" {
 		log.Print("ERROR", response.Data.Msg)
 		// log.Print(response)
 	}

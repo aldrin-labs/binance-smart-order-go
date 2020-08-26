@@ -476,8 +476,12 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 		if step == WaitForEntry {
 			sm.IsEntryOrderPlaced = true
 		}
-		response := sm.ExchangeApi.CreateOrder(request)
-		if response.Status == "OK" && response.Data.Id != "0" && response.Data.Id != "" {
+		var response trading.OrderResponse
+		if request.KeyParams.Type == "maker-only" {
+			response = sm.Strategy.GetSingleton().CreateOrder(request)
+		}
+		response = sm.ExchangeApi.CreateOrder(request)
+		if response.Status == "OK" && response.Data.OrderId != "0" && response.Data.OrderId != "" {
 			sm.IsWaitingForOrder.Store(step, true)
 			if ifShouldCancelPreviousOrder {
 				// cancel existing order if there is such ( and its not TrailingEntry )
@@ -493,27 +497,27 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 						},
 					})
 				}
-				model.State.ExecutedOrders = append(model.State.ExecutedOrders, response.Data.Id)
+				model.State.ExecutedOrders = append(model.State.ExecutedOrders, response.Data.OrderId)
 			}
-			if response.Data.Id != "0" {
+			if response.Data.OrderId != "0" {
 				sm.OrdersMux.Lock()
-				sm.OrdersMap[response.Data.Id] = true
+				sm.OrdersMap[response.Data.OrderId] = true
 				sm.OrdersMux.Unlock()
-				go sm.waitForOrder(response.Data.Id, step)
+				go sm.waitForOrder(response.Data.OrderId, step)
 
 				// save placed orders id to state SL/TAP
 				if step == Stoploss {
-					model.State.StopLossOrderIds = append(model.State.StopLossOrderIds, response.Data.Id)
+					model.State.StopLossOrderIds = append(model.State.StopLossOrderIds, response.Data.OrderId)
 				} else if step == "ForcedLoss" {
-					model.State.ForcedLossOrderIds = append(model.State.ForcedLossOrderIds, response.Data.Id)
+					model.State.ForcedLossOrderIds = append(model.State.ForcedLossOrderIds, response.Data.OrderId)
 				} else if step == TakeProfit {
-					model.State.TakeProfitOrderIds = append(model.State.TakeProfitOrderIds, response.Data.Id)
+					model.State.TakeProfitOrderIds = append(model.State.TakeProfitOrderIds, response.Data.OrderId)
 				}
 			} else {
 				log.Print("order 0")
 			}
 			if step != Canceled {
-				model.State.Orders = append(model.State.Orders, response.Data.Id)
+				model.State.Orders = append(model.State.Orders, response.Data.OrderId)
 				sm.StateMgmt.UpdateOrders(model.ID, model.State)
 			}
 			break

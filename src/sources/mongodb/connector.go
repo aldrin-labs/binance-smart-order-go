@@ -176,12 +176,53 @@ func (sm *StateMgmt) SubscribeToOrder(orderId string, onOrderStatusUpdate func(o
 	return nil
 }
 
-func (sm *StateMgmt) SaveOrder(order models.MongoOrder) {
+func GetAssets(pair string) (string, string) {
+	CollName := "core_markets"
+	ctx := context.Background()
+	var request bson.D
+	request = bson.D{
+		{"symbol", pair},
+	}
+	var coll = GetCollection(CollName)
+	var market *models.MongoMarket
+	err := coll.FindOne(ctx, request).Decode(&market)
+	if err != nil {
+		log.Print("strategy decode error: ", err.Error())
+		return "nil", "nil"
+	}
+	return market.BaseId.Hex(), market.QuoteId.Hex()
+}
+func GetKeyIdAndExchangeId(keyId string) (string, string) {
+	CollName := "core_keys"
+	ctx := context.Background()
+	var request bson.D
+	request = bson.D{
+		{"_id", keyId},
+	}
+	var coll = GetCollection(CollName)
+
+	var foundKey *models.MongoKey
+	err := coll.FindOne(ctx, request).Decode(&foundKey)
+	if err != nil {
+		log.Print("strategy decode error: ", err.Error())
+		return "nil", "nil"
+	}
+	return keyId, foundKey.ExchangeId.Hex()
+
+}
+
+func (sm *StateMgmt) SaveOrder(order models.MongoOrder, keyId string) {
+	baseId, quoteId := GetAssets(order.Symbol)
+	_, exchangeId := GetKeyIdAndExchangeId(keyId)
 	opts := options.Update().SetUpsert(true)
 	filter := bson.D{{"_id", order.ID}}
 	update := bson.D{{"$set", bson.D{
 		{"_id", order.ID},
 		{"orderId", order.OrderId},
+		{"keyId", keyId},
+		{"baseId", baseId},
+		{"quoteId", quoteId},
+		{"exchangeId", exchangeId},
 		{"filled", order.Filled},
 		{"average", order.Average},
 		{"status", order.Status},
@@ -194,7 +235,7 @@ func (sm *StateMgmt) SaveOrder(order models.MongoOrder) {
 	var coll = GetCollection(CollName)
 	_, err := coll.UpdateOne(ctx, filter, update, opts)
 	if err != nil {
-		println(err)
+		println(err.Error())
 	}
 }
 
