@@ -34,6 +34,11 @@ type OrderResponse struct {
 	Data   OrderResponseData `json:"data"`
 }
 
+type UpdateLeverageResponse struct {
+	Status string            `json:"status"`
+	ErrorMessage  string `json:"errorMessage"`
+}
+
 type TransferRequest struct {
 	FromKeyId  *primitive.ObjectID `json:"fromKeyId"`
 	ToKeyId    *primitive.ObjectID `json:"toKeyId"`
@@ -47,7 +52,7 @@ type ITrading interface {
 	CancelOrder(params CancelOrderRequest) OrderResponse
 	PlaceHedge(parentSmarOrder *models.MongoStrategy) OrderResponse
 
-	UpdateLeverage(keyId *primitive.ObjectID, leverage float64, symbol string) interface{}
+	UpdateLeverage(keyId *primitive.ObjectID, leverage float64, symbol string) UpdateLeverageResponse
 	Transfer(request TransferRequest) OrderResponse
 	SetHedgeMode(keyId *primitive.ObjectID, hedgeMode bool) OrderResponse
 }
@@ -204,7 +209,7 @@ type UpdateLeverageParams struct {
 	KeyId    *primitive.ObjectID `json:"keyId"`
 }
 
-func (t *Trading) UpdateLeverage(keyId *primitive.ObjectID, leverage float64, symbol string) interface{} {
+func (t *Trading) UpdateLeverage(keyId *primitive.ObjectID, leverage float64, symbol string) UpdateLeverageResponse {
 	if leverage < 1 {
 		leverage = 1
 	}
@@ -214,7 +219,13 @@ func (t *Trading) UpdateLeverage(keyId *primitive.ObjectID, leverage float64, sy
 		Leverage: leverage,
 		Symbol:   symbol,
 	}
-	return Request("updateLeverage", request)
+
+	rawResponse := Request("updateLeverage", request)
+
+	var response UpdateLeverageResponse
+	_ = mapstructure.Decode(rawResponse, &response)
+
+	return response
 }
 
 func (t *Trading) CancelOrder(cancelRequest CancelOrderRequest) OrderResponse {

@@ -15,8 +15,9 @@ func (sm *SmartOrder) exit(ctx context.Context, args ...interface{}) (stateless.
 	if model.Conditions.MarketType == 0 {
 		amount = amount * 0.99
 	}
-	log.Print("model.State.ExecutedAmount >= amount in exit ", model.State.ExecutedAmount >= amount )
-	if model.State.State != WaitLossHedge && model.State.ExecutedAmount >= amount || model.Conditions.CloseStrategyAfterFirstTAP { // all trades executed, nothing more to trade
+	log.Print("state in exit ", state.(string), " model.State.State ", model.State.State)
+	log.Print("model.State.ExecutedAmount >= amount in exit ", model.State.ExecutedAmount >= amount)
+	if model.State.State != WaitLossHedge && model.State.ExecutedAmount >= amount  { // all trades executed, nothing more to trade
 		if model.Conditions.ContinueIfEnded {
 			isParentHedge := model.Conditions.Hedging == true
 			isTrailingHedgeOrder := model.Conditions.HedgeStrategyId != nil || isParentHedge
@@ -83,6 +84,7 @@ func (sm *SmartOrder) exit(ctx context.Context, args ...interface{}) (stateless.
 			nextState = InMultiEntry
 			break
 		}
+		break
 	case TakeProfit:
 		switch model.State.State {
 		case "EnterNextTarget":
@@ -119,6 +121,7 @@ func (sm *SmartOrder) exit(ctx context.Context, args ...interface{}) (stateless.
 		}
 		break
 	}
+	log.Print("next state in end ", nextState)
 	if nextState == End && model.Conditions.ContinueIfEnded {
 		newState := models.MongoStrategyState{
 			State:              WaitForEntry,

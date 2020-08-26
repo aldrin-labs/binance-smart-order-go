@@ -214,12 +214,15 @@ func (sm *SmartOrder) placeMultiEntryOrders() {
 
 	// here we should place all entry orders
 	for _, target := range model.Conditions.EntryLevels {
+		currentAmount := 0.0
 
 		if target.Type == 0 {
+			currentAmount = target.Amount
 			currentPrice = target.Price
 			sm.PlaceOrder(currentPrice, WaitForEntry)
 
 		} else {
+			currentAmount = model.Conditions.EntryOrder.Amount / 100 * target.Amount
 			if model.Conditions.EntryOrder.Side == "buy" {
 				currentPrice = currentPrice * (100 - target.Price/model.Conditions.Leverage) / 100
 			} else {
@@ -228,8 +231,8 @@ func (sm *SmartOrder) placeMultiEntryOrders() {
 			sm.PlaceOrder(currentPrice, WaitForEntry)
 		}
 
-		sumAmount += target.Amount
-		sumTotal += target.Amount * currentPrice
+		sumAmount += currentAmount
+		sumTotal += currentAmount * currentPrice
 	}
 
 	// here we should place one SL for all entries
@@ -313,6 +316,20 @@ func (sm *SmartOrder) entryMultiEntry(ctx context.Context, args ...interface{}) 
 	sm.StopMux.Lock()
 	log.Print("entryMultiEntry")
 	model := sm.Strategy.GetModel()
+
+	isWaitingStopLoss, stopLossOk := sm.IsWaitingForOrder.Load(Stoploss)
+	if (!stopLossOk || !isWaitingStopLoss.(bool)) && len(model.State.StopLossOrderIds) == 0 {
+		sm.IsWaitingForOrder.Store(Stoploss, true)
+		// if stop loss was not placed in the start then we should wait some time before all entry will be executed
+		time.AfterFunc(3 * time.Second, func() {sm.PlaceOrder(model.State.EntryPrice, Stoploss)})
+	}
+
+	isWaitingForcedLoss, forcedLossOk := sm.IsWaitingForOrder.Load("ForcedLoss")
+	if (!forcedLossOk || !isWaitingForcedLoss.(bool)) && len(model.State.ForcedLossOrderIds) == 0 {
+		sm.IsWaitingForOrder.Store("ForcedLoss", true)
+		time.AfterFunc(3 * time.Second, func() {sm.PlaceOrder(model.State.EntryPrice, "ForcedLoss")})
+	}
+
 	if model.Conditions.EntryLevels[sm.SelectedEntryTarget].PlaceWithoutLoss {
 		sm.PlaceOrder(0, "WithoutLoss")
 	}
