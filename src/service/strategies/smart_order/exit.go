@@ -84,6 +84,7 @@ func (sm *SmartOrder) exit(ctx context.Context, args ...interface{}) (stateless.
 			nextState = InMultiEntry
 			break
 		}
+		break
 	case TakeProfit:
 		switch model.State.State {
 		case "EnterNextTarget":
