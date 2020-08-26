@@ -176,27 +176,27 @@ func (sm *StateMgmt) SubscribeToOrder(orderId string, onOrderStatusUpdate func(o
 	return nil
 }
 
-func GetAssets(pair string) (string, string) {
+func GetAssets(pair string, marketType int64) (*primitive.ObjectID, *primitive.ObjectID, *primitive.ObjectID) {
 	CollName := "core_markets"
 	ctx := context.Background()
 	var request bson.D
 	request = bson.D{
-		{"symbol", pair},
+		{"name", pair},
+		{"marketType", marketType},
 	}
 	var coll = GetCollection(CollName)
 	var market *models.MongoMarket
 	err := coll.FindOne(ctx, request).Decode(&market)
 	if err != nil {
 		log.Print("strategy decode error: ", err.Error())
-		return "nil", "nil"
+		return nil, nil, nil
 	}
-	return market.BaseId.Hex(), market.QuoteId.Hex()
+	return market.BaseId, market.QuoteId, market.ID
 }
-func GetKeyIdAndExchangeId(keyId string) (string, string) {
+func GetKeyIdAndExchangeId(keyId *primitive.ObjectID) (*primitive.ObjectID, *primitive.ObjectID) {
 	CollName := "core_keys"
 	ctx := context.Background()
-	var request bson.D
-	request = bson.D{
+	request := bson.D{
 		{"_id", keyId},
 	}
 	var coll = GetCollection(CollName)
@@ -205,24 +205,25 @@ func GetKeyIdAndExchangeId(keyId string) (string, string) {
 	err := coll.FindOne(ctx, request).Decode(&foundKey)
 	if err != nil {
 		log.Print("strategy decode error: ", err.Error())
-		return "nil", "nil"
+		return nil, nil
 	}
-	return keyId, foundKey.ExchangeId.Hex()
+	return keyId, foundKey.ExchangeId
 
 }
 
-func (sm *StateMgmt) SaveOrder(order models.MongoOrder, keyId string) {
-	baseId, quoteId := GetAssets(order.Symbol)
+func (sm *StateMgmt) SaveOrder(order models.MongoOrder, keyId *primitive.ObjectID, marketType int64) {
+	baseId, quoteId, marketId := GetAssets(order.Symbol, marketType)
 	_, exchangeId := GetKeyIdAndExchangeId(keyId)
 	opts := options.Update().SetUpsert(true)
 	filter := bson.D{{"_id", order.ID}}
 	update := bson.D{{"$set", bson.D{
 		{"_id", order.ID},
-		{"orderId", order.OrderId},
+		{"id", order.OrderId},
 		{"keyId", keyId},
 		{"baseId", baseId},
 		{"quoteId", quoteId},
 		{"exchangeId", exchangeId},
+		{"marketId", marketId},
 		{"filled", order.Filled},
 		{"average", order.Average},
 		{"status", order.Status},

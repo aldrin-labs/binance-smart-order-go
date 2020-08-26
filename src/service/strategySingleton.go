@@ -91,7 +91,7 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 }
 
 func GetStrategy(strategy *models.MongoStrategy, df interfaces.IDataFeed, tr trading.ITrading, st interfaces.IStateMgmt) *strategies.Strategy {
-	return &strategies.Strategy{Model:strategy, Datafeed: df, Trading: tr, StateMgmt: st}
+	return &strategies.Strategy{Model:strategy, Datafeed: df, Trading: tr, StateMgmt: st, }
 }
 
 func (ss *StrategyService) AddStrategy(strategy * models.MongoStrategy) {
@@ -116,7 +116,7 @@ func (ss *StrategyService) CreateOrder(request trading.CreateOrderRequest) tradi
 		Symbol:                 request.KeyParams.Symbol,
 		ReduceOnly:             *request.KeyParams.ReduceOnly,
 	}
-	go ss.stateMgmt.SaveOrder(order, request.KeyId.Hex())
+	go ss.stateMgmt.SaveOrder(order, request.KeyId, request.KeyParams.MarketType)
 	strategy := models.MongoStrategy{
 		ID:              &id,
 		Type:            2,
@@ -128,7 +128,7 @@ func (ss *StrategyService) CreateOrder(request trading.CreateOrderRequest) tradi
 			HedgeMode:                  false,
 			HedgeKeyId:                 nil,
 			HedgeStrategyId:            nil,
-			MakerOrderId:               id.Hex(),
+			MakerOrderId:               &id,
 			TemplateToken:              "",
 			MandatoryForcedLoss:        false,
 			PositionWasClosed:          false,

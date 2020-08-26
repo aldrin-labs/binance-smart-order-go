@@ -21,10 +21,10 @@ type OrderResponseData struct {
 	Msg     string `json:"msg,string"`
 	//OrderId string  `json:"orderId, string"`
 	Status  string  `json:"status"`
-	Type  string  `json:"type"`
+	Type    string  `json:"type"`
 	Price   float64 `json:"price"`
 	Average float64 `json:"average"`
-	Amount float64 `json:"amount"`
+	Amount  float64 `json:"amount"`
 	Filled  float64 `json:"filled"`
 	Code    int64   `json:"code" bson:"code"`
 }
@@ -35,8 +35,8 @@ type OrderResponse struct {
 }
 
 type UpdateLeverageResponse struct {
-	Status string            `json:"status"`
-	ErrorMessage  string `json:"errorMessage"`
+	Status       string `json:"status"`
+	ErrorMessage string `json:"errorMessage"`
 }
 
 type TransferRequest struct {
@@ -143,6 +143,8 @@ type Order struct {
 	MarketType   int64       `json:"marketType" bson:"marketType"`
 	Side         string      `json:"side"`
 	Amount       float64     `json:"amount"`
+	Filled       float64     `json:"filled"`
+	Average      float64     `json:"average"`
 	ReduceOnly   *bool       `json:"reduceOnly,omitempty" bson:"reduceOnly"`
 	TimeInForce  string      `json:"timeInForce,omitempty" bson:"timeInForce"`
 	Type         string      `json:"type" bson:"type"`

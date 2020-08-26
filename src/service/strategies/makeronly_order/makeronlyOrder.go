@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/qmuntal/stateless"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
+	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
 	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"reflect"
@@ -43,6 +44,7 @@ type MakerOnlyOrder struct {
 	SelectedExitTarget      int
 	TemplateOrderId         string
 	OrdersMux               sync.Mutex
+	MakerOnlyOrder			*models.MongoOrder
 
 	OrderParams trading.Order
 }
@@ -68,6 +70,14 @@ func NewMakerOnlyOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataF
 		pricePrecision, amountPrecision := stateMgmt.GetMarketPrecision(model.Conditions.Pair, model.Conditions.MarketType)
 		PO.QuantityPricePrecision = pricePrecision
 		PO.QuantityAmountPrecision = amountPrecision
+		var mongoOrder *models.MongoOrder
+		for {
+			mongoOrder = stateMgmt.GetOrder(strategy.GetModel().State.EntryOrderId)
+			if mongoOrder != nil {
+				break
+			}
+		}
+		PO.MakerOnlyOrder = mongoOrder
 	}()
 	// if state is not empty but if its in the end and open ended, then we skip state value, since want to start over
 	if model.State != nil && model.State.State != "" && !(model.State.State == Filled && model.Conditions.ContinueIfEnded == true) {

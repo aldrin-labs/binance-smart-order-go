@@ -49,10 +49,10 @@ type MongoMarketProperties struct {
 }
 
 type MongoMarket struct {
-	ID primitive.ObjectID `json:"_id" bson:"_id"`
+	ID         *primitive.ObjectID   `json:"_id" bson:"_id"`
 	Symbol     string                `json:"symbol" bson:"symbol"`
-	BaseId     primitive.ObjectID    `json:"baseId" bson:"baseId"`
-	QuoteId    primitive.ObjectID    `json:"quoteId" bson:"quoteId"`
+	BaseId     *primitive.ObjectID   `json:"baseId" bson:"baseId"`
+	QuoteId    *primitive.ObjectID   `json:"quoteId" bson:"quoteId"`
 	Properties MongoMarketProperties `json:"properties" bson:"properties"`
 }
 
@@ -174,7 +174,7 @@ type MongoStrategyCondition struct {
 	HedgeKeyId      *primitive.ObjectID `json:"hedgeKeyId,omitempty" bson:"hedgeKeyId"`
 	HedgeStrategyId *primitive.ObjectID `json:"hedgeStrategyId,omitempty" bson:"hedgeStrategyId"`
 
-	MakerOrderId string `json:"makerOrderId,omitempty" bson:"makerOrderId"`
+	MakerOrderId *primitive.ObjectID `json:"makerOrderId,omitempty" bson:"makerOrderId"`
 
 	TemplateToken          string              `json:"templateToken,omitempty" bson:"templateToken"`
 	MandatoryForcedLoss    bool                `json:"mandatoryForcedLoss,omitempty" bson:"mandatoryForcedLoss"`

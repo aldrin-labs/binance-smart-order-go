@@ -25,5 +25,5 @@ type IStateMgmt interface {
 	SaveStrategyConditions(strategy *models.MongoStrategy)
 	SaveStrategy(strategy *models.MongoStrategy) *models.MongoStrategy
 	EnableHedgeLossStrategy(strategyId *primitive.ObjectID)
-	SaveOrder(order models.MongoOrder, keyId string)
+	SaveOrder(order models.MongoOrder, keyId *primitive.ObjectID, marketType int64)
 }
