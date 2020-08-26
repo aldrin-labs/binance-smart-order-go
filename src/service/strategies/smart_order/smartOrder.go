@@ -214,12 +214,15 @@ func (sm *SmartOrder) placeMultiEntryOrders() {
 
 	// here we should place all entry orders
 	for _, target := range model.Conditions.EntryLevels {
+		currentAmount := 0.0
 
 		if target.Type == 0 {
+			currentAmount = target.Amount
 			currentPrice = target.Price
 			sm.PlaceOrder(currentPrice, WaitForEntry)
 
 		} else {
+			currentAmount = model.Conditions.EntryOrder.Amount / 100 * target.Amount
 			if model.Conditions.EntryOrder.Side == "buy" {
 				currentPrice = currentPrice * (100 - target.Price/model.Conditions.Leverage) / 100
 			} else {
@@ -228,13 +231,16 @@ func (sm *SmartOrder) placeMultiEntryOrders() {
 			sm.PlaceOrder(currentPrice, WaitForEntry)
 		}
 
-		sumAmount += target.Amount
-		sumTotal += target.Amount * currentPrice
+		sumAmount += currentAmount
+		sumTotal += currentAmount * currentPrice
 	}
 
 	// here we should place one SL for all entries
 	//weightedAverage := sumTotal / sumAmount
 	sm.PlaceOrder(currentPrice, Stoploss)
+	if model.Conditions.ForcedLoss > 0 {
+		sm.PlaceOrder(currentPrice, "ForcedLoss")
+	}
 }
 
 func (sm *SmartOrder) getLastTargetAmount() float64 {
@@ -310,6 +316,20 @@ func (sm *SmartOrder) entryMultiEntry(ctx context.Context, args ...interface{}) 
 	sm.StopMux.Lock()
 	log.Print("entryMultiEntry")
 	model := sm.Strategy.GetModel()
+
+	isWaitingStopLoss, _ := sm.IsWaitingForOrder.Load(Stoploss)
+	if !isWaitingStopLoss.(bool) && len(model.State.StopLossOrderIds) == 0 {
+		sm.IsWaitingForOrder.Store(Stoploss, true)
+		// if stop loss was not placed in the start then we should wait some time before all entry will be executed
+		time.AfterFunc(3 * time.Second, func() {sm.PlaceOrder(model.State.EntryPrice, Stoploss)})
+	}
+
+	isWaitingForcedLoss, _ := sm.IsWaitingForOrder.Load("ForcedLoss")
+	if !isWaitingForcedLoss.(bool) && len(model.State.ForcedLossOrderIds) == 0 {
+		sm.IsWaitingForOrder.Store("ForcedLoss", true)
+		time.AfterFunc(3 * time.Second, func() {sm.PlaceOrder(model.State.EntryPrice, "ForcedLoss")})
+	}
+
 	if model.Conditions.EntryLevels[sm.SelectedEntryTarget].PlaceWithoutLoss {
 		sm.PlaceOrder(0, "WithoutLoss")
 	}

@@ -41,7 +41,13 @@ func RunSmartOrder(strategy *Strategy, df interfaces.IDataFeed, td trading.ITrad
 	}
 
 	if strategy.Model.Conditions.MarketType == 1 && !strategy.Model.Conditions.SkipInitialSetup {
-		go td.UpdateLeverage(keyId, strategy.Model.Conditions.Leverage, strategy.Model.Conditions.Pair)
+		res := td.UpdateLeverage(keyId, strategy.Model.Conditions.Leverage, strategy.Model.Conditions.Pair)
+		if res.Status != "OK" {
+			strategy.Model.State = &models.MongoStrategyState{
+				State: smart_order.Error,
+				Msg: res.ErrorMessage,
+			}
+		}
 	}
 	if strategy.Model.State == nil {
 		strategy.Model.State = &models.MongoStrategyState{}

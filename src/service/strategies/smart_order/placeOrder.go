@@ -222,6 +222,14 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 		} else {
 			orderPrice = model.State.EntryPrice * (1 + model.Conditions.ForcedLoss/100/leverage)
 		}
+
+		if len(model.Conditions.EntryLevels) > 0 {
+			if side == "sell" {
+				orderPrice = price * (1 - model.Conditions.ForcedLoss/100/leverage)
+			} else {
+				orderPrice = price * (1 + model.Conditions.ForcedLoss/100/leverage)
+			}
+		}
 		break
 	case "WithoutLoss":
 		// entry price + commission
@@ -537,6 +545,10 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 					stopPrice = 0.0
 					ifShouldCancelPreviousOrder = false
 					continue
+				} else if step == Stoploss || step == "ForcedLoss" {
+					if len(model.Conditions.EntryLevels) > 0 {
+						break
+					}
 				} else {
 					sm.PlaceOrder(0, Canceled)
 					break
