@@ -72,7 +72,7 @@ func NewMakerOnlyOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataF
 		PO.QuantityAmountPrecision = amountPrecision
 		var mongoOrder *models.MongoOrder
 		for {
-			mongoOrder = stateMgmt.GetOrder(strategy.GetModel().State.EntryOrderId)
+			mongoOrder = stateMgmt.GetOrder(strategy.GetModel().Conditions.MakerOrderId.Hex())
 			if mongoOrder != nil {
 				break
 			}
