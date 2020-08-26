@@ -383,7 +383,11 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 			baseAmount = 0.0
 			for i, target := range model.Conditions.EntryLevels {
 				if i <= sm.SelectedEntryTarget {
-					baseAmount += target.Amount
+					if target.Type == 0 {
+						baseAmount += target.Amount
+					} else {
+						baseAmount += target.Amount * model.Conditions.EntryOrder.Amount / 100
+					}
 				}
 			}
 		}
