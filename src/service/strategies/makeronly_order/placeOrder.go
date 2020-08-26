@@ -16,7 +16,7 @@ func (mo *MakerOnlyOrder) PlaceOrder(anything float64, step string){
 			},
 		})
 		model.State.EntryOrderId = ""
-		if response.Data.Id == "" {
+		if response.Data.OrderId == "" {
 			// order was executed should be processed in other thread
 			return
 		}
@@ -53,10 +53,10 @@ func (mo *MakerOnlyOrder) PlaceOrder(anything float64, step string){
 			KeyParams: order,
 		})
 
-		orderId = response.Data.Id
+		orderId = response.Data.OrderId
 		if orderId != "" {
 			mo.OrdersMux.Lock()
-			mo.OrdersMap[response.Data.Id] = true
+			mo.OrdersMap[response.Data.OrderId] = true
 			mo.OrdersMux.Unlock()
 		}
 	}

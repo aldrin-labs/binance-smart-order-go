@@ -25,6 +25,10 @@ func (mo *MakerOnlyOrder) orderCallback(order *models.MongoOrder) {
 		state.ExecutedAmount = order.Filled
 		mo.StateMgmt.UpdateEntryPrice(mo.Strategy.GetModel().ID, state)
 		mo.StateMgmt.UpdateExecutedAmount(mo.Strategy.GetModel().ID, state)
+		mo.MakerOnlyOrder.Average = order.Average
+		mo.MakerOnlyOrder.Filled = order.Filled
+		mo.MakerOnlyOrder.Status = order.Status
+		mo.StateMgmt.SaveOrder(*mo.MakerOnlyOrder, mo.KeyId, mo.Strategy.GetModel().Conditions.MarketType)
 		mo.State.Fire(CheckExistingOrders)
 	}
 }

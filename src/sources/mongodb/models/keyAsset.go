@@ -2,6 +2,11 @@ package models
 
 import "go.mongodb.org/mongo-driver/bson/primitive"
 
+type MongoAsset struct {
+	ID     primitive.ObjectID `json:"_id" bson:"_id"`
+	Symbol string             `json:"symbol" bson:"symbol"`
+}
+
 type MongoKeyAsset struct {
 	ID          primitive.ObjectID     `json:"_id" bson:"_id"`
 	Type        int64                  `json:"type" bson:"type"`
