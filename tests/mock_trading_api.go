@@ -109,7 +109,7 @@ func (mt MockTrading) CreateOrder(req trading.CreateOrderRequest) trading.OrderR
 	//	filled = 0
 	//}
 	return trading.OrderResponse{Status: "OK", Data: trading.OrderResponseData{
-		Id:      orderId,
+		OrderId: orderId,
 		OrderId: orderId,
 		Status:  "open",
 		Price:   0,

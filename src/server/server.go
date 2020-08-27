@@ -36,7 +36,12 @@ func Healthz(ctx *fasthttp.RequestCtx) {
 func CreateOrder(ctx *fasthttp.RequestCtx) {
 	var createOrder trading.CreateOrderRequest
 	_ = json.Unmarshal(ctx.PostBody(), &createOrder)
-	service.GetStrategyService().CreateOrder(createOrder)
+	response := service.GetStrategyService().CreateOrder(createOrder)
+	jsonStr, err := json.Marshal(response)
+	if err != nil {
+		println(err.Error())
+	}
+ 	_, _ = fmt.Fprint(ctx, string(jsonStr))
 }
 func Index(ctx *fasthttp.RequestCtx) {
 	fmt.Fprintf(ctx, "Hello, world!\n\n")

@@ -12,4 +12,5 @@ type IStrategy interface {
 	GetDatafeed() IDataFeed
 	GetTrading() trading.ITrading
 	GetStateMgmt() IStateMgmt
+	GetSingleton() ICreateRequest
 }
