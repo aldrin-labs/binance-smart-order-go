@@ -479,9 +479,11 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 		log.Print("create order step ", step, " amount ", baseAmount)
 		if step == WaitForEntry {
 			sm.IsEntryOrderPlaced = true
+			sm.IsWaitingForOrder.Store(step, true)
 		}
 		response := sm.ExchangeApi.CreateOrder(request)
 		if response.Status == "OK" && response.Data.Id != "0" && response.Data.Id != "" {
+			log.Print("sm == nil ", sm == nil)
 			sm.IsWaitingForOrder.Store(step, true)
 			if ifShouldCancelPreviousOrder {
 				// cancel existing order if there is such ( and its not TrailingEntry )
