@@ -479,6 +479,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 		log.Print("create order step ", step, " amount ", baseAmount)
 		if step == WaitForEntry {
 			sm.IsEntryOrderPlaced = true
+			sm.IsWaitingForOrder.Store(step, true)
 		}
 		var response trading.OrderResponse
 		if request.KeyParams.Type == "maker-only" {
