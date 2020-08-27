@@ -230,6 +230,7 @@ func (sm *StateMgmt) SaveOrder(order models.MongoOrder, keyId *primitive.ObjectI
 		{"symbol", order.Symbol},
 		{"type",order.Type},
 		{"reduceOnly",order.ReduceOnly},
+		{"timestamp",time.Now().Unix()},
 	}}}
 	CollName := "core_orders"
 	ctx := context.Background()

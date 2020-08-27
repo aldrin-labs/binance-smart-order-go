@@ -483,8 +483,9 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 		var response trading.OrderResponse
 		if request.KeyParams.Type == "maker-only" {
 			response = sm.Strategy.GetSingleton().CreateOrder(request)
+		} else {
+			response = sm.ExchangeApi.CreateOrder(request)
 		}
-		response = sm.ExchangeApi.CreateOrder(request)
 		if response.Status == "OK" && response.Data.OrderId != "0" && response.Data.OrderId != "" {
 			sm.IsWaitingForOrder.Store(step, true)
 			if ifShouldCancelPreviousOrder {
