@@ -74,6 +74,9 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 		strategy, err := strategies.GetStrategy(cur, ss.dataFeed, ss.trading, ss.stateMgmt, ss)
 		if err != nil {
 			log.Print("log.Fatal on processing enabled strategy")
+			log.Print("err ", err)
+			log.Print("cur string ", cur.Current.String())
+			continue
 			log.Fatal(err)
 		}
 		log.Print("objid " + strategy.Model.ID.String())
