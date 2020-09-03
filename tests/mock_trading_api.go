@@ -24,7 +24,7 @@ type MockTrading struct {
 	SellDelay           int
 }
 
-func (mt MockTrading) UpdateLeverage(keyId *primitive.ObjectID, leverage float64, symbol string) interface{} {
+func (mt MockTrading) UpdateLeverage(keyId *primitive.ObjectID, leverage float64, symbol string) trading.UpdateLeverageResponse {
 	panic("implement me")
 }
 
@@ -109,7 +109,6 @@ func (mt MockTrading) CreateOrder(req trading.CreateOrderRequest) trading.OrderR
 	//	filled = 0
 	//}
 	return trading.OrderResponse{Status: "OK", Data: trading.OrderResponseData{
-		OrderId: orderId,
 		OrderId: orderId,
 		Status:  "open",
 		Price:   0,

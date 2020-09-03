@@ -16,6 +16,14 @@ type MockStateMgmt struct {
 	DataFeed      *MockDataFeed
 }
 
+func (sm *MockStateMgmt) SaveStrategy(strategy *models.MongoStrategy) *models.MongoStrategy {
+	panic("implement me")
+}
+
+func (sm *MockStateMgmt) SaveOrder(order models.MongoOrder, keyId *primitive.ObjectID, marketType int64) {
+	panic("implement me")
+}
+
 func (sm *MockStateMgmt) EnableStrategy(strategyId *primitive.ObjectID) {
 	return
 }
