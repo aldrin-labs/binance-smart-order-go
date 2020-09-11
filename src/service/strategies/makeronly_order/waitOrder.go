@@ -1,6 +1,9 @@
 package makeronly_order
 
-import "gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
+import (
+	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
+	"log"
+)
 
 func (mo *MakerOnlyOrder) waitForOrder(orderId string, orderStatus string) {
 	//println("in wait for order")
@@ -25,6 +28,7 @@ func (mo *MakerOnlyOrder) orderCallback(order *models.MongoOrder) {
 		state.ExecutedAmount = order.Filled
 		mo.StateMgmt.UpdateEntryPrice(mo.Strategy.GetModel().ID, state)
 		mo.StateMgmt.UpdateExecutedAmount(mo.Strategy.GetModel().ID, state)
+		log.Println("mo.MakerOnlyOrder", mo.MakerOnlyOrder)
 		mo.MakerOnlyOrder.Average = order.Average
 		mo.MakerOnlyOrder.Filled = order.Filled
 		mo.MakerOnlyOrder.Status = order.Status

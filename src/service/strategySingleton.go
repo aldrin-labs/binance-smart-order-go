@@ -108,6 +108,13 @@ func (ss *StrategyService) AddStrategy(strategy * models.MongoStrategy) {
 
 func (ss *StrategyService) CreateOrder(request trading.CreateOrderRequest) trading.OrderResponse {
 	id := primitive.NewObjectID()
+	var reduceOnly bool
+	if request.KeyParams.ReduceOnly == nil {
+		reduceOnly = false
+	} else {
+		reduceOnly = *request.KeyParams.ReduceOnly
+	}
+	log.Println("request.KeyParams", request.KeyParams)
 	order := models.MongoOrder{
 		ID:                     id,
 		Status:                 "open",
@@ -117,7 +124,8 @@ func (ss *StrategyService) CreateOrder(request trading.CreateOrderRequest) tradi
 		Side:                   request.KeyParams.Side,
 		Type:                   "maker-only",
 		Symbol:                 request.KeyParams.Symbol,
-		ReduceOnly:             *request.KeyParams.ReduceOnly,
+		ReduceOnly:             reduceOnly,
+		Timestamp:              float64(time.Now().UnixNano() / 1000000),
 	}
 	go ss.stateMgmt.SaveOrder(order, request.KeyId, request.KeyParams.MarketType)
 	strategy := models.MongoStrategy{
@@ -158,7 +166,7 @@ func (ss *StrategyService) CreateOrder(request trading.CreateOrderRequest) tradi
 				EntryDeviation:          0,
 				Price:                   0,
 				Side:                    request.KeyParams.Side,
-				ReduceOnly:              *request.KeyParams.ReduceOnly,
+				ReduceOnly:              reduceOnly,
 				Amount:                  request.KeyParams.Amount,
 				HedgeEntry:              0,
 				HedgeActivation:         0,
@@ -216,6 +224,7 @@ func (ss *StrategyService) CreateOrder(request trading.CreateOrderRequest) tradi
 			Average: 0,
 			Filled:  0,
 			Code:    0,
+			Msg: "",
 		},
 	}
 	return response

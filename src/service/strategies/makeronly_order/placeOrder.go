@@ -2,10 +2,15 @@ package makeronly_order
 
 import (
 	"gitlab.com/crypto_project/core/strategy_service/src/trading"
+	"log"
+	"strings"
+	"time"
 )
 
 func (mo *MakerOnlyOrder) PlaceOrder(anything float64, step string){
+
 	model := mo.Strategy.GetModel()
+	attemptsToPlaceOrder := 0
 	if model.State.EntryOrderId != "" {
 		response := mo.ExchangeApi.CancelOrder(trading.CancelOrderRequest{
 			KeyId: mo.KeyId,
@@ -52,12 +57,44 @@ func (mo *MakerOnlyOrder) PlaceOrder(anything float64, step string){
 			KeyId:     model.AccountId,
 			KeyParams: order,
 		})
+		log.Println("exit order response", response.Status)
 
 		orderId = response.Data.OrderId
 		if orderId != "" {
 			mo.OrdersMux.Lock()
 			mo.OrdersMap[response.Data.OrderId] = true
 			mo.OrdersMux.Unlock()
+			break
+		}
+		if len(response.Data.Msg) > 0 {
+			if attemptsToPlaceOrder < 1 && strings.Contains(response.Data.Msg, "Key is processing") {
+				attemptsToPlaceOrder += 1
+				time.Sleep(time.Minute * 1)
+				continue
+			}
+			if len(response.Data.Msg) > 0 && attemptsToPlaceOrder < 3 && strings.Contains(response.Data.Msg, "position side does not match") {
+				attemptsToPlaceOrder += 1
+				time.Sleep(time.Second * 5)
+				continue
+			}
+			if len(response.Data.Msg) > 0 && attemptsToPlaceOrder < 3 && strings.Contains(response.Data.Msg, "invalid json") {
+				attemptsToPlaceOrder += 1
+				time.Sleep(2 * time.Second)
+				continue
+			}
+			if len(response.Data.Msg) > 0 && strings.Contains(response.Data.Msg, "ReduceOnly Order is rejected") {
+				model.Enabled = false
+				go mo.StateMgmt.UpdateState(model.ID, model.State)
+				break
+			}
+			if len(response.Data.Msg) > 0 {
+				model.Enabled = false
+				model.State.State = Error
+				model.State.Msg = response.Data.Msg
+				go mo.StateMgmt.UpdateState(model.ID, model.State)
+				break
+			}
+			attemptsToPlaceOrder += 1
 		}
 	}
 	model.State.EntryOrderId = orderId

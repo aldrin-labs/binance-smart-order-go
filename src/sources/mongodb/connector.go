@@ -212,6 +212,7 @@ func GetKeyIdAndExchangeId(keyId *primitive.ObjectID) (*primitive.ObjectID, *pri
 }
 
 func (sm *StateMgmt) SaveOrder(order models.MongoOrder, keyId *primitive.ObjectID, marketType int64) {
+	log.Println("saveOrder", order, time.Now().Unix())
 	baseId, quoteId, marketId := GetAssets(order.Symbol, marketType)
 	_, exchangeId := GetKeyIdAndExchangeId(keyId)
 	opts := options.Update().SetUpsert(true)
@@ -228,9 +229,10 @@ func (sm *StateMgmt) SaveOrder(order models.MongoOrder, keyId *primitive.ObjectI
 		{"average", order.Average},
 		{"status", order.Status},
 		{"symbol", order.Symbol},
+		{"side", order.Side},
 		{"type",order.Type},
 		{"reduceOnly",order.ReduceOnly},
-		{"timestamp",time.Now().Unix()},
+		{"timestamp",float64(time.Now().UnixNano() / 1000000)},
 	}}}
 	CollName := "core_orders"
 	ctx := context.Background()

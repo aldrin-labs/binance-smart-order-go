@@ -7,6 +7,7 @@ import (
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
 	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"log"
 	"reflect"
 	"sync"
 	"time"
@@ -17,6 +18,7 @@ const (
 	PartiallyFilled = "PartiallyFilled"
 	Filled          = "Filled"
 	Canceled        = "Canceled"
+	Error           = "Error"
 )
 
 const (
@@ -62,7 +64,7 @@ func (sm *MakerOnlyOrder) Stop(){}
 func (sm *MakerOnlyOrder) TryCancelAllOrders(orderIds []string){}
 func (sm *MakerOnlyOrder) TryCancelAllOrdersConsistently(orderIds []string){}
 func NewMakerOnlyOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed, TradingAPI trading.ITrading, keyId *primitive.ObjectID, stateMgmt interfaces.IStateMgmt) *MakerOnlyOrder {
-
+	log.Println("new maker only order")
 	PO := &MakerOnlyOrder{Strategy: strategy, DataFeed: DataFeed, ExchangeApi: TradingAPI, KeyId: keyId, StateMgmt: stateMgmt, Lock: false, SelectedExitTarget: 0, OrdersMap: map[string]bool{}}
 	initState := PlaceOrder
 	model := strategy.GetModel()
@@ -73,6 +75,7 @@ func NewMakerOnlyOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataF
 		var mongoOrder *models.MongoOrder
 		for {
 			mongoOrder = stateMgmt.GetOrder(strategy.GetModel().Conditions.MakerOrderId.Hex())
+			log.Print("mongoOrder", mongoOrder)
 			if mongoOrder != nil {
 				break
 			}
@@ -130,7 +133,7 @@ func (sm *MakerOnlyOrder) Start() {
 
 func (sm *MakerOnlyOrder) processEventLoop() {
 	currentSpread := sm.DataFeed.GetSpreadForPairAtExchange(sm.Strategy.GetModel().Conditions.Pair, sm.ExchangeName, sm.Strategy.GetModel().Conditions.MarketType)
-	if currentSpread != nil {
+	if currentSpread != nil && sm.MakerOnlyOrder != nil {
 		if sm.Strategy.GetModel().State.EntryOrderId == "" {
 			sm.PlaceOrder(0, PlaceOrder)
 		} else if sm.Strategy.GetModel().State.EntryPrice != currentSpread.BestBid && sm.Strategy.GetModel().State.EntryPrice != currentSpread.BestAsk {

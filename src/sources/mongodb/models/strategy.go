@@ -70,7 +70,7 @@ type MongoOrder struct {
 	ReduceOnly             bool               `json:"reduceOnly,omitempty" bson:"reduceOnly"`
 	Price                  float64            `json:"price,omitempty" bson:"price"`
 	StopPrice              float64            `json:"stopPrice,omitempty" bson:"stopPrice"`
-	Timestamp              uint64             `json:"timestamp,omitempty" bson:"timestamp"`
+	Timestamp              float64              `json:"timestamp,omitempty" bson:"timestamp"`
 }
 type MongoPosition struct {
 	ID          primitive.ObjectID `json:"_id" bson:"_id"`
