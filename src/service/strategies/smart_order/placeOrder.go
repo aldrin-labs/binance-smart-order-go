@@ -483,11 +483,6 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 		}
 		var response trading.OrderResponse
 		if request.KeyParams.Type == "maker-only" {
-			if (sm.Strategy == nil || sm.Strategy.GetSingleton() == nil) && attemptsToPlaceOrder < 10 {
-				time.Sleep(500 * time.Millisecond)
-				attemptsToPlaceOrder += 1
-				continue
-			}
 			response = sm.Strategy.GetSingleton().CreateOrder(request)
 		} else {
 			response = sm.ExchangeApi.CreateOrder(request)

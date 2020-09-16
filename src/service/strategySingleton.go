@@ -94,13 +94,13 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 	}
 }
 
-func GetStrategy(strategy *models.MongoStrategy, df interfaces.IDataFeed, tr trading.ITrading, st interfaces.IStateMgmt) *strategies.Strategy {
-	return &strategies.Strategy{Model:strategy, Datafeed: df, Trading: tr, StateMgmt: st, }
+func GetStrategy(strategy *models.MongoStrategy, df interfaces.IDataFeed, tr trading.ITrading, st interfaces.IStateMgmt, ss *StrategyService) *strategies.Strategy {
+	return &strategies.Strategy{Model:strategy, Datafeed: df, Trading: tr, StateMgmt: st, Singleton: ss }
 }
 
 func (ss *StrategyService) AddStrategy(strategy * models.MongoStrategy) {
 	if ss.strategies[strategy.ID.String()] == nil {
-		sig := GetStrategy(strategy, ss.dataFeed, ss.trading, ss.stateMgmt)
+		sig := GetStrategy(strategy, ss.dataFeed, ss.trading, ss.stateMgmt, ss)
 		log.Print("start objid ", sig.Model.ID.String())
 		ss.strategies[sig.Model.ID.String()] = sig
 		go sig.Start()
@@ -366,7 +366,7 @@ func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) 
 
 		log.Println("new s ", event.FullDocument.ID.String())
 		if event.FullDocument.Type == 2 && event.FullDocument.State.ColdStart  {
-			sig := GetStrategy(&event.FullDocument, ss.dataFeed, ss.trading, ss.stateMgmt)
+			sig := GetStrategy(&event.FullDocument, ss.dataFeed, ss.trading, ss.stateMgmt, ss)
 			ss.strategies[event.FullDocument.ID.String()] = sig
 			log.Println("continue in maker-only cold start")
 			continue
@@ -376,7 +376,7 @@ func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) 
 			log.Println("continue watchStrategies in accountId incomparable")
 			continue
 		}
-		if ss.strategies[event.FullDocument.ID.String()] != nil {
+		if ss.strategies[event.FullDocument.ID.String()] != nil  {
 			ss.strategies[event.FullDocument.ID.String()].HotReload(event.FullDocument)
 			ss.EditConditions(ss.strategies[event.FullDocument.ID.String()])
 			if event.FullDocument.Enabled == false {
