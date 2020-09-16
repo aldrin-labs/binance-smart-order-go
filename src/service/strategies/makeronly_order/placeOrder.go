@@ -8,28 +8,16 @@ import (
 )
 
 func (mo *MakerOnlyOrder) PlaceOrder(anything float64, step string){
-
+	log.Println("place order")
 	model := mo.Strategy.GetModel()
 	attemptsToPlaceOrder := 0
-	if model.State.EntryOrderId != "" {
-		response := mo.ExchangeApi.CancelOrder(trading.CancelOrderRequest{
-			KeyId: mo.KeyId,
-			KeyParams: trading.CancelOrderRequestParams{
-				OrderId:    model.State.EntryOrderId,
-				MarketType: model.Conditions.MarketType,
-				Pair:       model.Conditions.Pair,
-			},
-		})
-		model.State.EntryOrderId = ""
-		if response.Data.OrderId == "" {
-			// order was executed should be processed in other thread
-			return
-		}
-		// we canceled prev order now time to place new one
-	}
+	mo.CancelEntryOrder()
 	orderId := ""
 	for orderId == "" {
-		price := mo.getBestAskOrBidPrice()
+		price, err := mo.getBestAskOrBidPrice()
+		if err != nil || mo.MakerOnlyOrder == nil || mo.MakerOnlyOrder.Status == "filled" {
+			return
+		}
 		positionSide := ""
 		if model.Conditions.MarketType == 1 {
 			if model.Conditions.EntryOrder.Side == "sell" && model.Conditions.EntryOrder.ReduceOnly == false || model.Conditions.EntryOrder.Side == "buy" && model.Conditions.EntryOrder.ReduceOnly == true {

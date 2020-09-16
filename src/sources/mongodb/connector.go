@@ -90,12 +90,11 @@ func (sm *StateMgmt) InitOrdersWatch() {
 		go func(event models.MongoOrderUpdateEvent) {
 			if event.FullDocument.Status == "filled" || event.FullDocument.Status == "canceled" {
 				orderId := event.FullDocument.OrderId
-				log.Print("event.FullDocument.PostOnlyInitialOrderId", event.FullDocument.PostOnlyInitialOrderId)
 				if event.FullDocument.PostOnlyInitialOrderId != "" {
 					orderId = event.FullDocument.PostOnlyInitialOrderId
 				}
 
-				log.Print("orderId", orderId)
+				log.Print("orderId ", orderId, " status ", event.FullDocument.Status)
 				getCallBackRaw, ok := sm.OrderCallbacks.Load(orderId)
 				if ok {
 					callback := getCallBackRaw.(func(order *models.MongoOrder))
@@ -335,7 +334,26 @@ func (sm *StateMgmt) GetOrder(orderId string) *models.MongoOrder {
 	return order
 }
 
+func (sm *StateMgmt) GetOrderById(orderId *primitive.ObjectID) *models.MongoOrder {
+	CollName := "core_orders"
+	ctx := context.Background()
+	var request bson.D
+	request = bson.D{
+		{"_id", orderId},
+	}
+	var coll = GetCollection(CollName)
+
+	var order *models.MongoOrder
+	err := coll.FindOne(ctx, request).Decode(&order)
+	if err != nil {
+		log.Print(err.Error())
+	}
+	return order
+}
+
+
 func (sm *StateMgmt) SaveStrategy(strategy *models.MongoStrategy) *models.MongoStrategy {
+	log.Println("saveStrategy")
 	opts := options.Update().SetUpsert(true)
 	filter := bson.D{{"_id", strategy.ID}}
 	update := strategy
@@ -343,6 +361,18 @@ func (sm *StateMgmt) SaveStrategy(strategy *models.MongoStrategy) *models.MongoS
 	ctx := context.Background()
 	var coll = GetCollection(CollName)
 	_, err := coll.UpdateOne(ctx, filter, update, opts)
+	if err != nil {
+		println(err)
+	}
+	return strategy
+}
+
+func (sm *StateMgmt) CreateStrategy(strategy *models.MongoStrategy) *models.MongoStrategy {
+	log.Println("saveStrategy")
+	CollName := "core_strategies"
+	ctx := context.Background()
+	var coll = GetCollection(CollName)
+	_, err := coll.InsertOne(ctx, strategy)
 	if err != nil {
 		println(err)
 	}

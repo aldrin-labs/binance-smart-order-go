@@ -4,6 +4,7 @@ import (
 	"context"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies"
+	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies/makeronly_order"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies/smart_order"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
@@ -63,9 +64,9 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 	//cur, err := coll.Find(ctx, bson.D{{"enabled",true}})
 	cur, err := coll.Find(ctx, bson.D{{"enabled", true}, additionalCondition})
 	if err != nil {
-		log.Print("log.Fatal on finding enabled strategies")
+		log.Print("log.Fatal on finding enabled strategies ", err)
 		wg.Done()
-		log.Fatal(err)
+		//log.Fatal(err)
 	}
 	defer cur.Close(ctx)
 
@@ -114,18 +115,20 @@ func (ss *StrategyService) CreateOrder(request trading.CreateOrderRequest) tradi
 	} else {
 		reduceOnly = *request.KeyParams.ReduceOnly
 	}
-	log.Println("request.KeyParams", request.KeyParams)
+
 	order := models.MongoOrder{
 		ID:                     id,
 		Status:                 "open",
 		OrderId:                id.Hex(),
 		Filled:                 0,
 		Average:                0,
+		Amount:                 request.KeyParams.Amount,
 		Side:                   request.KeyParams.Side,
 		Type:                   "maker-only",
 		Symbol:                 request.KeyParams.Symbol,
 		ReduceOnly:             reduceOnly,
 		Timestamp:              float64(time.Now().UnixNano() / 1000000),
+
 	}
 	go ss.stateMgmt.SaveOrder(order, request.KeyId, request.KeyParams.MarketType)
 	strategy := models.MongoStrategy{
@@ -200,7 +203,45 @@ func (ss *StrategyService) CreateOrder(request trading.CreateOrderRequest) tradi
 			CloseStrategyAfterFirstTAP: false,
 			PlaceEntryAfterTAP:         false,
 		},
-		State:           nil,
+		State:           &models.MongoStrategyState{
+			ColdStart:              true,
+			State:                  "",
+			Msg:                    "",
+			EntryOrderId:           "",
+			Iteration:              0,
+			EntryPointPrice:        0,
+			EntryPointType:         "",
+			EntryPointSide:         "",
+			EntryPointAmount:       0,
+			EntryPointDeviation:    0,
+			StopLoss:               0,
+			StopLossPrice:          0,
+			StopLossOrderIds:       nil,
+			ForcedLoss:             0,
+			ForcedLossPrice:        0,
+			ForcedLossOrderIds:     nil,
+			TakeProfit:             nil,
+			TakeProfitPrice:        0,
+			TakeProfitHedgePrice:   0,
+			TakeProfitOrderIds:     nil,
+			TrailingEntryPrice:     0,
+			HedgeExitPrice:         0,
+			TrailingHedgeExitPrice: 0,
+			TrailingExitPrice:      0,
+			TrailingExitPrices:     nil,
+			EntryPrice:             0,
+			ExitPrice:              0,
+			Amount:                 0,
+			Orders:                 nil,
+			ExecutedOrders:         nil,
+			ExecutedAmount:         0,
+			ReachedTargetCount:     0,
+			TrailingCheckAt:        0,
+			StopLossAt:             0,
+			LossableAt:             0,
+			ProfitableAt:           0,
+			ProfitAt:               0,
+		},
 		TriggerWhen:     models.TriggerOptions{},
 		Expiration:      models.ExpirationSchema{},
 		LastUpdate:      0,
@@ -230,6 +271,73 @@ func (ss *StrategyService) CreateOrder(request trading.CreateOrderRequest) tradi
 	return response
 }
 
+func (ss *StrategyService) CancelOrder(request trading.CancelOrderRequest) trading.OrderResponse {
+	id, _ := primitive.ObjectIDFromHex(request.KeyParams.OrderId)
+	strategy := ss.strategies[id.String()]
+	order := ss.stateMgmt.GetOrderById(&id)
+
+	log.Println("id ", id)
+	log.Println("order ", order)
+	log.Println("request.KeyParams.OrderId ", request.KeyParams.OrderId)
+
+	if order == nil {
+		return trading.OrderResponse{
+			Status: "ERR",
+			Data: trading.OrderResponseData{
+				OrderId: "",
+				Msg:     "",
+				Status:  "",
+				Type:    "",
+				Price:   0,
+				Average: 0,
+				Amount:  0,
+				Filled:  0,
+				Code:    0,
+			},
+		}
+	}
+
+	log.Println("strategy ", strategy)
+
+	if strategy != nil {
+		strategy.GetModel().Enabled = false
+		strategy.GetModel().State.State = makeronly_order.Canceled
+		strategy.GetStateMgmt().DisableStrategy(&id)
+
+	}
+
+	updatedOrder := models.MongoOrder{
+		ID:                     id,
+		Status:                 "canceled",
+		OrderId:                order.OrderId,
+		Filled:                 order.Filled,
+		Average:                order.Average,
+		Side:                   order.Side,
+		Type:                   order.Type,
+		Symbol:                 order.Symbol,
+		ReduceOnly:             order.ReduceOnly,
+		Timestamp:              order.Timestamp,
+		Amount:                 order.Amount,
+	}
+
+	go ss.stateMgmt.SaveOrder(updatedOrder, request.KeyId, request.KeyParams.MarketType)
+
+	return trading.OrderResponse{
+		Status: "OK",
+		Data: trading.OrderResponseData{
+			OrderId: request.KeyParams.OrderId,
+			Msg:     "",
+			Status:  "canceled",
+			Type:    order.Type,
+			Price:   0,
+			Average: 0,
+			Amount:  0,
+			Filled:  0,
+			Code:    0,
+		},
+	}
+}
+
 const CollName = "core_strategies"
 func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) error {
 //func (ss *StrategyService) WatchStrategies() error {
@@ -256,8 +364,17 @@ func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) 
 			log.Print("event decode error on processing strategy", err.Error())
 		}
 
+		log.Println("new s ", event.FullDocument.ID.String())
+		if event.FullDocument.Type == 2 && event.FullDocument.State.ColdStart  {
+			sig := GetStrategy(&event.FullDocument, ss.dataFeed, ss.trading, ss.stateMgmt)
+			ss.strategies[event.FullDocument.ID.String()] = sig
+			log.Println("continue in maker-only cold start")
+			continue
+		}
+
 		if isLocalBuild && (event.FullDocument.AccountId == nil || event.FullDocument.AccountId.Hex() != accountId) {
-			return nil
+			log.Println("continue watchStrategies in accountId incomparable")
+			continue
 		}
 		if ss.strategies[event.FullDocument.ID.String()] != nil {
 			ss.strategies[event.FullDocument.ID.String()].HotReload(event.FullDocument)

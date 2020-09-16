@@ -22,6 +22,7 @@ func RunServer(wg *sync.WaitGroup) {
 	router.GET("/", Index)
 	router.GET("/healthz", Healthz)
 	router.POST("/createOrder", CreateOrder)
+	router.POST("/cancelOrder", CancelOrder)
 	println("Listening on port :8080")
 	if err := fasthttp.ListenAndServe(*addr, router.Handler); err != nil {
 		wg.Done()
@@ -43,6 +44,18 @@ func CreateOrder(ctx *fasthttp.RequestCtx) {
 	}
  	_, _ = fmt.Fprint(ctx, string(jsonStr))
 }
+
+func CancelOrder(ctx *fasthttp.RequestCtx) {
+	var cancelOrder trading.CancelOrderRequest
+	_ = json.Unmarshal(ctx.PostBody(), &cancelOrder)
+	response := service.GetStrategyService().CancelOrder(cancelOrder)
+	jsonStr, err := json.Marshal(response)
+	if err != nil {
+		println(err.Error())
+	}
+	_, _ = fmt.Fprint(ctx, string(jsonStr))
+}
+
 func Index(ctx *fasthttp.RequestCtx) {
 	fmt.Fprintf(ctx, "Hello, world!\n\n")
 

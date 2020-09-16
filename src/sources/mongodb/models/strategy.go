@@ -63,6 +63,7 @@ type MongoOrder struct {
 	PostOnlyFinalOrderId   string             `json:"postOnlyFinalOrderId,omitempty" bson:"postOnlyFinalOrderId"`
 	PostOnlyInitialOrderId string             `json:"postOnlyInitialOrderId,omitempty" bson:"postOnlyInitialOrderId"`
 	Filled                 float64            `json:"filled,omitempty" bson:"filled"`
+	Amount                 float64            `json:"amount,omitempty" bson:"amount"`
 	Average                float64            `json:"average,omitempty" bson:"average"`
 	Side                   string             `json:"side,omitempty" bson:"side"`
 	Type                   string             `json:"type,omitempty" bson:"type"`
