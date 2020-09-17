@@ -71,8 +71,12 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 	defer cur.Close(ctx)
 
 	for cur.Next(ctx) {
+
 		// create a value into which the single document can be decoded
 		strategy, err := strategies.GetStrategy(cur, ss.dataFeed, ss.trading, ss.stateMgmt, ss)
+		if strategy.Model.ID.Hex() == "5e4ce62b1318ef1b1e85b6f4" {
+			continue
+		}
 		if err != nil {
 			log.Print("log.Fatal on processing enabled strategy")
 			log.Print("err ", err)
@@ -365,7 +369,10 @@ func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) 
 			log.Print("event decode error on processing strategy", err.Error())
 		}
 
-		log.Println("new s ", event.FullDocument.ID.String())
+		log.Println("new s ", event.FullDocument.ID.Hex())
+		if event.FullDocument.ID.Hex() == "5e4ce62b1318ef1b1e85b6f4" {
+			continue
+		}
 		if event.FullDocument.Type == 2 && event.FullDocument.State.ColdStart  {
 			sig := GetStrategy(&event.FullDocument, ss.dataFeed, ss.trading, ss.stateMgmt, ss)
 			ss.strategies[event.FullDocument.ID.String()] = sig
