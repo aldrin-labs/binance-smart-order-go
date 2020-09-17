@@ -46,6 +46,7 @@ func CreateOrder(ctx *fasthttp.RequestCtx) {
 }
 
 func CancelOrder(ctx *fasthttp.RequestCtx) {
+	log.Println("cancelOrder in ss")
 	var cancelOrder trading.CancelOrderRequest
 	_ = json.Unmarshal(ctx.PostBody(), &cancelOrder)
 	response := service.GetStrategyService().CancelOrder(cancelOrder)
