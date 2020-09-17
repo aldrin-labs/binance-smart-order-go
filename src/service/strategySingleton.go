@@ -74,7 +74,7 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 
 		// create a value into which the single document can be decoded
 		strategy, err := strategies.GetStrategy(cur, ss.dataFeed, ss.trading, ss.stateMgmt, ss)
-		if strategy.Model.AccountId.Hex() == "5e4ce62b1318ef1b1e85b6f4" {
+		if strategy.Model.AccountId != nil && strategy.Model.AccountId.Hex() == "5e4ce62b1318ef1b1e85b6f4" {
 			continue
 		}
 		if err != nil {
@@ -370,7 +370,7 @@ func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) 
 		}
 
 		log.Println("new s ", event.FullDocument.ID.Hex())
-		if event.FullDocument.AccountId.Hex() == "5e4ce62b1318ef1b1e85b6f4" {
+		if event.FullDocument.AccountId != nil && event.FullDocument.AccountId.Hex() == "5e4ce62b1318ef1b1e85b6f4" {
 			continue
 		}
 		if event.FullDocument.Type == 2 && event.FullDocument.State.ColdStart  {
