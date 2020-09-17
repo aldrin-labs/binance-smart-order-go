@@ -59,6 +59,7 @@ type MongoMarket struct {
 type MongoOrder struct {
 	ID                     primitive.ObjectID `json:"_id" bson:"_id"`
 	Status                 string             `json:"status,omitempty" bson:"status"`
+	PositionSide           string             `json:"positionSide,omitempty" bson:"positionSide"`
 	OrderId                string             `json:"id,omitempty" bson:"id"`
 	PostOnlyFinalOrderId   string             `json:"postOnlyFinalOrderId,omitempty" bson:"postOnlyFinalOrderId"`
 	PostOnlyInitialOrderId string             `json:"postOnlyInitialOrderId,omitempty" bson:"postOnlyInitialOrderId"`

@@ -126,6 +126,7 @@ func (ss *StrategyService) CreateOrder(request trading.CreateOrderRequest) tradi
 		Side:                   request.KeyParams.Side,
 		Type:                   "maker-only",
 		Symbol:                 request.KeyParams.Symbol,
+		PositionSide:           request.KeyParams.PositionSide,
 		ReduceOnly:             reduceOnly,
 		Timestamp:              float64(time.Now().UnixNano() / 1000000),
 

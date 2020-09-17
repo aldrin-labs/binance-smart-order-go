@@ -18,12 +18,14 @@ func (mo *MakerOnlyOrder) PlaceOrder(anything float64, step string){
 		if err != nil || mo.MakerOnlyOrder == nil || mo.MakerOnlyOrder.Status == "filled" {
 			return
 		}
-		positionSide := ""
+		positionSide := mo.MakerOnlyOrder.PositionSide
 		if model.Conditions.MarketType == 1  {
-			if model.Conditions.EntryOrder.Side == "sell" && model.Conditions.EntryOrder.ReduceOnly == false || model.Conditions.EntryOrder.Side == "buy" && model.Conditions.EntryOrder.ReduceOnly == true {
-				positionSide = "SHORT"
-			} else {
-				positionSide = "LONG"
+			if positionSide == "" {
+				if model.Conditions.EntryOrder.Side == "sell" && model.Conditions.EntryOrder.ReduceOnly == false || model.Conditions.EntryOrder.Side == "buy" && model.Conditions.EntryOrder.ReduceOnly == true {
+					positionSide = "SHORT"
+				} else {
+					positionSide = "LONG"
+				}
 			}
 		}
 		postOnly := true
