@@ -19,7 +19,7 @@ func (mo *MakerOnlyOrder) PlaceOrder(anything float64, step string){
 			return
 		}
 		positionSide := ""
-		if model.Conditions.MarketType == 1 {
+		if model.Conditions.MarketType == 1  {
 			if model.Conditions.EntryOrder.Side == "sell" && model.Conditions.EntryOrder.ReduceOnly == false || model.Conditions.EntryOrder.Side == "buy" && model.Conditions.EntryOrder.ReduceOnly == true {
 				positionSide = "SHORT"
 			} else {
@@ -39,13 +39,12 @@ func (mo *MakerOnlyOrder) PlaceOrder(anything float64, step string){
 			Type: "limit",
 		}
 		if model.Conditions.MarketType == 1 {
-			order.TimeInForce = "GTC"
+			order.TimeInForce = "GTX"
 		}
 		response := mo.ExchangeApi.CreateOrder(trading.CreateOrderRequest{
 			KeyId:     model.AccountId,
 			KeyParams: order,
 		})
-		log.Println("exit order response", response.Status)
 
 		orderId = response.Data.OrderId
 		if orderId != "" {
