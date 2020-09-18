@@ -186,6 +186,7 @@ type MongoStrategyCondition struct {
 	CancelIfAnyActive      bool                `json:"cancelIfAnyActive,omitempty" bson:"cancelIfAnyActive"`
 	TrailingExitExternal   bool                `json:"trailingExitExternal,omitempty" bson:"trailingExitExternal"`
 	TrailingExitPrice      float64             `json:"trailingExitPrice,omitempty" bson:"trailingExitPrice"`
+	TrailingExit           bool                `json:"trailingExit,omitempty" bson:"trailingExit"`
 	StopLossPrice          float64             `json:"stopLossPrice,omitempty" bson:"stopLossPrice"`
 	ForcedLossPrice        float64             `json:"forcedLossPrice,omitempty" bson:"forcedLossPrice"`
 	TakeProfitPrice        float64             `json:"takeProfitPrice,omitempty" bson:"takeProfitPrice"`
