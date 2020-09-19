@@ -59,10 +59,12 @@ type MongoMarket struct {
 type MongoOrder struct {
 	ID                     primitive.ObjectID `json:"_id" bson:"_id"`
 	Status                 string             `json:"status,omitempty" bson:"status"`
+	PositionSide           string             `json:"positionSide,omitempty" bson:"positionSide"`
 	OrderId                string             `json:"id,omitempty" bson:"id"`
 	PostOnlyFinalOrderId   string             `json:"postOnlyFinalOrderId,omitempty" bson:"postOnlyFinalOrderId"`
 	PostOnlyInitialOrderId string             `json:"postOnlyInitialOrderId,omitempty" bson:"postOnlyInitialOrderId"`
 	Filled                 float64            `json:"filled,omitempty" bson:"filled"`
+	Amount                 float64            `json:"amount,omitempty" bson:"amount"`
 	Average                float64            `json:"average,omitempty" bson:"average"`
 	Side                   string             `json:"side,omitempty" bson:"side"`
 	Type                   string             `json:"type,omitempty" bson:"type"`
@@ -184,6 +186,7 @@ type MongoStrategyCondition struct {
 	CancelIfAnyActive      bool                `json:"cancelIfAnyActive,omitempty" bson:"cancelIfAnyActive"`
 	TrailingExitExternal   bool                `json:"trailingExitExternal,omitempty" bson:"trailingExitExternal"`
 	TrailingExitPrice      float64             `json:"trailingExitPrice,omitempty" bson:"trailingExitPrice"`
+	TrailingExit           bool                `json:"trailingExit,omitempty" bson:"trailingExit"`
 	StopLossPrice          float64             `json:"stopLossPrice,omitempty" bson:"stopLossPrice"`
 	ForcedLossPrice        float64             `json:"forcedLossPrice,omitempty" bson:"forcedLossPrice"`
 	TakeProfitPrice        float64             `json:"takeProfitPrice,omitempty" bson:"takeProfitPrice"`

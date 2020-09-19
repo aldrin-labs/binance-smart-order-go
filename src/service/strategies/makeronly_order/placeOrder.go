@@ -8,34 +8,24 @@ import (
 )
 
 func (mo *MakerOnlyOrder) PlaceOrder(anything float64, step string){
-
+	log.Println("place order")
 	model := mo.Strategy.GetModel()
 	attemptsToPlaceOrder := 0
-	if model.State.EntryOrderId != "" {
-		response := mo.ExchangeApi.CancelOrder(trading.CancelOrderRequest{
-			KeyId: mo.KeyId,
-			KeyParams: trading.CancelOrderRequestParams{
-				OrderId:    model.State.EntryOrderId,
-				MarketType: model.Conditions.MarketType,
-				Pair:       model.Conditions.Pair,
-			},
-		})
-		model.State.EntryOrderId = ""
-		if response.Data.OrderId == "" {
-			// order was executed should be processed in other thread
-			return
-		}
-		// we canceled prev order now time to place new one
-	}
+	mo.CancelEntryOrder()
 	orderId := ""
 	for orderId == "" {
-		price := mo.getBestAskOrBidPrice()
-		positionSide := ""
-		if model.Conditions.MarketType == 1 {
-			if model.Conditions.EntryOrder.Side == "sell" && model.Conditions.EntryOrder.ReduceOnly == false || model.Conditions.EntryOrder.Side == "buy" && model.Conditions.EntryOrder.ReduceOnly == true {
-				positionSide = "SHORT"
-			} else {
-				positionSide = "LONG"
+		price, err := mo.getBestAskOrBidPrice()
+		if err != nil || mo.MakerOnlyOrder == nil || mo.MakerOnlyOrder.Status == "filled" {
+			return
+		}
+		positionSide := mo.MakerOnlyOrder.PositionSide
+		if model.Conditions.MarketType == 1  {
+			if positionSide == "" {
+				if model.Conditions.EntryOrder.Side == "sell" && model.Conditions.EntryOrder.ReduceOnly == false || model.Conditions.EntryOrder.Side == "buy" && model.Conditions.EntryOrder.ReduceOnly == true {
+					positionSide = "SHORT"
+				} else {
+					positionSide = "LONG"
+				}
 			}
 		}
 		postOnly := true
@@ -51,13 +41,12 @@ func (mo *MakerOnlyOrder) PlaceOrder(anything float64, step string){
 			Type: "limit",
 		}
 		if model.Conditions.MarketType == 1 {
-			order.TimeInForce = "GTC"
+			order.TimeInForce = "GTX"
 		}
 		response := mo.ExchangeApi.CreateOrder(trading.CreateOrderRequest{
 			KeyId:     model.AccountId,
 			KeyParams: order,
 		})
-		log.Println("exit order response", response.Status)
 
 		orderId = response.Data.OrderId
 		if orderId != "" {
