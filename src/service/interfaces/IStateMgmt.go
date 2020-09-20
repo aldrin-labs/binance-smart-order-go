@@ -14,6 +14,7 @@ type IStateMgmt interface {
 	UpdateExecutedAmount(strategyId *primitive.ObjectID, state *models.MongoStrategyState)
 	GetPosition(strategyId *primitive.ObjectID, symbol string)
 	GetOrder(orderId string) *models.MongoOrder
+	GetOrderById(orderId *primitive.ObjectID) *models.MongoOrder
 	SubscribeToOrder(orderId string, onOrderStatusUpdate func(order *models.MongoOrder)) error
 	SubscribeToHedge(strategyId *primitive.ObjectID, onHedgeExitUpdate func(strategy *models.MongoStrategy)) error
 	DisableStrategy(strategyId *primitive.ObjectID)
@@ -24,6 +25,7 @@ type IStateMgmt interface {
 	SavePNL(templateStrategyId *primitive.ObjectID, profitAmount float64)
 	SaveStrategyConditions(strategy *models.MongoStrategy)
 	SaveStrategy(strategy *models.MongoStrategy) *models.MongoStrategy
+	CreateStrategy(strategy *models.MongoStrategy) *models.MongoStrategy
 	EnableHedgeLossStrategy(strategyId *primitive.ObjectID)
 	SaveOrder(order models.MongoOrder, keyId *primitive.ObjectID, marketType int64)
 }

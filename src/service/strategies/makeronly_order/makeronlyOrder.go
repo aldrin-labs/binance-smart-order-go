@@ -7,6 +7,7 @@ import (
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
 	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"log"
 	"reflect"
 	"sync"
 	"time"
@@ -17,6 +18,7 @@ const (
 	PartiallyFilled = "PartiallyFilled"
 	Filled          = "Filled"
 	Canceled        = "Canceled"
+	Error           = "Error"
 )
 
 const (
@@ -57,16 +59,50 @@ func (sm *MakerOnlyOrder) IsOrderExistsInMap(orderId string) bool {
 func (sm *MakerOnlyOrder) SetSelectedExitTarget(selectedExitTarget int){}
 
 
-func (sm *MakerOnlyOrder) Stop(){}
+func (sm *MakerOnlyOrder) Stop(){
+	ctx := context.TODO()
+	state, _ := sm.State.State(ctx)
 
+	go sm.CancelEntryOrder()
+	log.Println("stop func state ", state, " enabled ", sm.Strategy.GetModel().Enabled)
+	// user canceled order
+	if state != Filled && !sm.Strategy.GetModel().Enabled {
+		sm.MakerOnlyOrder.Status = "canceled"
+		sm.Strategy.GetModel().State.State = Canceled
+		go sm.StateMgmt.SaveOrder(*sm.MakerOnlyOrder, sm.KeyId, sm.Strategy.GetModel().Conditions.MarketType)
+		go sm.StateMgmt.UpdateState(sm.Strategy.GetModel().ID, sm.Strategy.GetModel().State)
+	} else {
+		go sm.StateMgmt.SaveOrder(*sm.MakerOnlyOrder, sm.KeyId, sm.Strategy.GetModel().Conditions.MarketType)
+		go sm.StateMgmt.DisableStrategy(sm.Strategy.GetModel().ID)
+	}
+}
+
+func (sm *MakerOnlyOrder) CancelEntryOrder() {
+	model := sm.Strategy.GetModel()
+	if model.State.EntryOrderId != "" {
+		response := sm.ExchangeApi.CancelOrder(trading.CancelOrderRequest{
+			KeyId: sm.KeyId,
+			KeyParams: trading.CancelOrderRequestParams{
+				OrderId:    model.State.EntryOrderId,
+				MarketType: model.Conditions.MarketType,
+				Pair:       model.Conditions.Pair,
+			},
+		})
+		model.State.EntryOrderId = ""
+		if response.Data.OrderId == "" {
+			// order was executed should be processed in other thread
+			return
+		}
+		// we canceled prev order now time to place new one
+	}
+}
 func (sm *MakerOnlyOrder) TryCancelAllOrders(orderIds []string){}
 func (sm *MakerOnlyOrder) TryCancelAllOrdersConsistently(orderIds []string){}
 func NewMakerOnlyOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed, TradingAPI trading.ITrading, keyId *primitive.ObjectID, stateMgmt interfaces.IStateMgmt) *MakerOnlyOrder {
-
 	PO := &MakerOnlyOrder{Strategy: strategy, DataFeed: DataFeed, ExchangeApi: TradingAPI, KeyId: keyId, StateMgmt: stateMgmt, Lock: false, SelectedExitTarget: 0, OrdersMap: map[string]bool{}}
 	initState := PlaceOrder
 	model := strategy.GetModel()
-	go func(){
+	func(){
 		pricePrecision, amountPrecision := stateMgmt.GetMarketPrecision(model.Conditions.Pair, model.Conditions.MarketType)
 		PO.QuantityPricePrecision = pricePrecision
 		PO.QuantityAmountPrecision = amountPrecision
@@ -83,8 +119,8 @@ func NewMakerOnlyOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataF
 	if model.State != nil && model.State.State != "" && !(model.State.State == Filled && model.Conditions.ContinueIfEnded == true) {
 		initState = model.State.State
 	}
-	State := stateless.NewStateMachine(initState)
 
+	State := stateless.NewStateMachineWithMode(initState, 1)
 	// define triggers and input types:
 	State.SetTriggerParameters(TriggerSpread, reflect.TypeOf(interfaces.SpreadData{}))
 
@@ -104,16 +140,18 @@ func NewMakerOnlyOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataF
 	// fmt.Printf(PO.State.ToGraph())
 	// fmt.Printf("DONE\n")
 	if model.State.ColdStart {
-		go strategy.GetStateMgmt().SaveStrategy(model)
+		go strategy.GetStateMgmt().CreateStrategy(model)
 	}
 	return PO
 }
 
 func (sm *MakerOnlyOrder) Start() {
 	ctx := context.TODO()
-
 	state, _ := sm.State.State(ctx)
-	for state != Filled && state != Canceled {
+	localState := sm.Strategy.GetModel().State.State
+
+	for state != Filled && state != Canceled && sm.MakerOnlyOrder.Status == "open" &&
+		localState != Filled && localState != Canceled  {
 		if sm.Strategy.GetModel().Enabled == false {
 			break
 		}
@@ -122,15 +160,17 @@ func (sm *MakerOnlyOrder) Start() {
 		}
 		time.Sleep(15 * time.Second)
 		state, _ = sm.State.State(ctx)
+		localState = sm.Strategy.GetModel().State.State
+		log.Println("localState ", localState)
 	}
-	//sm.Stop()
+	sm.Stop()
 	println("STOPPED postonly")
 }
 
 
 func (sm *MakerOnlyOrder) processEventLoop() {
 	currentSpread := sm.DataFeed.GetSpreadForPairAtExchange(sm.Strategy.GetModel().Conditions.Pair, sm.ExchangeName, sm.Strategy.GetModel().Conditions.MarketType)
-	if currentSpread != nil {
+	if currentSpread != nil && sm.MakerOnlyOrder != nil {
 		if sm.Strategy.GetModel().State.EntryOrderId == "" {
 			sm.PlaceOrder(0, PlaceOrder)
 		} else if sm.Strategy.GetModel().State.EntryPrice != currentSpread.BestBid && sm.Strategy.GetModel().State.EntryPrice != currentSpread.BestAsk {

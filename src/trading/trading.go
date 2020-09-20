@@ -188,7 +188,10 @@ func toFixed(num float64, precision int) float64 {
 
 func (t *Trading) CreateOrder(order CreateOrderRequest) OrderResponse {
 	order.KeyParams.Params.Update = true
-	if order.KeyParams.MarketType == 1 && (order.KeyParams.Type == "limit" || order.KeyParams.Params.Type == "stop-limit") {
+	if order.KeyParams.PostOnly != nil && *order.KeyParams.PostOnly == false {
+		order.KeyParams.PostOnly = nil
+	}
+	if order.KeyParams.PostOnly == nil && order.KeyParams.MarketType == 1 && (order.KeyParams.Type == "limit" || order.KeyParams.Params.Type == "stop-limit") {
 		order.KeyParams.TimeInForce = "GTC"
 	}
 	if strings.Contains(order.KeyParams.Type, "market") || strings.Contains(order.KeyParams.Params.Type, "market") {
