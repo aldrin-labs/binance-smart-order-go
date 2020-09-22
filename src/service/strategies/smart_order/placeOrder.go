@@ -475,6 +475,8 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 			} else {
 				request.KeyParams.PositionSide = "LONG"
 			}
+		} else {
+			request.KeyParams.PositionSide = "BOTH"
 		}
 		log.Print("create order step ", step, " amount ", baseAmount)
 		if step == WaitForEntry {
