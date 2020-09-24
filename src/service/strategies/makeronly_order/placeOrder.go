@@ -42,6 +42,11 @@ func (mo *MakerOnlyOrder) PlaceOrder(anything float64, step string){
 		}
 		if model.Conditions.MarketType == 1 {
 			order.TimeInForce = "GTX"
+		} else {
+			order.Params.MaxIfNotEnough = 1
+			order.Params.Retry = true
+			order.Params.RetryTimeout = 1000
+			order.Params.RetryCount = 5
 		}
 		response := mo.ExchangeApi.CreateOrder(trading.CreateOrderRequest{
 			KeyId:     model.AccountId,
