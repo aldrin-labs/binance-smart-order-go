@@ -15,17 +15,19 @@ func (mo *MakerOnlyOrder) PlaceOrder(anything float64, step string){
 	orderId := ""
 	for orderId == "" {
 		price, err := mo.getBestAskOrBidPrice()
-		if err != nil || mo.MakerOnlyOrder == nil || mo.MakerOnlyOrder.Status == "filled" {
+		if err != nil || (mo.MakerOnlyOrder != nil && mo.MakerOnlyOrder.Status == "filled") {
 			return
 		}
-		positionSide := mo.MakerOnlyOrder.PositionSide
+		positionSide := ""
 		if model.Conditions.MarketType == 1  {
-			if positionSide == "" {
+			if model.Conditions.HedgeMode {
 				if model.Conditions.EntryOrder.Side == "sell" && model.Conditions.EntryOrder.ReduceOnly == false || model.Conditions.EntryOrder.Side == "buy" && model.Conditions.EntryOrder.ReduceOnly == true {
 					positionSide = "SHORT"
 				} else {
 					positionSide = "LONG"
 				}
+			} else {
+				positionSide = "BOTH"
 			}
 		}
 		postOnly := true

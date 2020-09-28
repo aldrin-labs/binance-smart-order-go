@@ -120,6 +120,8 @@ func (ss *StrategyService) CreateOrder(request trading.CreateOrderRequest) tradi
 		reduceOnly = *request.KeyParams.ReduceOnly
 	}
 
+	hedgeMode := request.KeyParams.PositionSide != "BOTH"
+
 	order := models.MongoOrder{
 		ID:                     id,
 		Status:                 "open",
@@ -144,7 +146,7 @@ func (ss *StrategyService) CreateOrder(request trading.CreateOrderRequest) tradi
 		Conditions:      &models.MongoStrategyCondition{
 			AccountId:                  request.KeyId,
 			Hedging:                    false,
-			HedgeMode:                  false,
+			HedgeMode:                  hedgeMode,
 			HedgeKeyId:                 nil,
 			HedgeStrategyId:            nil,
 			MakerOrderId:               &id,

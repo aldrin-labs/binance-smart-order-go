@@ -102,10 +102,10 @@ func NewMakerOnlyOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataF
 	PO := &MakerOnlyOrder{Strategy: strategy, DataFeed: DataFeed, ExchangeApi: TradingAPI, KeyId: keyId, StateMgmt: stateMgmt, Lock: false, SelectedExitTarget: 0, OrdersMap: map[string]bool{}}
 	initState := PlaceOrder
 	model := strategy.GetModel()
-	func(){
-		pricePrecision, amountPrecision := stateMgmt.GetMarketPrecision(model.Conditions.Pair, model.Conditions.MarketType)
-		PO.QuantityPricePrecision = pricePrecision
-		PO.QuantityAmountPrecision = amountPrecision
+	go func(){
+		//pricePrecision, amountPrecision := stateMgmt.GetMarketPrecision(model.Conditions.Pair, model.Conditions.MarketType)
+		//PO.QuantityPricePrecision = pricePrecision
+		//PO.QuantityAmountPrecision = amountPrecision
 		var mongoOrder *models.MongoOrder
 		for {
 			mongoOrder = stateMgmt.GetOrder(strategy.GetModel().Conditions.MakerOrderId.Hex())
@@ -150,7 +150,7 @@ func (sm *MakerOnlyOrder) Start() {
 	state, _ := sm.State.State(ctx)
 	localState := sm.Strategy.GetModel().State.State
 
-	for state != Filled && state != Canceled && sm.MakerOnlyOrder.Status == "open" &&
+	for state != Filled && state != Canceled && (sm.MakerOnlyOrder == nil || sm.MakerOnlyOrder.Status == "open") &&
 		localState != Filled && localState != Canceled  {
 		if sm.Strategy.GetModel().Enabled == false {
 			break
@@ -170,7 +170,7 @@ func (sm *MakerOnlyOrder) Start() {
 
 func (sm *MakerOnlyOrder) processEventLoop() {
 	currentSpread := sm.DataFeed.GetSpreadForPairAtExchange(sm.Strategy.GetModel().Conditions.Pair, sm.ExchangeName, sm.Strategy.GetModel().Conditions.MarketType)
-	if currentSpread != nil && sm.MakerOnlyOrder != nil {
+	if currentSpread != nil {
 		if sm.Strategy.GetModel().State.EntryOrderId == "" {
 			sm.PlaceOrder(0, PlaceOrder)
 		} else if sm.Strategy.GetModel().State.EntryPrice != currentSpread.BestBid && sm.Strategy.GetModel().State.EntryPrice != currentSpread.BestAsk {
