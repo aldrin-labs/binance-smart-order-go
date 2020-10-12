@@ -4,6 +4,7 @@ import (
 	"context"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
 	"log"
+	"time"
 )
 
 func (mo *MakerOnlyOrder) waitForOrder(orderId string, orderStatus string) {
@@ -33,11 +34,20 @@ func (mo *MakerOnlyOrder) orderCallback(order *models.MongoOrder) {
 		go mo.StateMgmt.UpdateEntryPrice(mo.Strategy.GetModel().ID, state)
 		go mo.StateMgmt.UpdateExecutedAmount(mo.Strategy.GetModel().ID, state)
 
-		log.Println("mo.MakerOnlyOrder", mo.MakerOnlyOrder)
-		mo.MakerOnlyOrder.Average = order.Average
-		mo.MakerOnlyOrder.Filled = order.Filled
-		mo.MakerOnlyOrder.Status = order.Status
-		go mo.StateMgmt.SaveOrder(*mo.MakerOnlyOrder, mo.KeyId, mo.Strategy.GetModel().Conditions.MarketType)
+		go func() {
+			for {
+				if mo.MakerOnlyOrder != nil {
+					mo.MakerOnlyOrder.Average = order.Average
+					mo.MakerOnlyOrder.Filled = order.Filled
+					mo.MakerOnlyOrder.Status = order.Status
+					go mo.StateMgmt.SaveOrder(*mo.MakerOnlyOrder, mo.KeyId, mo.Strategy.GetModel().Conditions.MarketType)
+					break
+				} else {
+					time.Sleep(300 * time.Millisecond)
+					continue
+				}
+			}
+		}()
 
 		err := mo.State.Fire(CheckExistingOrders)
 		mo.enterFilled(ctx)
