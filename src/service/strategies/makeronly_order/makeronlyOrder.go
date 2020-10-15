@@ -60,6 +60,7 @@ func (sm *MakerOnlyOrder) SetSelectedExitTarget(selectedExitTarget int){}
 
 
 func (sm *MakerOnlyOrder) Stop(){
+	attempts := 0
 	ctx := context.TODO()
 	state, _ := sm.State.State(ctx)
 
@@ -67,13 +68,41 @@ func (sm *MakerOnlyOrder) Stop(){
 	log.Println("stop func state ", state, " enabled ", sm.Strategy.GetModel().Enabled)
 	// user canceled order
 	if state != Filled && !sm.Strategy.GetModel().Enabled {
-		sm.MakerOnlyOrder.Status = "canceled"
 		sm.Strategy.GetModel().State.State = Canceled
-		go sm.StateMgmt.SaveOrder(*sm.MakerOnlyOrder, sm.KeyId, sm.Strategy.GetModel().Conditions.MarketType)
 		go sm.StateMgmt.UpdateState(sm.Strategy.GetModel().ID, sm.Strategy.GetModel().State)
+
+		if sm.MakerOnlyOrder != nil {
+			sm.MakerOnlyOrder.Status = "canceled"
+			go sm.StateMgmt.SaveOrder(*sm.MakerOnlyOrder, sm.KeyId, sm.Strategy.GetModel().Conditions.MarketType)
+		} else {
+			go func(){
+				for {
+					if sm.MakerOnlyOrder != nil || attempts >= 50 {
+						sm.MakerOnlyOrder.Status = "canceled"
+						go sm.StateMgmt.SaveOrder(*sm.MakerOnlyOrder, sm.KeyId, sm.Strategy.GetModel().Conditions.MarketType)
+						break
+					}
+					attempts += 1
+					time.Sleep(1 * time.Second)
+				}
+			}()
+		}
 	} else {
-		go sm.StateMgmt.SaveOrder(*sm.MakerOnlyOrder, sm.KeyId, sm.Strategy.GetModel().Conditions.MarketType)
 		go sm.StateMgmt.DisableStrategy(sm.Strategy.GetModel().ID)
+		if sm.MakerOnlyOrder != nil {
+			go sm.StateMgmt.SaveOrder(*sm.MakerOnlyOrder, sm.KeyId, sm.Strategy.GetModel().Conditions.MarketType)
+		} else {
+			go func() {
+				for {
+					if sm.MakerOnlyOrder != nil || attempts >= 50 {
+						go sm.StateMgmt.SaveOrder(*sm.MakerOnlyOrder, sm.KeyId, sm.Strategy.GetModel().Conditions.MarketType)
+						break
+					}
+					attempts += 1
+					time.Sleep(1 * time.Second)
+				}
+			}()
+		}
 	}
 }
 
@@ -103,9 +132,6 @@ func NewMakerOnlyOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataF
 	initState := PlaceOrder
 	model := strategy.GetModel()
 	go func(){
-		//pricePrecision, amountPrecision := stateMgmt.GetMarketPrecision(model.Conditions.Pair, model.Conditions.MarketType)
-		//PO.QuantityPricePrecision = pricePrecision
-		//PO.QuantityAmountPrecision = amountPrecision
 		var mongoOrder *models.MongoOrder
 		for {
 			mongoOrder = stateMgmt.GetOrder(strategy.GetModel().Conditions.MakerOrderId.Hex())
