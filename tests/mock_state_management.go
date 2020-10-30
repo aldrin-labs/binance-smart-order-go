@@ -28,6 +28,15 @@ func (sm *MockStateMgmt) EnableStrategy(strategyId *primitive.ObjectID) {
 	return
 }
 
+func (sm *MockStateMgmt) CreateStrategy(strategy *models.MongoStrategy) *models.MongoStrategy {
+	panic("implement me")
+}
+
+func (sm *MockStateMgmt) GetOrderById(orderId *primitive.ObjectID) *models.MongoOrder {
+	panic("implement me")
+}
+
+
 func NewMockedStateMgmt(trading *MockTrading, dataFeed *MockDataFeed) MockStateMgmt {
 	stateMgmt := MockStateMgmt{
 		Trading: trading,

@@ -53,14 +53,14 @@ func TestSmartOrderMultiEntryPlacing(t *testing.T) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
 	go smartOrder.Start()
-	time.Sleep(1000 * time.Millisecond)
+	time.Sleep(2000 * time.Millisecond)
 
 	// one call with 'sell' and one with 'BTC_USDT' should be done
 	buyCallCount, buyOk := tradingApi.CallCount.Load("buy")
 	sellCallCount, sellOk := tradingApi.CallCount.Load("sell")
 	btcUsdtCallCount, usdtBtcOk := tradingApi.CallCount.Load("BTC_USDT")
-	if !sellOk || !buyOk || !usdtBtcOk || sellCallCount != 1 || btcUsdtCallCount != 4 || buyCallCount != 3 {
-		t.Error("3 Entry orders or 1 SL was not placed")
+	if !sellOk || !buyOk || !usdtBtcOk || sellCallCount != 2 || btcUsdtCallCount != 5 || buyCallCount != 3 {
+		t.Error("3 Entry orders or 1 SL/FL was not placed")
 	} else {
 		fmt.Println("Success! There were " + strconv.Itoa(sellCallCount.(int)) + " trading api calls with sell params, and " + strconv.Itoa(buyCallCount.(int)) + " with buy side")
 	}

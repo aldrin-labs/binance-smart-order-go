@@ -9,7 +9,7 @@ import (
 	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 )
 
-func (sm *SmartOrder) PlaceOrder(price float64, step string) {
+func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 	baseAmount := 0.0
 	orderType := "market"
 	stopPrice := 0.0
@@ -89,7 +89,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 		baseAmount = model.Conditions.EntryOrder.Amount
 
 		if len(model.Conditions.EntryLevels) > 0 {
-			baseAmount = model.Conditions.EntryLevels[sm.SelectedEntryTarget].Amount
+			baseAmount = amount
 		}
 		//log.Print("orderPrice in waitForEntry", orderPrice)
 		break
@@ -174,7 +174,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 					time.Sleep(time.Duration(model.Conditions.TimeoutLoss) * time.Second)
 					currentState := sm.Strategy.GetModel().State.State
 					if currentState == Stoploss && model.State.StopLossAt == lastTimestamp {
-						sm.PlaceOrder(price, step)
+						sm.PlaceOrder(price, 0.0, step)
 					} else {
 						model.State.StopLossAt = -1
 						sm.StateMgmt.UpdateState(model.ID, model.State)
@@ -561,7 +561,7 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 						break
 					}
 				} else {
-					sm.PlaceOrder(0, Canceled)
+					sm.PlaceOrder(0, 0.0, Canceled)
 					break
 				}
 			}
@@ -586,6 +586,6 @@ func (sm *SmartOrder) PlaceOrder(price float64, step string) {
 	canPlaceAnotherOrderForNextTarget := sm.SelectedExitTarget+1 < len(model.Conditions.ExitLevels)
 	if recursiveCall && canPlaceAnotherOrderForNextTarget {
 		sm.SelectedExitTarget += 1
-		sm.PlaceOrder(price, step)
+		sm.PlaceOrder(price, 0.0, step)
 	}
 }

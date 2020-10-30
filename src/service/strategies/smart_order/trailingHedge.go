@@ -122,8 +122,8 @@ func (sm *SmartOrder) checkLossHedge(ctx context.Context, args ...interface{}) b
 			}
 
 			sm.StateMgmt.EnableHedgeLossStrategy(model.ID)
-			sm.PlaceOrder(-1, "WithoutLoss")
-			sm.PlaceOrder(zeroProfitPrice, "WithoutLoss")
+			sm.PlaceOrder(-1, 0.0, "WithoutLoss")
+			sm.PlaceOrder(zeroProfitPrice, 0.0, "WithoutLoss")
 
 			model.Conditions.TakeProfitExternal = false
 			model.State.HedgeExitPrice = strategy.State.ExitPrice

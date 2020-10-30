@@ -27,7 +27,7 @@ func (sm *SmartOrder) checkSpreadEntry(ctx context.Context, args ...interface{})
 
 	if sm.checkSpreadCondition(currentSpread) {
 		log.Print("place waitForEntry bestBid", currentSpread.BestBid, ", close ", currentSpread.Close, ", amount ", sm.Strategy.GetModel().Conditions.EntryOrder.Amount)
-		sm.PlaceOrder(currentSpread.BestBid, WaitForEntry)
+		sm.PlaceOrder(currentSpread.BestBid, 0.0, WaitForEntry)
 	}
 
 	return false
@@ -44,7 +44,7 @@ func (sm *SmartOrder) checkSpreadTakeProfit(ctx context.Context, args ...interfa
 	currentSpread := args[0].(interfaces.SpreadData)
 
 	if sm.checkSpreadCondition(currentSpread) {
-		sm.PlaceOrder(currentSpread.BestBid, TakeProfit)
+		sm.PlaceOrder(currentSpread.BestBid, 0.0, TakeProfit)
 	}
 
 	return false

@@ -105,7 +105,7 @@ func (sm *SmartOrder) checkTrailingProfit(ctx context.Context, args ...interface
 					isSpotMarketOrder := target.OrderType == "market" && isSpot
 					if isSpotMarketOrder {
 						model.State.State = TakeProfit
-						sm.PlaceOrder(edgePrice, TakeProfit)
+						sm.PlaceOrder(edgePrice, 0.0, TakeProfit)
 
 						return true
 					}
@@ -153,7 +153,7 @@ func (sm *SmartOrder) checkTrailingProfit(ctx context.Context, args ...interface
 					isSpotMarketOrder := target.OrderType == "market" && isSpot
 					if isSpotMarketOrder {
 						sm.Strategy.GetModel().State.State = TakeProfit
-						sm.PlaceOrder(edgePrice, TakeProfit)
+						sm.PlaceOrder(edgePrice, 0.0, TakeProfit)
 
 						return true
 					}
@@ -199,7 +199,7 @@ func (sm *SmartOrder) placeTrailingOrder(newTrailingPrice float64, trailingCheck
 		if sm.Lock == false {
 			sm.Lock = true
 			model.State.TrailingEntryPrice = newTrailingPrice
-			sm.PlaceOrder(-1, step)
+			sm.PlaceOrder(-1, 0.0, step)
 			time.Sleep(3000 * time.Millisecond) // it will give some time for order execution, to avoid double send of orders
 			sm.Lock = false
 		}
