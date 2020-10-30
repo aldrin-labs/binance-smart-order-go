@@ -317,12 +317,12 @@ func (sm *SmartOrder) entryMultiEntry(ctx context.Context, args ...interface{}) 
 	log.Print("entryMultiEntry")
 	model := sm.Strategy.GetModel()
 
-	isWaitingStopLoss, stopLossOk := sm.IsWaitingForOrder.Load(Stoploss)
-	if (!stopLossOk || !isWaitingStopLoss.(bool)) && len(model.State.StopLossOrderIds) == 0 {
-		sm.IsWaitingForOrder.Store(Stoploss, true)
-		// if stop loss was not placed in the start then we should wait some time before all entry will be executed
-		time.AfterFunc(3 * time.Second, func() {sm.PlaceOrder(model.State.EntryPrice, 0.0, Stoploss)})
-	}
+	//isWaitingStopLoss, stopLossOk := sm.IsWaitingForOrder.Load(Stoploss)
+	//if (!stopLossOk || !isWaitingStopLoss.(bool)) && len(model.State.StopLossOrderIds) == 0 {
+	//	sm.IsWaitingForOrder.Store(Stoploss, true)
+	//	// if stop loss was not placed in the start then we should wait some time before all entry will be executed
+	//	time.AfterFunc(3 * time.Second, func() {sm.PlaceOrder(model.State.EntryPrice, 0.0, Stoploss)})
+	//}
 
 	isWaitingForcedLoss, forcedLossOk := sm.IsWaitingForOrder.Load("ForcedLoss")
 	if model.Conditions.ForcedLoss > 0 && (!forcedLossOk || !isWaitingForcedLoss.(bool)) && len(model.State.ForcedLossOrderIds) == 0 {
