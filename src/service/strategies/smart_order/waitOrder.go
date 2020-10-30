@@ -129,7 +129,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 					sm.placeMultiEntryOrders()
 				}
 			} else {
-				go sm.PlaceOrder(0, Stoploss)
+				go sm.PlaceOrder(0, 0.0, Stoploss)
 			}
 			calculateAndSavePNL(model, sm.StateMgmt)
 			sm.StateMgmt.UpdateExecutedAmount(model.ID, model.State)

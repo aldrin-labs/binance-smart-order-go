@@ -307,9 +307,13 @@ func (ss *StrategyService) CancelOrder(request trading.CancelOrderRequest) tradi
 	log.Println("strategy ", strategy)
 
 	if strategy != nil {
-		strategy.GetModel().Enabled = false
-		strategy.GetModel().State.State = makeronly_order.Canceled
-		strategy.GetStateMgmt().DisableStrategy(&id)
+		pointStrategy := *ss.strategies[id.String()]
+		pointStrategy.GetModel().LastUpdate = 10
+		pointStrategy.GetModel().Enabled = false
+		pointStrategy.GetModel().State.State = makeronly_order.Canceled
+		pointStrategy.GetStateMgmt().DisableStrategy(&id)
+		pointStrategy.GetStateMgmt().UpdateState(&id, strategy.GetModel().State)
+		pointStrategy.HotReload(*pointStrategy.GetModel())
 
 	}
 
@@ -488,9 +492,9 @@ func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
 		entryIsNotTrailing := model.Conditions.EntryOrder.ActivatePrice == 0
 
 		if entryIsNotTrailing {
-			sm.PlaceOrder(model.Conditions.EntryOrder.Price, smart_order.WaitForEntry)
+			sm.PlaceOrder(model.Conditions.EntryOrder.Price, 0.0, smart_order.WaitForEntry)
 		} else if model.State.TrailingEntryPrice > 0 {
-			sm.PlaceOrder(-1, smart_order.TrailingEntry)
+			sm.PlaceOrder(-1, 0.0, smart_order.TrailingEntry)
 		}
 	}
 
@@ -506,19 +510,19 @@ func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
 			go sm.TryCancelAllOrders(model.State.StopLossOrderIds)
 		}
 
-		sm.PlaceOrder(0, smart_order.Stoploss)
+		sm.PlaceOrder(0, 0.0, smart_order.Stoploss)
 	}
 
 	if model.Conditions.ForcedLoss != model.State.ForcedLoss || model.Conditions.ForcedLossPrice != model.State.ForcedLossPrice {
 		if isSpot {
 		} else {
 			sm.TryCancelAllOrders(model.State.ForcedLossOrderIds)
-			sm.PlaceOrder(0, "ForcedLoss")
+			sm.PlaceOrder(0, 0.0, "ForcedLoss")
 		}
 	}
 
 	if model.Conditions.TrailingExitPrice != model.State.TrailingExitPrice || model.Conditions.TakeProfitPrice != model.State.TakeProfitPrice {
-		sm.PlaceOrder(-1, smart_order.TakeProfit)
+		sm.PlaceOrder(-1, 0.0, smart_order.TakeProfit)
 	}
 
 	if model.Conditions.TakeProfitHedgePrice != model.State.TakeProfitHedgePrice {
@@ -532,7 +536,7 @@ func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
 
 		if currentProfitPercentage > feePercentage {
 			strategy.GetModel().State.TrailingHedgeExitPrice = model.Conditions.TakeProfitHedgePrice
-			sm.PlaceOrder(-1, smart_order.HedgeLoss)
+			sm.PlaceOrder(-1, 0.0, smart_order.HedgeLoss)
 		}
 	}
 
@@ -582,7 +586,7 @@ func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
 					strategy.GetModel().State.TakeProfitOrderIds = make([]string, 0)
 				}
 
-				sm.PlaceOrder(0, smart_order.TakeProfit)
+				sm.PlaceOrder(0, 0.0, smart_order.TakeProfit)
 			}
 		} else if model.Conditions.ExitLevels[0].ActivatePrice > 0 &&
 			(model.Conditions.ExitLevels[0].EntryDeviation != model.State.TakeProfit[0].EntryDeviation) &&
@@ -596,7 +600,7 @@ func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
 				go sm.TryCancelAllOrders(ids)
 			}
 
-			sm.PlaceOrder(-1, smart_order.TakeProfit)
+			sm.PlaceOrder(-1, 0.0, smart_order.TakeProfit)
 		} else if model.Conditions.ExitLevels[0].Price != model.State.TakeProfit[0].Price { // simple TAP
 			ids := model.State.TakeProfitOrderIds[:]
 			if isSpot {
@@ -606,7 +610,7 @@ func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
 				go sm.TryCancelAllOrders(ids)
 			}
 
-			sm.PlaceOrder(0, smart_order.TakeProfit)
+			sm.PlaceOrder(0, 0.0, smart_order.TakeProfit)
 		}
 	}
 

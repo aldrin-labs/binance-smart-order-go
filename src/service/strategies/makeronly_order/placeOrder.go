@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func (mo *MakerOnlyOrder) PlaceOrder(anything float64, step string){
+func (mo *MakerOnlyOrder) PlaceOrder(anything, amount float64, step string){
 	log.Println("place order")
 	model := mo.Strategy.GetModel()
 	attemptsToPlaceOrder := 0

@@ -184,10 +184,12 @@ func (sm *MakerOnlyOrder) Start() {
 		if !sm.Lock {
 			sm.processEventLoop()
 		}
-		time.Sleep(15 * time.Second)
+		time.Sleep(3 * time.Second)
 		state, _ = sm.State.State(ctx)
 		localState = sm.Strategy.GetModel().State.State
 		log.Println("localState ", localState)
+		log.Println("sm.Strategy.GetModel().Enabled", sm.Strategy.GetModel().Enabled)
+		log.Println("lastUpdate", sm.Strategy.GetModel().LastUpdate)
 	}
 	sm.Stop()
 	println("STOPPED postonly")
@@ -195,12 +197,13 @@ func (sm *MakerOnlyOrder) Start() {
 
 
 func (sm *MakerOnlyOrder) processEventLoop() {
+	log.Println("loop")
 	currentSpread := sm.DataFeed.GetSpreadForPairAtExchange(sm.Strategy.GetModel().Conditions.Pair, sm.ExchangeName, sm.Strategy.GetModel().Conditions.MarketType)
 	if currentSpread != nil {
 		if sm.Strategy.GetModel().State.EntryOrderId == "" {
-			sm.PlaceOrder(0, PlaceOrder)
+			sm.PlaceOrder(0, 0.0, PlaceOrder)
 		} else if sm.Strategy.GetModel().State.EntryPrice != currentSpread.BestBid && sm.Strategy.GetModel().State.EntryPrice != currentSpread.BestAsk {
-			sm.PlaceOrder(0, PlaceOrder)
+			sm.PlaceOrder(0, 0.0, PlaceOrder)
 		}
 	}
 }

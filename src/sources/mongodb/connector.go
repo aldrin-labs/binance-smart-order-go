@@ -129,6 +129,7 @@ func (sm *StateMgmt) EnableStrategy(strategyId *primitive.ObjectID) {
 
 func (sm *StateMgmt) DisableStrategy(strategyId *primitive.ObjectID) {
 	col := GetCollection("core_strategies")
+	log.Println("strategyId ", strategyId.String())
 	var request bson.D
 	request = bson.D{
 		{"_id", strategyId},
