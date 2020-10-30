@@ -325,7 +325,7 @@ func (sm *SmartOrder) entryMultiEntry(ctx context.Context, args ...interface{}) 
 	}
 
 	isWaitingForcedLoss, forcedLossOk := sm.IsWaitingForOrder.Load("ForcedLoss")
-	if (!forcedLossOk || !isWaitingForcedLoss.(bool)) && len(model.State.ForcedLossOrderIds) == 0 {
+	if model.Conditions.ForcedLoss > 0 && (!forcedLossOk || !isWaitingForcedLoss.(bool)) && len(model.State.ForcedLossOrderIds) == 0 {
 		sm.IsWaitingForOrder.Store("ForcedLoss", true)
 		time.AfterFunc(3 * time.Second, func() {sm.PlaceOrder(model.State.EntryPrice, 0.0, "ForcedLoss")})
 	}
