@@ -331,7 +331,17 @@ func (sm *SmartOrder) entryMultiEntry(ctx context.Context, args ...interface{}) 
 	}
 
 	if model.Conditions.EntryLevels[sm.SelectedEntryTarget].PlaceWithoutLoss {
-		sm.PlaceOrder(0, 0.0, "WithoutLoss")
+		baseAmount = 0.0
+		for i, target := range model.Conditions.EntryLevels {
+			if i <= sm.SelectedEntryTarget {
+				if target.Type == 0 {
+					baseAmount += target.Amount
+				} else {
+					baseAmount += target.Amount * model.Conditions.EntryOrder.Amount / 100
+				}
+			}
+		}
+		sm.PlaceOrder(0, baseAmount, "WithoutLoss")
 	}
 
 	// cancel old TAP
