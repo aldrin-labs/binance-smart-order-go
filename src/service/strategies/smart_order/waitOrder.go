@@ -107,14 +107,13 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			return true
 		case TakeProfit:
 			sm.IsWaitingForOrder.Store(TakeProfit, false)
-			isMultiEntry := len(model.Conditions.EntryLevels) > 0
 			isAllMultiEntryExecuted := sm.SelectedEntryTarget == len(model.Conditions.EntryLevels) - 1
 			if order.Filled > 0 {
 				model.State.ExecutedAmount += order.Filled
 			}
 			// add condition if all targets executed
-			if isMultiEntry && model.Conditions.PlaceEntryAfterTAP && !isAllMultiEntryExecuted {
-				sm.SelectedEntryTarget -= 1
+			if model.Conditions.PlaceEntryAfterTAP && !isAllMultiEntryExecuted {
+				sm.SelectedEntryTarget = 0
 			}
 			model.State.ExitPrice = order.Average
 			amount := model.Conditions.EntryOrder.Amount
@@ -127,14 +126,14 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 				if model.Conditions.CloseStrategyAfterFirstTAP || isAllMultiEntryExecuted {
 					model.State.State = End
 				// here we place all entry
-				} else if model.Conditions.PlaceEntryAfterTAP {
-					// place entry orders again
-					// set it to 0, place only entry orders
-					model.State.ExecutedAmount = 0
-					model.State.EntryPrice = 0
-					model.State.ExitPrice = 0
-					sm.placeMultiEntryOrders(false)
 				}
+			} else if model.Conditions.PlaceEntryAfterTAP {
+				// place entry orders again
+				// set it to 0, place only entry orders
+				model.State.ExecutedAmount = 0
+				model.State.EntryPrice = 0
+				model.State.ExitPrice = 0
+				sm.placeMultiEntryOrders(false)
 			}
 			// here was else place stopLoss order
 			calculateAndSavePNL(model, sm.StateMgmt)
