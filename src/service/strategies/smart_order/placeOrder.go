@@ -255,6 +255,8 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 
 		if model.Conditions.Hedging || model.Conditions.HedgeMode {
 			fee = fee * 4
+		} else if len(model.Conditions.EntryLevels) > 0 {
+			fee = fee * (sm.SelectedEntryTarget + 1)
 		} else {
 			fee = fee * 2
 		}
