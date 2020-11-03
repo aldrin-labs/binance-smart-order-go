@@ -197,11 +197,11 @@ func (sm *SmartOrder) checkIfPlaceOrderInstantlyOnStart() {
 		}
 	}
 	if isMultiEntry {
-		sm.placeMultiEntryOrders()
+		sm.placeMultiEntryOrders(true)
 	}
 }
 
-func (sm *SmartOrder) placeMultiEntryOrders() {
+func (sm *SmartOrder) placeMultiEntryOrders(stopLoss bool) {
 	// we execute this func again for 1 option
 	go sm.TryCancelAllOrders(sm.Strategy.GetModel().State.Orders)
 
@@ -237,9 +237,11 @@ func (sm *SmartOrder) placeMultiEntryOrders() {
 
 	// here we should place one SL for all entries
 	//weightedAverage := sumTotal / sumAmount
-	sm.PlaceOrder(currentPrice, 0.0, Stoploss)
-	if model.Conditions.ForcedLoss > 0 {
-		sm.PlaceOrder(currentPrice, 0.0, "ForcedLoss")
+	if stopLoss {
+		sm.PlaceOrder(currentPrice, 0.0, Stoploss)
+		if model.Conditions.ForcedLoss > 0 {
+			sm.PlaceOrder(currentPrice, 0.0, "ForcedLoss")
+		}
 	}
 }
 

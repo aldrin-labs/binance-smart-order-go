@@ -64,9 +64,12 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 	}
 	log.Print("orderStatus, ", orderStatus, " step ", step.(string))
 	model := sm.Strategy.GetModel()
+	isMultiEntry := len(model.Conditions.EntryLevels) > 0
+
 	if order.Type == "post-only" {
 		order = *sm.StateMgmt.GetOrder(order.PostOnlyFinalOrderId)
 	}
+
 	switch orderStatus {
 	case "closed", "filled": // TODO i
 		switch step {
@@ -88,7 +91,6 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			sm.StateMgmt.UpdateEntryPrice(model.ID, model.State)
 			return true
 		case WaitForEntry:
-			isMultiEntry := len(model.Conditions.EntryLevels) > 0
 			log.Print("model.State.EntryPrice in waitForEntry ", model.State.EntryPrice)
 			if model.State.EntryPrice > 0 && !isMultiEntry {
 				return false
@@ -106,10 +108,12 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 		case TakeProfit:
 			sm.IsWaitingForOrder.Store(TakeProfit, false)
 			isMultiEntry := len(model.Conditions.EntryLevels) > 0
+			isAllMultiEntryExecuted := sm.SelectedEntryTarget == len(model.Conditions.EntryLevels) - 1
 			if order.Filled > 0 {
 				model.State.ExecutedAmount += order.Filled
 			}
-			if isMultiEntry && model.Conditions.PlaceEntryAfterTAP {
+			// add condition if all targets executed
+			if isMultiEntry && model.Conditions.PlaceEntryAfterTAP && !isAllMultiEntryExecuted {
 				sm.SelectedEntryTarget -= 1
 			}
 			model.State.ExitPrice = order.Average
@@ -120,13 +124,16 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			log.Print("model.State.ExecutedAmount >= amount ", model.State.ExecutedAmount >= amount)
 			if model.State.ExecutedAmount >= amount || model.Conditions.CloseStrategyAfterFirstTAP {
 				// here we gonna close SM if CloseStrategyAfterFirstTAP enabled or we executed all entry && TAP orders
-				if model.Conditions.CloseStrategyAfterFirstTAP || sm.SelectedEntryTarget == len(model.Conditions.EntryLevels) - 1 {
+				if model.Conditions.CloseStrategyAfterFirstTAP || isAllMultiEntryExecuted {
 					model.State.State = End
 				// here we place all entry
 				} else if model.Conditions.PlaceEntryAfterTAP {
 					// place entry orders again
-					model.State.ExecutedAmount -= order.Filled
-					sm.placeMultiEntryOrders()
+					// set it to 0, place only entry orders
+					model.State.ExecutedAmount = 0
+					model.State.EntryPrice = 0
+					model.State.ExitPrice = 0
+					sm.placeMultiEntryOrders(false)
 				}
 			}
 			// here was else place stopLoss order
@@ -184,7 +191,8 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			calculateAndSavePNL(model, sm.StateMgmt)
 			sm.StateMgmt.UpdateExecutedAmount(model.ID, model.State)
 
-			if model.State.ExecutedAmount >= amount {
+			// close sm if bep executed
+			if model.State.ExecutedAmount >= amount || isMultiEntry {
 				model.State.State = End
 				sm.StateMgmt.UpdateState(model.ID, model.State)
 				return true
