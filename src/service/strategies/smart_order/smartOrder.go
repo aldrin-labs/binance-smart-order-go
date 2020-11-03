@@ -331,9 +331,11 @@ func (sm *SmartOrder) entryMultiEntry(ctx context.Context, args ...interface{}) 
 	}
 
 	if model.Conditions.EntryLevels[sm.SelectedEntryTarget].PlaceWithoutLoss {
+		log.Println("SelectedEntryTarget", sm.SelectedEntryTarget)
 		baseAmount = 0.0
 		for i, target := range model.Conditions.EntryLevels {
 			if i <= sm.SelectedEntryTarget {
+				log.Println("i", i)
 				if target.Type == 0 {
 					baseAmount += target.Amount
 				} else {
@@ -341,6 +343,7 @@ func (sm *SmartOrder) entryMultiEntry(ctx context.Context, args ...interface{}) 
 				}
 			}
 		}
+		log.Println("baseAmount", baseAmount)
 		sm.PlaceOrder(0, baseAmount, "WithoutLoss")
 	}
 

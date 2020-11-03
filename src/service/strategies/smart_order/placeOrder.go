@@ -239,6 +239,7 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 		orderType = prefix + "limit"
 		fee := 0.12
 
+		log.Println("amount", amount)
 		if (amount > 0) {
 			baseAmount = amount
 		}
