@@ -239,6 +239,11 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 		orderType = prefix + "limit"
 		fee := 0.12
 
+		log.Println("amount", amount)
+		if amount > 0 {
+			baseAmount = amount
+		}
+
 		// if price 0 then market price == entry price for spot market order
 		if isSpot && price != 0 {
 			return // we cant place market order on spot at exists before it happened, because there is no stop markets
@@ -250,6 +255,8 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 
 		if model.Conditions.Hedging || model.Conditions.HedgeMode {
 			fee = fee * 4
+		} else if len(model.Conditions.EntryLevels) > 0 {
+			fee = fee * float64(sm.SelectedEntryTarget + 1)
 		} else {
 			fee = fee * 2
 		}
