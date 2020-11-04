@@ -526,6 +526,8 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 					model.State.ForcedLossOrderIds = append(model.State.ForcedLossOrderIds, response.Data.OrderId)
 				} else if step == TakeProfit {
 					model.State.TakeProfitOrderIds = append(model.State.TakeProfitOrderIds, response.Data.OrderId)
+				} else if step == WaitForEntry {
+					model.State.WaitForEntryIds = append(model.State.WaitForEntryIds, response.Data.OrderId)
 				}
 			} else {
 				log.Print("order 0")

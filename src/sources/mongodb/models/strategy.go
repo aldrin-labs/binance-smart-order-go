@@ -121,6 +121,7 @@ type MongoStrategyState struct {
 	EntryPointSide       string             `json:"entryPointSide,omitempty" bson:"entryPointSide"`
 	EntryPointAmount     float64            `json:"entryPointAmount,omitempty" bson:"entryPointAmount"`
 	EntryPointDeviation  float64            `json:"entryPointDeviation,omitempty" bson:"entryPointDeviation"`
+	WaitForEntryIds      []string			`json:"waitForEntryIds,omitempty" bson:"waitForEntryIds"`
 	StopLoss             float64            `json:"stopLoss,omitempty" bson:"stopLoss"`
 	StopLossPrice        float64            `json:"stopLossPrice, omitempty" bson:"stopLossPrice"`
 	StopLossOrderIds     []string           `json:"stopLossOrderIds,omitempty" bson:"stopLossOrderIds"`

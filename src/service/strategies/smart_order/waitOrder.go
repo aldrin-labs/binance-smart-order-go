@@ -107,26 +107,19 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			return true
 		case TakeProfit:
 			sm.IsWaitingForOrder.Store(TakeProfit, false)
-			isAllMultiEntryExecuted := sm.SelectedEntryTarget == len(model.Conditions.EntryLevels) - 1
 			if order.Filled > 0 {
 				model.State.ExecutedAmount += order.Filled
 			}
-			// add condition if all targets executed
-			if model.Conditions.PlaceEntryAfterTAP && !isAllMultiEntryExecuted {
-				sm.SelectedEntryTarget = 0
-			}
+
 			model.State.ExitPrice = order.Average
 			amount := model.Conditions.EntryOrder.Amount
 			if model.Conditions.MarketType == 0 {
 				amount = amount * 0.99
 			}
-			log.Print("model.State.ExecutedAmount >= amount ", model.State.ExecutedAmount >= amount)
+			log.Print("model.State.ExecutedAmount >= amount ", model.State.ExecutedAmount >= amount, "model.Conditions.PlaceEntryAfterTAP ", model.Conditions.PlaceEntryAfterTAP)
+			// here we gonna close SM if CloseStrategyAfterFirstTAP enabled or we executed all entry && TAP orders
 			if model.State.ExecutedAmount >= amount || model.Conditions.CloseStrategyAfterFirstTAP {
-				// here we gonna close SM if CloseStrategyAfterFirstTAP enabled or we executed all entry && TAP orders
-				if model.Conditions.CloseStrategyAfterFirstTAP || isAllMultiEntryExecuted {
-					model.State.State = End
-				// here we place all entry
-				}
+				model.State.State = End
 			} else if model.Conditions.PlaceEntryAfterTAP {
 				// place entry orders again
 				// set it to 0, place only entry orders
