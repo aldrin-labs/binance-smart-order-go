@@ -42,35 +42,7 @@ func RunSmartOrder(strategy *Strategy, df interfaces.IDataFeed, td trading.ITrad
 		keyId = &keyAsset.KeyId
 
 		// type 1 for entry point - relative amount
-		if strategy.Model.Conditions.EntryOrder.Type == 1 {
-			percentageOfBalance := strategy.Model.Conditions.EntryOrder.Amount
-			margin := keyAsset.Free / 100 * percentageOfBalance
-			attempts := 0
-			for {
-				if attempts > 10 {
-					strategy.Model.State = &models.MongoStrategyState{
-						State: smart_order.Error,
-						Msg: "currentOHLCVp is nil. Please contact us in telegram",
-					}
-					break
-				}
-
-				if strategy.Model.Conditions.EntryOrder.OrderType == "limit" {
-					strategy.Model.Conditions.EntryOrder.Amount = margin * strategy.Model.Conditions.Leverage / strategy.Model.Conditions.EntryOrder.Price
-					break
-				} else { // market and maker-only
-					currentOHLCVp := df.GetPriceForPairAtExchange(strategy.GetModel().Conditions.Pair, "binance", strategy.GetModel().Conditions.MarketType)
-					if currentOHLCVp != nil {
-						strategy.Model.Conditions.EntryOrder.Amount = margin * strategy.Model.Conditions.Leverage / currentOHLCVp.Close
-						break
-					} else {
-						attempts += 1
-						time.Sleep(1 * time.Second)
-						continue
-					}
-				}
-			}
-		}
+		DetermineRelativeEntryAmount(strategy, keyAsset, df)
 	}
 
 	if strategy.Model.Conditions.MarketType == 1 && !strategy.Model.Conditions.SkipInitialSetup {
@@ -91,4 +63,36 @@ func RunSmartOrder(strategy *Strategy, df interfaces.IDataFeed, td trading.ITrad
 	go runtime.Start()
 
 	return runtime
+}
+
+func DetermineRelativeEntryAmount(strategy *Strategy, keyAsset KeyAsset, df interfaces.IDataFeed) {
+	if strategy.Model.Conditions.EntryOrder.Type == 1 {
+		percentageOfBalance := strategy.Model.Conditions.EntryOrder.Amount
+		margin := keyAsset.Free / 100 * percentageOfBalance
+		attempts := 0
+		for {
+			if attempts > 10 {
+				strategy.Model.State = &models.MongoStrategyState{
+					State: smart_order.Error,
+					Msg: "currentOHLCVp is nil. Please contact us in telegram",
+				}
+				break
+			}
+
+			if strategy.Model.Conditions.EntryOrder.OrderType == "limit" {
+				strategy.Model.Conditions.EntryOrder.Amount = margin * strategy.Model.Conditions.Leverage / strategy.Model.Conditions.EntryOrder.Price
+				break
+			} else { // market and maker-only
+				currentOHLCVp := df.GetPriceForPairAtExchange(strategy.GetModel().Conditions.Pair, "binance", strategy.GetModel().Conditions.MarketType)
+				if currentOHLCVp != nil {
+					strategy.Model.Conditions.EntryOrder.Amount = margin * strategy.Model.Conditions.Leverage / currentOHLCVp.Close
+					break
+				} else {
+					attempts += 1
+					time.Sleep(1 * time.Second)
+					continue
+				}
+			}
+		}
+	}
 }
