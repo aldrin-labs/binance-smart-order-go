@@ -120,11 +120,16 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			
 			model.State.ExitPrice = order.Average
 
-			model.State.ReceivedProfitPercentage = ((model.State.ExitPrice / model.State.EntryPrice) * 100 - 100) *
+			model.State.ReceivedProfitPercentage += ((model.State.ExitPrice / model.State.EntryPrice) * 100 - 100) *
 				model.Conditions.Leverage * sideCoefficient
 
-			model.State.ReceivedProfitAmount = (amount / model.Conditions.Leverage ) *
+			model.State.ReceivedProfitAmount += (amount / model.Conditions.Leverage ) *
 				model.State.EntryPrice * (model.State.ReceivedProfitPercentage / 100)
+
+			if isMultiEntry {
+				model.State.EntryPrice = 0
+				model.State.ExitPrice = 0
+			}
 
 			if model.Conditions.MarketType == 0 {
 				amount = amount * 0.99
@@ -137,8 +142,6 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 				// place entry orders again
 				// set it to 0, place only entry orders
 				model.State.ExecutedAmount = 0
-				model.State.EntryPrice = 0
-				model.State.ExitPrice = 0
 				sm.placeMultiEntryOrders(false)
 			}
 			// here was else place stopLoss order
@@ -163,6 +166,18 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			if model.Conditions.MarketType == 0 {
 				amount = amount * 0.99
 			}
+
+			sideCoefficient := 1.0
+			if model.Conditions.EntryOrder.Side == "sell" {
+				sideCoefficient = -1.0
+			}
+
+			model.State.ReceivedProfitPercentage += ((model.State.ExitPrice / model.State.EntryPrice) * 100 - 100) *
+				model.Conditions.Leverage * sideCoefficient
+
+			model.State.ReceivedProfitAmount += (amount / model.Conditions.Leverage ) *
+				model.State.EntryPrice * (model.State.ReceivedProfitPercentage / 100)
+
 			calculateAndSavePNL(model, sm.StateMgmt)
 			sm.StateMgmt.UpdateExecutedAmount(model.ID, model.State)
 			log.Print("model.State.ExecutedAmount >= amount in SL ", model.State.ExecutedAmount >= amount)
