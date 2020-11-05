@@ -466,6 +466,35 @@ func (sm *StateMgmt) UpdateState(strategyId *primitive.ObjectID, state *models.M
 	}
 	log.Print("updated state", updated.ModifiedCount, state.State)
 }
+
+func (sm *StateMgmt) UpdateStrategyState(strategyId *primitive.ObjectID, state *models.MongoStrategyState) {
+	col := GetCollection("core_strategies")
+	var request bson.D
+	request = bson.D{
+		{"_id", strategyId},
+	}
+	var update bson.D
+	updates := bson.D{
+		{
+			"state", state,
+		},
+	}
+	if len(state.Msg) > 0 {
+		updates = append(updates, bson.E{Key: "state.msg", Value: state.Msg})
+	}
+	update = bson.D{
+		{
+			"$set", updates,
+		},
+	}
+	updated, err := col.UpdateOne(context.TODO(), request, update)
+	if err != nil {
+		log.Print("error in arg", err.Error())
+		return
+	}
+	log.Print("updated state of strategy ", updated.ModifiedCount, state.State)
+}
+
 func (sm *StateMgmt) UpdateExecutedAmount(strategyId *primitive.ObjectID, state *models.MongoStrategyState) {
 	col := GetCollection("core_strategies")
 	var request bson.D

@@ -246,7 +246,7 @@ func calculateAndSavePNL(model *models.MongoStrategy, stateMgmt interfaces.IStat
 		go stateMgmt.SavePNL(model.Conditions.TemplateStrategyId, profitAmount)
 	}
 
-	stateMgmt.UpdateState(model.ID, model.State)
+	stateMgmt.UpdateStrategyState(model.ID, model.State)
 
 	return profitAmount
 }
