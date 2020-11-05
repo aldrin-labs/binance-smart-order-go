@@ -107,30 +107,15 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			return true
 		case TakeProfit:
 			sm.IsWaitingForOrder.Store(TakeProfit, false)
-			if order.Filled > 0 {
-				model.State.ExecutedAmount += order.Filled
-			}
-
-			sideCoefficient := 1.0
 			amount := model.Conditions.EntryOrder.Amount
-
-			if model.Conditions.EntryOrder.Side == "sell" {
-				sideCoefficient = -1.0
-			}
-			
-			model.State.ExitPrice = order.Average
-
-			model.State.ReceivedProfitPercentage += ((model.State.ExitPrice / model.State.EntryPrice) * 100 - 100) *
-				model.Conditions.Leverage * sideCoefficient
-
-			model.State.ReceivedProfitAmount += (amount / model.Conditions.Leverage ) *
-				model.State.EntryPrice * (model.State.ReceivedProfitPercentage / 100)
 
 			if isMultiEntry {
 				model.State.EntryPrice = 0
 				model.State.ExitPrice = 0
 			}
-
+			if order.Filled > 0 {
+				model.State.ExecutedAmount += order.Filled
+			}
 			if model.Conditions.MarketType == 0 {
 				amount = amount * 0.99
 			}
@@ -144,10 +129,8 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 				model.State.ExecutedAmount = 0
 				sm.placeMultiEntryOrders(false)
 			}
-			// here was else place stopLoss order
-			calculateAndSavePNL(model, sm.StateMgmt)
-			sm.StateMgmt.UpdateExecutedAmount(model.ID, model.State)
 
+			calculateAndSavePNL(model, sm.StateMgmt)
 			if model.State.ExecutedAmount >= amount || model.Conditions.CloseStrategyAfterFirstTAP {
 				isTrailingHedgeOrder := model.Conditions.HedgeStrategyId != nil || model.Conditions.Hedging == true
 
@@ -167,19 +150,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 				amount = amount * 0.99
 			}
 
-			sideCoefficient := 1.0
-			if model.Conditions.EntryOrder.Side == "sell" {
-				sideCoefficient = -1.0
-			}
-
-			model.State.ReceivedProfitPercentage += ((model.State.ExitPrice / model.State.EntryPrice) * 100 - 100) *
-				model.Conditions.Leverage * sideCoefficient
-
-			model.State.ReceivedProfitAmount += (amount / model.Conditions.Leverage ) *
-				model.State.EntryPrice * (model.State.ReceivedProfitPercentage / 100)
-
 			calculateAndSavePNL(model, sm.StateMgmt)
-			sm.StateMgmt.UpdateExecutedAmount(model.ID, model.State)
 			log.Print("model.State.ExecutedAmount >= amount in SL ", model.State.ExecutedAmount >= amount)
 			if model.State.ExecutedAmount >= amount {
 				return true
@@ -193,8 +164,8 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			if model.Conditions.MarketType == 0 {
 				amount = amount * 0.99
 			}
+
 			calculateAndSavePNL(model, sm.StateMgmt)
-			sm.StateMgmt.UpdateExecutedAmount(model.ID, model.State)
 			log.Print("model.State.ExecutedAmount >= amount in ForcedLoss ", model.State.ExecutedAmount >= amount)
 			if model.State.ExecutedAmount >= amount {
 				return true
@@ -208,9 +179,8 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			if model.Conditions.MarketType == 0 {
 				amount = amount * 0.99
 			}
-			calculateAndSavePNL(model, sm.StateMgmt)
-			sm.StateMgmt.UpdateExecutedAmount(model.ID, model.State)
 
+			calculateAndSavePNL(model, sm.StateMgmt)
 			// close sm if bep executed
 			if model.State.ExecutedAmount >= amount || isMultiEntry {
 				model.State.State = End
@@ -226,8 +196,9 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			if model.Conditions.MarketType == 0 {
 				amount = amount * 0.99
 			}
+
 			calculateAndSavePNL(model, sm.StateMgmt)
-			sm.StateMgmt.UpdateExecutedAmount(model.ID, model.State)
+
 			if model.State.ExecutedAmount >= amount {
 				model.State.State = End
 				sm.StateMgmt.UpdateState(model.ID, model.State)
@@ -258,18 +229,24 @@ func calculateAndSavePNL(model *models.MongoStrategy, stateMgmt interfaces.IStat
 	}
 
 	sideCoefficient := 1.0
+	amount := model.Conditions.EntryOrder.Amount
 	side := model.Conditions.EntryOrder.Side
 	if side == "sell" {
 		sideCoefficient = -1.0
 	}
 
-	profitPercentage := ((model.State.ExitPrice/model.State.EntryPrice)*100 - 100) * leverage * sideCoefficient
+	profitPercentage := ((model.State.ExitPrice/model.State.EntryPrice) *100 - 100) * leverage * sideCoefficient
+	profitAmount := (amount / leverage) * model.State.EntryPrice * (profitPercentage / 100)
 
-	profitAmount := (model.State.Amount / leverage) * model.State.EntryPrice * (profitPercentage / 100)
+	model.State.ReceivedProfitPercentage += profitPercentage
+	model.State.ReceivedProfitAmount += profitAmount
+
 
 	if model.Conditions.CreatedByTemplate {
 		go stateMgmt.SavePNL(model.Conditions.TemplateStrategyId, profitAmount)
 	}
+
+	stateMgmt.UpdateState(model.ID, model.State)
 
 	return profitAmount
 }

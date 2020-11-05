@@ -55,9 +55,12 @@ func RunSmartOrder(strategy *Strategy, df interfaces.IDataFeed, td trading.ITrad
 		}
 	}
 	if strategy.Model.State == nil {
-		strategy.Model.State = &models.MongoStrategyState{}
+		strategy.Model.State = &models.MongoStrategyState{
+			ReceivedProfitAmount: 0,
+			ReceivedProfitPercentage: 0,
+		}
 	}
-	
+
 	strategy.StateMgmt.SaveStrategyConditions(strategy.Model)
 	strategy.StateMgmt.UpdateConditions(strategy.Model.ID, strategy.Model.Conditions)
 	strategy.StateMgmt.UpdateState(strategy.Model.ID, strategy.Model.State)
