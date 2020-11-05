@@ -41,9 +41,12 @@ func RunSmartOrder(strategy *Strategy, df interfaces.IDataFeed, td trading.ITrad
 		keyId = &keyAsset.KeyId
 
 		// type 1 for entry point - relative amount
+		log.Println("strategy.Model.Conditions.EntryOrder.Type", strategy.Model.Conditions.EntryOrder.Type)
 		if strategy.Model.Conditions.EntryOrder.Type == 1 {
 			percentageOfBalance := strategy.Model.Conditions.EntryOrder.Amount
+			log.Println("percentageOfBalance", percentageOfBalance)
 			strategy.Model.Conditions.EntryOrder.Amount = keyAsset.Free / 100 * percentageOfBalance
+			log.Println("new strategy.Model.Conditions.EntryOrder.Amount", keyAsset.Free / 100 * percentageOfBalance)
 		}
 	}
 
