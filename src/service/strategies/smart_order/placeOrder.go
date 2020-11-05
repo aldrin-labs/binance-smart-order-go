@@ -539,47 +539,57 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 			break
 		} else {
 			log.Print(response.Status)
-			// need correct message from exchange_service when down
-			//if len(response.Data.Msg) > 0 && strings.Contains(response.Data.Msg, "network error") {
-			//	time.Sleep(time.Second * 5)
-			//	continue
-			//}
-			if len(response.Data.Msg) > 0 && attemptsToPlaceOrder < 1 && strings.Contains(response.Data.Msg, "Key is processing") {
-				attemptsToPlaceOrder += 1
-				time.Sleep(time.Minute * 1)
-				continue
-			}
-			if len(response.Data.Msg) > 0 && attemptsToPlaceOrder < 3 && strings.Contains(response.Data.Msg, "position side does not match") {
-				attemptsToPlaceOrder += 1
-				time.Sleep(time.Second * 5)
-				continue
-			}
-			if len(response.Data.Msg) > 0 && attemptsToPlaceOrder < 3 && strings.Contains(response.Data.Msg, "invalid json") {
-				attemptsToPlaceOrder += 1
-				time.Sleep(2 * time.Second)
-				continue
-			}
-			if len(response.Data.Msg) > 0 && strings.Contains(response.Data.Msg, "immediately trigger") {
-				if step == TrailingEntry {
-					orderType = "market"
-					stopPrice = 0.0
-					ifShouldCancelPreviousOrder = false
+
+			// if error
+			if len(response.Data.Msg) > 0 {
+				// TODO
+				// need correct message from exchange_service when down
+				//if len(response.Data.Msg) > 0 && strings.Contains(response.Data.Msg, "network error") {
+				//	time.Sleep(time.Second * 5)
+				//	continue
+				//}
+
+				if strings.Contains(response.Data.Msg, "Key is processing") && attemptsToPlaceOrder < 1  {
+					attemptsToPlaceOrder += 1
+					time.Sleep(time.Minute * 1)
 					continue
-				} else if step == Stoploss || step == "ForcedLoss" {
-					if len(model.Conditions.EntryLevels) > 0 {
+				}
+				if strings.Contains(response.Data.Msg, "position side does not match") && attemptsToPlaceOrder < 3 {
+					attemptsToPlaceOrder += 1
+					time.Sleep(time.Second * 5)
+					continue
+				}
+				if strings.Contains(response.Data.Msg, "invalid json") && attemptsToPlaceOrder < 3 {
+					attemptsToPlaceOrder += 1
+					time.Sleep(2 * time.Second)
+					continue
+				}
+				if strings.Contains(response.Data.Msg, "ReduceOnly Order Failed") && attemptsToPlaceOrder < 3 {
+					attemptsToPlaceOrder += 1
+					time.Sleep(5 * time.Second)
+					continue
+				}
+				if strings.Contains(response.Data.Msg, "immediately trigger") {
+					if step == TrailingEntry {
+						orderType = "market"
+						stopPrice = 0.0
+						ifShouldCancelPreviousOrder = false
+						continue
+					} else if step == Stoploss || step == "ForcedLoss" {
+						if len(model.Conditions.EntryLevels) > 0 {
+							break
+						}
+					} else {
+						sm.PlaceOrder(0, 0.0, Canceled)
 						break
 					}
-				} else {
-					sm.PlaceOrder(0, 0.0, Canceled)
+				}
+				if strings.Contains(response.Data.Msg, "ReduceOnly Order is rejected") {
+					model.Enabled = false
+					go sm.StateMgmt.UpdateState(model.ID, model.State)
 					break
 				}
-			}
-			if len(response.Data.Msg) > 0 && strings.Contains(response.Data.Msg, "ReduceOnly Order is rejected") {
-				model.Enabled = false
-				go sm.StateMgmt.UpdateState(model.ID, model.State)
-				break
-			}
-			if len(response.Data.Msg) > 0 {
+
 				model.Enabled = false
 				model.State.State = Error
 				model.State.Msg = response.Data.Msg
