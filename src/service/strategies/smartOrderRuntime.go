@@ -10,6 +10,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"log"
+	"time"
 )
 
 type KeyAsset struct {
@@ -41,12 +42,34 @@ func RunSmartOrder(strategy *Strategy, df interfaces.IDataFeed, td trading.ITrad
 		keyId = &keyAsset.KeyId
 
 		// type 1 for entry point - relative amount
-		log.Println("strategy.Model.Conditions.EntryOrder.Type", strategy.Model.Conditions.EntryOrder.Type)
 		if strategy.Model.Conditions.EntryOrder.Type == 1 {
 			percentageOfBalance := strategy.Model.Conditions.EntryOrder.Amount
-			log.Println("percentageOfBalance", percentageOfBalance)
-			strategy.Model.Conditions.EntryOrder.Amount = keyAsset.Free / 100 * percentageOfBalance
-			log.Println("new strategy.Model.Conditions.EntryOrder.Amount", keyAsset.Free / 100 * percentageOfBalance)
+			margin := keyAsset.Free / 100 * percentageOfBalance
+			attempts := 0
+			for {
+				if attempts > 10 {
+					strategy.Model.State = &models.MongoStrategyState{
+						State: smart_order.Error,
+						Msg: "currentOHLCVp is nil. Please contact us in telegram",
+					}
+					break
+				}
+
+				if strategy.Model.Conditions.EntryOrder.OrderType == "limit" {
+					strategy.Model.Conditions.EntryOrder.Amount = margin * strategy.Model.Conditions.Leverage / strategy.Model.Conditions.EntryOrder.Price
+					break
+				} else { // market and maker-only
+					currentOHLCVp := df.GetPriceForPairAtExchange(strategy.GetModel().Conditions.Pair, "binance", strategy.GetModel().Conditions.MarketType)
+					if currentOHLCVp != nil {
+						strategy.Model.Conditions.EntryOrder.Amount = margin * strategy.Model.Conditions.Leverage / currentOHLCVp.Close
+						break
+					} else {
+						attempts += 1
+						time.Sleep(1 * time.Second)
+						continue
+					}
+				}
+			}
 		}
 	}
 
