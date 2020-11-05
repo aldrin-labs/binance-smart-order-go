@@ -24,7 +24,7 @@ func RunSmartOrder(strategy *Strategy, df interfaces.IDataFeed, td trading.ITrad
 	if strategy.Model.Conditions.MarketType == 0 {
 		strategy.Model.Conditions.Leverage = 1
 	}
-	if keyId == nil {
+	if keyId == nil || strategy.Model.Conditions.EntryOrder.Type == 1 {
 		KeyAssets := mongodb.GetCollection("core_key_assets") // TODO: move to statemgmt, avoid any direct dependecies here
 		keyAssetId := strategy.Model.Conditions.KeyAssetId.String()
 		var request bson.D
