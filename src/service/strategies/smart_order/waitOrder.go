@@ -111,6 +111,11 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 				model.State.ExecutedAmount += order.Filled
 			}
 
+			// TODO
+			// here I'll need to save pnl from entry - exit
+			// also clear entry and exit and wait for another target to be done
+			// model.State.ReceivedProfit = , mb add percentage also
+
 			model.State.ExitPrice = order.Average
 			amount := model.Conditions.EntryOrder.Amount
 			if model.Conditions.MarketType == 0 {

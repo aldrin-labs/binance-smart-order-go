@@ -14,6 +14,7 @@ import (
 
 type KeyAsset struct {
 	KeyId primitive.ObjectID `json:"keyId" bson:"keyId"`
+	Free  float64            `json:"free" bson:"free"`
 }
 
 func RunSmartOrder(strategy *Strategy, df interfaces.IDataFeed, td trading.ITrading, keyId *primitive.ObjectID) interfaces.IStrategyRuntime {
@@ -38,6 +39,12 @@ func RunSmartOrder(strategy *Strategy, df interfaces.IDataFeed, td trading.ITrad
 			log.Print("keyAssetsCursor ", err.Error())
 		}
 		keyId = &keyAsset.KeyId
+
+		// type 1 for entry point - relative amount
+		if strategy.Model.Conditions.EntryOrder.Type == 1 {
+			percentageOfBalance := strategy.Model.Conditions.EntryOrder.Amount
+			strategy.Model.Conditions.EntryOrder.Amount = keyAsset.Free / 100 * percentageOfBalance
+		}
 	}
 
 	if strategy.Model.Conditions.MarketType == 1 && !strategy.Model.Conditions.SkipInitialSetup {
