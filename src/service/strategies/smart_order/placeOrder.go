@@ -569,6 +569,11 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 					time.Sleep(5 * time.Second)
 					continue
 				}
+				if strings.Contains(response.Data.Msg, "Cannot read property 'text' of undefined") && attemptsToPlaceOrder < 3 {
+					attemptsToPlaceOrder += 1
+					time.Sleep(5 * time.Second)
+					continue
+				}
 				if strings.Contains(response.Data.Msg, "immediately trigger") {
 					if step == TrailingEntry {
 						orderType = "market"
