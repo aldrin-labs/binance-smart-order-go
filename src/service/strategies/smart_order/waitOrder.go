@@ -77,7 +77,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			model.State.ExecutedAmount += order.Filled
 			model.State.ExitPrice = order.Average
 
-			calculateAndSavePNL(model, sm.StateMgmt, step)
+			sm.calculateAndSavePNL(model, sm.StateMgmt, step)
 			sm.StateMgmt.UpdateExecutedAmount(model.ID, model.State)
 			if model.State.ExecutedAmount >= model.Conditions.EntryOrder.Amount {
 				return true
@@ -126,7 +126,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 				sm.placeMultiEntryOrders(false)
 			}
 
-			calculateAndSavePNL(model, sm.StateMgmt, step)
+			sm.calculateAndSavePNL(model, sm.StateMgmt, step)
 
 			if model.State.ExecutedAmount >= amount || model.Conditions.CloseStrategyAfterFirstTAP {
 				isTrailingHedgeOrder := model.Conditions.HedgeStrategyId != nil || model.Conditions.Hedging == true
@@ -147,7 +147,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 				amount = amount * 0.99
 			}
 
-			calculateAndSavePNL(model, sm.StateMgmt, step)
+			sm.calculateAndSavePNL(model, sm.StateMgmt, step)
 			log.Print("model.State.ExecutedAmount >= amount in SL ", model.State.ExecutedAmount >= amount)
 			if model.State.ExecutedAmount >= amount {
 				return true
@@ -162,7 +162,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 				amount = amount * 0.99
 			}
 
-			calculateAndSavePNL(model, sm.StateMgmt, step)
+			sm.calculateAndSavePNL(model, sm.StateMgmt, step)
 			log.Print("model.State.ExecutedAmount >= amount in ForcedLoss ", model.State.ExecutedAmount >= amount)
 			if model.State.ExecutedAmount >= amount {
 				return true
@@ -177,7 +177,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 				amount = amount * 0.99
 			}
 
-			calculateAndSavePNL(model, sm.StateMgmt, step)
+			sm.calculateAndSavePNL(model, sm.StateMgmt, step)
 			// close sm if bep executed
 			if model.State.ExecutedAmount >= amount || isMultiEntry {
 				model.State.State = End
@@ -194,7 +194,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 				amount = amount * 0.99
 			}
 
-			calculateAndSavePNL(model, sm.StateMgmt, step)
+			sm.calculateAndSavePNL(model, sm.StateMgmt, step)
 
 			if model.State.ExecutedAmount >= amount {
 				model.State.State = End
@@ -218,7 +218,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 	return false
 }
 
-func calculateAndSavePNL(model *models.MongoStrategy, stateMgmt interfaces.IStateMgmt, step interface{}) float64 {
+func (sm *SmartOrder) calculateAndSavePNL(model *models.MongoStrategy, stateMgmt interfaces.IStateMgmt, step interface{}) float64 {
 
 	leverage := model.Conditions.Leverage
 	if leverage == 0 {
@@ -226,14 +226,23 @@ func calculateAndSavePNL(model *models.MongoStrategy, stateMgmt interfaces.IStat
 	}
 
 	sideCoefficient := 1.0
+	isMultiEntry := len(model.Conditions.EntryLevels) > 0
+
 	amount := model.Conditions.EntryOrder.Amount
+	if isMultiEntry {
+		amount = sm.getAveragingEntryAmount(model)
+	}
+
 	side := model.Conditions.EntryOrder.Side
 	if side == "sell" {
 		sideCoefficient = -1.0
 	}
 
+	log.Println("model.State.ExitPrice ", model.State.ExitPrice, " model.State.EntryPrice ", model.State.EntryPrice, " leverage ", leverage)
 	profitPercentage := ((model.State.ExitPrice / model.State.EntryPrice) * 100 - 100) * leverage * sideCoefficient
+	log.Println("profitPercentage ", profitPercentage)
 	profitAmount := (amount / leverage) * model.State.EntryPrice * (profitPercentage / 100)
+	log.Println("profitAmount ", profitAmount)
 
 	log.Println("before ", model.State.ReceivedProfitPercentage," ", model.State.ReceivedProfitAmount)
 	model.State.ReceivedProfitPercentage += profitPercentage
@@ -245,7 +254,7 @@ func calculateAndSavePNL(model *models.MongoStrategy, stateMgmt interfaces.IStat
 	}
 
 	// if we got profit from target from averaging
-	if step == TakeProfit && len(model.Conditions.EntryLevels) > 0 {
+	if step == TakeProfit && isMultiEntry {
 		model.State.ExitPrice = 0
 		model.State.EntryPrice = 0
 	}

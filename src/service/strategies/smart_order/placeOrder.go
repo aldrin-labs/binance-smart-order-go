@@ -387,16 +387,7 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 		}
 
 		if len(model.Conditions.EntryLevels) > 0 {
-			baseAmount = 0.0
-			for i, target := range model.Conditions.EntryLevels {
-				if i <= sm.SelectedEntryTarget {
-					if target.Type == 0 {
-						baseAmount += target.Amount
-					} else {
-						baseAmount += target.Amount * model.Conditions.EntryOrder.Amount / 100
-					}
-				}
-			}
+			baseAmount = sm.getAveragingEntryAmount(model)
 		}
 		//log.Print("take profit price, orderPrice in the end", price, orderPrice)
 		// model.State.ExecutedAmount += amount
