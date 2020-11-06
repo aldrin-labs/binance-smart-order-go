@@ -54,7 +54,6 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 	order := args[0].(models.MongoOrder)
 	orderId := order.OrderId
 	step, ok := sm.StatusByOrderId.Load(orderId)
-	step = step.(string)
 	orderStatus := order.Status
 	//log.Print("step ok", step, ok, order.OrderId)
 	if orderStatus == "filled" || orderStatus == "canceled" && (step == WaitForEntry || step == TrailingEntry) {
