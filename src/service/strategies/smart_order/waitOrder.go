@@ -235,9 +235,13 @@ func calculateAndSavePNL(model *models.MongoStrategy, stateMgmt interfaces.IStat
 		sideCoefficient = -1.0
 	}
 
-	profitPercentage := ((model.State.ExitPrice/model.State.EntryPrice) *100 - 100) * leverage * sideCoefficient
+	log.Println("model.State.ExitPrice ", model.State.ExitPrice, " model.State.EntryPrice ", model.State.EntryPrice, " leverage ", leverage)
+	profitPercentage := ((model.State.ExitPrice / model.State.EntryPrice) * 100 - 100) * leverage * sideCoefficient
+	log.Println("profitPercentage ", profitPercentage)
 	profitAmount := (amount / leverage) * model.State.EntryPrice * (profitPercentage / 100)
+	log.Println("profitAmount ", profitAmount)
 
+	log.Println("before ", model.State.ReceivedProfitPercentage," ", model.State.ReceivedProfitAmount)
 	model.State.ReceivedProfitPercentage += profitPercentage
 	model.State.ReceivedProfitAmount += profitAmount
 
