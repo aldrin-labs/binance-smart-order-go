@@ -694,3 +694,29 @@ func (sm *StateMgmt) SaveStrategyConditions(strategy *models.MongoStrategy) {
 	strategy.State.TakeProfitPrice = strategy.Conditions.TakeProfitPrice
 	strategy.State.TakeProfitHedgePrice = strategy.Conditions.TakeProfitHedgePrice
 }
+
+func (sm *StateMgmt) UpdateStateAndConditions(strategyId *primitive.ObjectID, model *models.MongoStrategy) {
+	col := GetCollection("core_strategies")
+	var request bson.D
+	request = bson.D{
+		{"_id", strategyId},
+	}
+	var update bson.D
+	update = bson.D{
+		{
+			"$set", bson.D{
+			{
+				"conditions", model.Conditions,
+			},
+			{
+				"state", model.State,
+			},
+		},
+		},
+	}
+	_, err := col.UpdateOne(context.TODO(), request, update)
+	if err != nil {
+		log.Print("error in arg", err.Error())
+	}
+	// log.Print(res)
+}

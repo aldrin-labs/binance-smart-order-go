@@ -109,6 +109,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			sm.IsWaitingForOrder.Store(TakeProfit, false)
 			amount := model.Conditions.EntryOrder.Amount
 
+			model.State.ExitPrice = order.Average
 			if order.Filled > 0 {
 				model.State.ExecutedAmount += order.Filled
 			}
@@ -230,6 +231,9 @@ func (sm *SmartOrder) calculateAndSavePNL(model *models.MongoStrategy, stateMgmt
 
 	amount := model.Conditions.EntryOrder.Amount
 	if isMultiEntry {
+		// TODO, for avg without placeEntryAfterTAP
+		// we should include case wen it was simple averaging and we execute one target with profit and other with SL for example
+		// so for SL we'll use not all amount
 		amount = sm.getAveragingEntryAmount(model)
 	}
 
