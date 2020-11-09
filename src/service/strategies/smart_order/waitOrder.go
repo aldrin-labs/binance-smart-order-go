@@ -130,7 +130,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			sm.calculateAndSavePNL(model, sm.StateMgmt, step)
 
 			if model.State.ExecutedAmount >= amount || model.Conditions.CloseStrategyAfterFirstTAP {
-				isTrailingHedgeOrder := model.Conditions.HedgeStrategyId != nil || model.Conditions.Hedging == true
+				isTrailingHedgeOrder := model.Conditions.HedgeStrategyId != nil || model.Conditions.Hedging
 
 				if isTrailingHedgeOrder {
 					model.State.State = WaitLossHedge

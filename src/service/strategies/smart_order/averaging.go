@@ -16,6 +16,13 @@ func (sm *SmartOrder) placeMultiEntryOrders(stopLoss bool) {
 	sm.SelectedEntryTarget = 0
 	currentPrice := model.Conditions.EntryLevels[0].Price
 
+	if stopLoss {
+		sm.PlaceOrder(currentPrice, 0.0, Stoploss)
+		if model.Conditions.ForcedLoss > 0 {
+			sm.PlaceOrder(currentPrice, 0.0, "ForcedLoss")
+		}
+	}
+
 	sumAmount := 0.0
 	sumTotal := 0.0
 
@@ -44,14 +51,9 @@ func (sm *SmartOrder) placeMultiEntryOrders(stopLoss bool) {
 
 	// TODO, for averaging without placeEntryAfterTAP
 	// we should replace stop loss if it's simple avg without placeEntryAfterTAP
-	// coz it may affect on existing position
+	// coz it may affect on existing position by amount > left from entry targets
 
-	if stopLoss {
-		sm.PlaceOrder(currentPrice, 0.0, Stoploss)
-		if model.Conditions.ForcedLoss > 0 {
-			sm.PlaceOrder(currentPrice, 0.0, "ForcedLoss")
-		}
-	}
+
 }
 
 func (sm *SmartOrder) entryMultiEntry(ctx context.Context, args ...interface{}) error {

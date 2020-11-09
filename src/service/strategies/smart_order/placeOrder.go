@@ -239,7 +239,7 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 		orderType = prefix + "limit"
 		fee := 0.12
 
-		log.Println("amount", amount)
+		log.Println("WithoutLoss amount ", amount, " entryPrice ", model.State.EntryPrice)
 		if amount > 0 {
 			baseAmount = amount
 		}
@@ -256,7 +256,7 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 		if model.Conditions.Hedging || model.Conditions.HedgeMode {
 			fee = fee * 4
 		} else if len(model.Conditions.EntryLevels) > 0 {
-			fee = fee * float64(sm.SelectedEntryTarget + 1)
+			fee = fee * float64(sm.SelectedEntryTarget + 2)
 		} else {
 			fee = fee * 2
 		}
