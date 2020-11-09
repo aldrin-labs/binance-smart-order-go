@@ -571,6 +571,11 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 						stopPrice = 0.0
 						ifShouldCancelPreviousOrder = false
 						continue
+					} else if len(model.Conditions.EntryLevels) > 0 && (step == Stoploss || step == "ForcedLoss") && attemptsToPlaceOrder < 3 {
+						// we need to cancel orders, then wait then place cancel order
+						attemptsToPlaceOrder += 1
+						time.Sleep(5 * time.Second)
+						continue
 					} else {
 						sm.PlaceOrder(0, 0.0, Canceled)
 						break
