@@ -242,7 +242,10 @@ func (sm *SmartOrder) checkWaitEntry(ctx context.Context, args ...interface{}) b
 	if sm.Strategy.GetModel().Conditions.EntrySpreadHunter {
 		return false
 	}
-	currentOHLCV := args[0].(interfaces.OHLCV)
+	if len(sm.Strategy.GetModel().Conditions.EntryLevels) > 0 {
+		return false
+	}
+		currentOHLCV := args[0].(interfaces.OHLCV)
 	model := sm.Strategy.GetModel()
 	conditionPrice := model.Conditions.EntryOrder.Price
 	isInstantMarketOrder := model.Conditions.EntryOrder.ActivatePrice == 0 && model.Conditions.EntryOrder.OrderType == "market"
