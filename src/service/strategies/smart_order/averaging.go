@@ -102,3 +102,25 @@ func (sm *SmartOrder) getAveragingEntryAmount(model *models.MongoStrategy) float
 	}
 	return baseAmount
 }
+
+func (sm *SmartOrder) getLastTargetPrice(model *models.MongoStrategy) float64 {
+	currentPrice := 0.0
+	for i, target := range model.Conditions.EntryLevels {
+		// executed target
+		if i <= sm.SelectedEntryTarget {
+			currentPrice = model.State.EntryPrice
+		} else {
+			// target that will be executed (placed already)
+			if target.Type == 0 {
+				currentPrice = target.Price
+			} else {
+				if model.Conditions.EntryOrder.Side == "buy" {
+					currentPrice = currentPrice * (100 - target.Price/model.Conditions.Leverage) / 100
+				} else {
+					currentPrice = currentPrice * (100 + target.Price/model.Conditions.Leverage) / 100
+				}
+			}
+		}
+	}
+	return currentPrice
+}

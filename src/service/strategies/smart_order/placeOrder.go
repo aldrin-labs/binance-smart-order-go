@@ -571,8 +571,22 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 						stopPrice = 0.0
 						ifShouldCancelPreviousOrder = false
 						continue
-					} else if len(model.Conditions.EntryLevels) > 0 && (step == Stoploss || step == "ForcedLoss") && attemptsToPlaceOrder < 3 {
-						// we need to cancel orders, then wait then place cancel order
+					} else if len(model.Conditions.EntryLevels) > 0 &&
+						(step == Stoploss || step == "ForcedLoss") && attemptsToPlaceOrder < 3 {
+
+						lossPercentage := model.Conditions.StopLoss
+						if step == "ForcedLoss" {
+							lossPercentage = model.Conditions.ForcedLoss
+						}
+
+						price = sm.getLastTargetPrice(model)
+
+						if side == "sell" {
+							orderPrice = price * (1 - lossPercentage/100/leverage)
+						} else {
+							orderPrice = price * (1 + lossPercentage/100/leverage)
+						}
+
 						attemptsToPlaceOrder += 1
 						time.Sleep(5 * time.Second)
 						continue
