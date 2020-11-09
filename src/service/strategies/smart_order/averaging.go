@@ -15,14 +15,6 @@ func (sm *SmartOrder) placeMultiEntryOrders(stopLoss bool) {
 	model := sm.Strategy.GetModel()
 	sm.SelectedEntryTarget = 0
 	currentPrice := model.Conditions.EntryLevels[0].Price
-
-	if stopLoss {
-		sm.PlaceOrder(currentPrice, 0.0, Stoploss)
-		if model.Conditions.ForcedLoss > 0 {
-			sm.PlaceOrder(currentPrice, 0.0, "ForcedLoss")
-		}
-	}
-
 	sumAmount := 0.0
 	sumTotal := 0.0
 
@@ -33,8 +25,7 @@ func (sm *SmartOrder) placeMultiEntryOrders(stopLoss bool) {
 		if target.Type == 0 {
 			currentAmount = target.Amount
 			currentPrice = target.Price
-			sm.PlaceOrder(currentPrice, currentAmount, WaitForEntry)
-
+			go sm.PlaceOrder(currentPrice, currentAmount, WaitForEntry)
 		} else {
 			currentAmount = model.Conditions.EntryOrder.Amount / 100 * target.Amount
 			if model.Conditions.EntryOrder.Side == "buy" {
@@ -42,11 +33,18 @@ func (sm *SmartOrder) placeMultiEntryOrders(stopLoss bool) {
 			} else {
 				currentPrice = currentPrice * (100 + target.Price/model.Conditions.Leverage) / 100
 			}
-			sm.PlaceOrder(currentPrice, currentAmount, WaitForEntry)
+			go sm.PlaceOrder(currentPrice, currentAmount, WaitForEntry)
 		}
 
 		sumAmount += currentAmount
 		sumTotal += currentAmount * currentPrice
+	}
+
+	if stopLoss {
+		go sm.PlaceOrder(currentPrice, 0.0, Stoploss)
+		if model.Conditions.ForcedLoss > 0 {
+			go sm.PlaceOrder(currentPrice, 0.0, "ForcedLoss")
+		}
 	}
 
 	// TODO, for averaging without placeEntryAfterTAP
