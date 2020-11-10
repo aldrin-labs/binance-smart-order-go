@@ -373,6 +373,7 @@ func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) 
 		//		err := json.Unmarshal([]byte(data), &event)
 		if err != nil {
 			log.Print("event decode error on processing strategy", err.Error())
+			continue
 		}
 
 		if event.FullDocument.ID == nil {
@@ -380,6 +381,7 @@ func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) 
 			continue
 		}
 
+		// disable SM for Anton in dev
 		if event.FullDocument.AccountId != nil && event.FullDocument.AccountId.Hex() == "5e4ce62b1318ef1b1e85b6f4" {
 			continue
 		}
@@ -406,6 +408,7 @@ func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) 
 			}
 		}
 	}
+	log.Println("Finish WatchStrategies")
 	return nil
 }
 
