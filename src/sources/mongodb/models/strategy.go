@@ -140,6 +140,7 @@ type MongoStrategyState struct {
 	TrailingExitPrice  float64   `json:"trailingExitPrice,omitempty" bson:"trailingExitPrice"`
 	TrailingExitPrices []float64 `json:"trailingExitPrices,omitempty" bson:"trailingExitPrices"`
 	EntryPrice         float64   `json:"entryPrice,omitempty" bson:"entryPrice"`
+	SavedEntryPrice         float64   `json:"savedEntryPrice,omitempty" bson:"savedEntryPrice"`
 	ExitPrice          float64   `json:"exitPrice,omitempty" bson:"exitPrice"`
 	Amount             float64   `json:"amount,omitempty" bson:"amount"`
 	Orders             []string  `json:"orders,omitempty" bson:"orders"`

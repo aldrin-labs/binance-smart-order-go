@@ -230,6 +230,12 @@ func (sm *SmartOrder) calculateAndSavePNL(model *models.MongoStrategy, stateMgmt
 	isMultiEntry := len(model.Conditions.EntryLevels) > 0
 
 	amount := model.Conditions.EntryOrder.Amount
+	entryPrice := model.State.EntryPrice
+	// somehow we execute tap without entry
+	if entryPrice == 0 {
+		entryPrice = model.State.SavedEntryPrice
+	}
+	
 	if isMultiEntry {
 		// TODO, for avg without placeEntryAfterTAP
 		// we should include case wen it was simple averaging and we execute one target with profit and other with SL for example
@@ -263,6 +269,7 @@ func (sm *SmartOrder) calculateAndSavePNL(model *models.MongoStrategy, stateMgmt
 	// if we got profit from target from averaging
 	if step == TakeProfit && isMultiEntry {
 		model.State.ExitPrice = 0
+		model.State.SavedEntryPrice = model.State.EntryPrice
 		model.State.EntryPrice = 0
 	}
 
