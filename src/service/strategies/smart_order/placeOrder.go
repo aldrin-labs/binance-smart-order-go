@@ -387,7 +387,7 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 		}
 
 		if len(model.Conditions.EntryLevels) > 0 {
-			baseAmount = sm.getAveragingEntryAmount(model)
+			baseAmount = sm.getAveragingEntryAmount(model, sm.SelectedEntryTarget)
 		}
 		//log.Print("take profit price, orderPrice in the end", price, orderPrice)
 		// model.State.ExecutedAmount += amount

@@ -234,7 +234,10 @@ func (sm *SmartOrder) calculateAndSavePNL(model *models.MongoStrategy, stateMgmt
 		// TODO, for avg without placeEntryAfterTAP
 		// we should include case wen it was simple averaging and we execute one target with profit and other with SL for example
 		// so for SL we'll use not all amount
-		amount = sm.getAveragingEntryAmount(model)
+
+		// we execute this func after close order execution
+		// but selected target points to next target which is in state "placed entry order"
+		amount = sm.getAveragingEntryAmount(model, sm.SelectedEntryTarget - 1)
 	}
 
 	side := model.Conditions.EntryOrder.Side

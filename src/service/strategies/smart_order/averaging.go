@@ -67,7 +67,7 @@ func (sm *SmartOrder) entryMultiEntry(ctx context.Context, args ...interface{}) 
 
 	// place BEP
 	if model.Conditions.EntryLevels[sm.SelectedEntryTarget].PlaceWithoutLoss {
-		sm.PlaceOrder(0, sm.getAveragingEntryAmount(model), "WithoutLoss")
+		sm.PlaceOrder(0, sm.getAveragingEntryAmount(model, sm.SelectedEntryTarget), "WithoutLoss")
 	}
 
 	// cancel old TAP
@@ -89,10 +89,10 @@ func (sm *SmartOrder) entryMultiEntry(ctx context.Context, args ...interface{}) 
 	return nil
 }
 
-func (sm *SmartOrder) getAveragingEntryAmount(model *models.MongoStrategy) float64 {
+func (sm *SmartOrder) getAveragingEntryAmount(model *models.MongoStrategy, executedTargets int) float64 {
 	baseAmount := 0.0
 	for i, target := range model.Conditions.EntryLevels {
-		if i <= sm.SelectedEntryTarget {
+		if i <= executedTargets {
 			if target.Type == 0 {
 				baseAmount += target.Amount
 			} else {
