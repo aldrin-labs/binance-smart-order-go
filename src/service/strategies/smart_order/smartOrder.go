@@ -708,7 +708,7 @@ func (sm *SmartOrder) Stop() {
 	} else {
 		log.Print("cancel orders a bit lower than start of stop")
 		go sm.TryCancelAllOrders(sm.Strategy.GetModel().State.Orders)
-		
+
 		// handle case when order was creating while Stop func execution
 		go func() {
 			time.Sleep(5 * time.Second)

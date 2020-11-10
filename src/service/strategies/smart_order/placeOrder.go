@@ -275,6 +275,11 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 		if price > 0 {
 			orderPrice = price
 		}
+		
+		if len(model.Conditions.EntryLevels) > 0 {
+			orderType = "take-profit-" + "limit"
+			break
+		}
 
 		currentOHLCVp := sm.DataFeed.GetPriceForPairAtExchange(sm.Strategy.GetModel().Conditions.Pair, sm.ExchangeName, sm.Strategy.GetModel().Conditions.MarketType)
 		if currentOHLCVp != nil {
