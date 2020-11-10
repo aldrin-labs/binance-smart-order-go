@@ -375,7 +375,11 @@ func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) 
 			log.Print("event decode error on processing strategy", err.Error())
 		}
 
-		log.Println("new s ", event.FullDocument.ID.Hex())
+		if event.FullDocument.ID == nil {
+			log.Println("new SM ID nil ", event.FullDocument)
+			continue
+		}
+
 		if event.FullDocument.AccountId != nil && event.FullDocument.AccountId.Hex() == "5e4ce62b1318ef1b1e85b6f4" {
 			continue
 		}
