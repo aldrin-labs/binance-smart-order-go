@@ -251,10 +251,10 @@ func (sm *SmartOrder) calculateAndSavePNL(model *models.MongoStrategy, stateMgmt
 		sideCoefficient = -1.0
 	}
 
-	log.Println("model.State.ExitPrice ", model.State.ExitPrice, " model.State.EntryPrice ", model.State.EntryPrice, " leverage ", leverage)
-	profitPercentage := ((model.State.ExitPrice / model.State.EntryPrice) * 100 - 100) * leverage * sideCoefficient
+	log.Println("model.State.ExitPrice ", model.State.ExitPrice, " model.State.EntryPrice ", entryPrice, " leverage ", leverage)
+	profitPercentage := ((model.State.ExitPrice / entryPrice) * 100 - 100) * leverage * sideCoefficient
 	log.Println("profitPercentage ", profitPercentage)
-	profitAmount := (amount / leverage) * model.State.EntryPrice * (profitPercentage / 100)
+	profitAmount := (amount / leverage) * entryPrice * (profitPercentage / 100)
 	log.Println("profitAmount ", profitAmount)
 
 	log.Println("before ", model.State.ReceivedProfitPercentage," ", model.State.ReceivedProfitAmount)
@@ -269,7 +269,7 @@ func (sm *SmartOrder) calculateAndSavePNL(model *models.MongoStrategy, stateMgmt
 	// if we got profit from target from averaging
 	if step == TakeProfit && isMultiEntry {
 		model.State.ExitPrice = 0
-		model.State.SavedEntryPrice = model.State.EntryPrice
+		model.State.SavedEntryPrice = entryPrice
 		model.State.EntryPrice = 0
 	}
 
