@@ -2,6 +2,7 @@ package smart_order
 
 import (
 	"context"
+	statsd_client "gitlab.com/crypto_project/core/strategy_service/src/statsd"
 	"log"
 	"math"
 	"reflect"
@@ -57,6 +58,7 @@ type SmartOrder struct {
 	KeyId                   *primitive.ObjectID
 	DataFeed                interfaces.IDataFeed
 	ExchangeApi             trading.ITrading
+	Statsd                  statsd_client.StatsdClient
 	StateMgmt               interfaces.IStateMgmt
 	IsWaitingForOrder       sync.Map // TODO: this must be filled on start of SM if not first start (e.g. restore the state by checking order statuses)
 	IsEntryOrderPlaced      bool     // we need it for case when response from createOrder was returned after entryTimeout was executed
@@ -82,7 +84,7 @@ func (sm *SmartOrder) toFixed(num float64, precision int64) float64 {
 	return float64(round(num*output)) / output
 }
 
-func NewSmartOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed, TradingAPI trading.ITrading, keyId *primitive.ObjectID, stateMgmt interfaces.IStateMgmt) *SmartOrder {
+func NewSmartOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed, TradingAPI trading.ITrading, Statsd statsd_client.StatsdClient, keyId *primitive.ObjectID, stateMgmt interfaces.IStateMgmt) *SmartOrder {
 
 	sm := &SmartOrder{Strategy: strategy, DataFeed: DataFeed, ExchangeApi: TradingAPI, KeyId: keyId, StateMgmt: stateMgmt, Lock: false, SelectedExitTarget: 0, OrdersMap: map[string]bool{}}
 	initState := WaitForEntry
@@ -717,6 +719,7 @@ func (sm *SmartOrder) Stop() {
 	}
 	StateS := sm.Strategy.GetModel().State.State
 	if state != End && StateS != Timeout && sm.Strategy.GetModel().Conditions.EntrySpreadHunter == false {
+		sm.Statsd.Inc("strategy_service.ended_with_not_end_status")
 		sm.PlaceOrder(0, 0.0, Canceled)
 	}
 	if sm.Strategy.GetModel().Conditions.ContinueIfEnded == false {

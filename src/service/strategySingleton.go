@@ -9,6 +9,7 @@ import (
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/redis"
+	statsd_client "gitlab.com/crypto_project/core/strategy_service/src/statsd"
 	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -26,6 +27,7 @@ type StrategyService struct {
 	trading    trading.ITrading
 	dataFeed   interfaces.IDataFeed
 	stateMgmt  interfaces.IStateMgmt
+	statsd     statsd_client.StatsdClient
 }
 
 var singleton *StrategyService
@@ -37,12 +39,15 @@ func GetStrategyService() *StrategyService {
 		df := redis.InitRedis()
 		tr := trading.InitTrading()
 		sm := mongodb.StateMgmt{}
+		statsd := statsd_client.StatsdClient{}
+		statsd.Init()
 		go sm.InitOrdersWatch()
 		singleton = &StrategyService{
 			strategies: map[string]*strategies.Strategy{},
 			dataFeed: df,
 			trading: tr,
 			stateMgmt: &sm,
+			statsd: statsd,
 		}
 	})
 	return singleton
@@ -67,6 +72,10 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 		log.Print("log.Fatal on finding enabled strategies ", err)
 		wg.Done()
 		//log.Fatal(err)
+	}
+	if cur == nil {
+		log.Print("finding strategies, cur == nil")
+		wg.Done()
 	}
 	defer cur.Close(ctx)
 
@@ -98,14 +107,15 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 	}
 }
 
-func GetStrategy(strategy *models.MongoStrategy, df interfaces.IDataFeed, tr trading.ITrading, st interfaces.IStateMgmt, ss *StrategyService) *strategies.Strategy {
-	return &strategies.Strategy{Model:strategy, Datafeed: df, Trading: tr, StateMgmt: st, Singleton: ss }
+func GetStrategy(strategy *models.MongoStrategy, df interfaces.IDataFeed, tr trading.ITrading, st interfaces.IStateMgmt, statsd statsd_client.StatsdClient, ss *StrategyService) *strategies.Strategy {
+	return &strategies.Strategy{Model:strategy, Datafeed: df, Trading: tr, StateMgmt: st, Singleton: ss, Statsd: statsd, }
 }
 
 func (ss *StrategyService) AddStrategy(strategy * models.MongoStrategy) {
 	if ss.strategies[strategy.ID.String()] == nil {
-		sig := GetStrategy(strategy, ss.dataFeed, ss.trading, ss.stateMgmt, ss)
+		sig := GetStrategy(strategy, ss.dataFeed, ss.trading, ss.stateMgmt, ss.statsd, ss)
 		log.Print("start objid ", sig.Model.ID.String())
+		ss.statsd.Inc("strategy_service.created_strategy")
 		ss.strategies[sig.Model.ID.String()] = sig
 		go sig.Start()
 	}
@@ -386,7 +396,7 @@ func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) 
 			continue
 		}
 		if event.FullDocument.Type == 2 && event.FullDocument.State.ColdStart  {
-			sig := GetStrategy(&event.FullDocument, ss.dataFeed, ss.trading, ss.stateMgmt, ss)
+			sig := GetStrategy(&event.FullDocument, ss.dataFeed, ss.trading, ss.stateMgmt, ss.statsd, ss)
 			ss.strategies[event.FullDocument.ID.String()] = sig
 			log.Println("continue in maker-only cold start")
 			continue
@@ -621,5 +631,6 @@ func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
 		}
 	}
 
+	ss.statsd.Inc("strategy_service.edited_conditions`")
 	strategy.StateMgmt.SaveStrategyConditions(strategy.Model)
 }

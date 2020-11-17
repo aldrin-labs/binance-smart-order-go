@@ -6,6 +6,7 @@ import (
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies/smart_order"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
+	statsd_client "gitlab.com/crypto_project/core/strategy_service/src/statsd"
 	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -18,7 +19,7 @@ type KeyAsset struct {
 	Free  float64            `json:"free" bson:"free"`
 }
 
-func RunSmartOrder(strategy *Strategy, df interfaces.IDataFeed, td trading.ITrading, keyId *primitive.ObjectID) interfaces.IStrategyRuntime {
+func RunSmartOrder(strategy *Strategy, df interfaces.IDataFeed, td trading.ITrading, st statsd_client.StatsdClient, keyId *primitive.ObjectID) interfaces.IStrategyRuntime {
 	if strategy.Model.Conditions.Leverage == 0 {
 		strategy.Model.Conditions.Leverage = 1
 	}
@@ -64,7 +65,7 @@ func RunSmartOrder(strategy *Strategy, df interfaces.IDataFeed, td trading.ITrad
 
 	strategy.StateMgmt.SaveStrategyConditions(strategy.Model)
 	strategy.StateMgmt.UpdateStateAndConditions(strategy.Model.ID, strategy.Model)
-	runtime := smart_order.NewSmartOrder(strategy, df, td, keyId, strategy.StateMgmt)
+	runtime := smart_order.NewSmartOrder(strategy, df, td, st, keyId, strategy.StateMgmt)
 	go runtime.Start()
 
 	return runtime
