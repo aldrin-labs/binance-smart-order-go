@@ -186,6 +186,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 				return true
 			}
 		case Canceled:
+			sm.IsWaitingForOrder.Store(step, false)
 			if order.Filled > 0 {
 				model.State.ExecutedAmount += order.Filled
 			}

@@ -484,8 +484,8 @@ func (ss *StrategyService) InitPositionsWatch() {
 				}
 			}
 		}(positionEventDecoded)
-		log.Println("InitPositionsWatch End")
 	}
+	log.Println("InitPositionsWatch End")
 }
 
 func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {

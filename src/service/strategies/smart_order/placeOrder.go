@@ -398,24 +398,26 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 		// model.State.ExecutedAmount += amount
 		break
 	case Canceled:
-		{
-			currentState, _ := sm.State.State(context.TODO())
-			thereIsNoEntryToExit := (currentState == WaitForEntry && model.State.Amount == 0) || currentState == TrailingEntry || currentState == End || model.State.ExecutedAmount >= model.Conditions.EntryOrder.Amount
-			if thereIsNoEntryToExit {
+		currentState, _ := sm.State.State(context.TODO())
+		thereIsNoEntryToExit := (currentState == WaitForEntry && model.State.Amount == 0) || currentState == TrailingEntry ||
+			currentState == End || model.State.ExecutedAmount >= model.Conditions.EntryOrder.Amount
+
+		// if canceled order was already placed
+		isWaitingForOrder, ok := sm.IsWaitingForOrder.Load(Canceled)
+		if thereIsNoEntryToExit || (ok && isWaitingForOrder.(bool)) {
 				return
 			}
-			side = oppositeSide
-			reduceOnly = true
-			baseAmount = model.Conditions.EntryOrder.Amount
-			orderType = "market"
-			if isSpot {
-				sm.TryCancelAllOrdersConsistently(sm.Strategy.GetModel().State.Orders)
-			}
-			if model.State.Amount > 0 && currentState == WaitForEntry {
-				baseAmount = model.State.Amount
-			}
-			break
+		side = oppositeSide
+		reduceOnly = true
+		baseAmount = model.Conditions.EntryOrder.Amount
+		orderType = "market"
+		if isSpot {
+			sm.TryCancelAllOrdersConsistently(sm.Strategy.GetModel().State.Orders)
 		}
+		if model.State.Amount > 0 && currentState == WaitForEntry {
+			baseAmount = model.State.Amount
+		}
+		break
 	}
 	baseAmount = sm.toFixed(baseAmount, sm.QuantityAmountPrecision)
 	orderPrice = sm.toFixed(orderPrice, sm.QuantityPricePrecision)
@@ -480,7 +482,7 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 		} else {
 			request.KeyParams.PositionSide = "BOTH"
 		}
-		log.Print("create order step ", step, " amount ", baseAmount)
+		log.Print("create order strategyId ", sm.Strategy.GetModel().ID, " step ", step, " amount ", baseAmount)
 		if step == WaitForEntry {
 			sm.IsEntryOrderPlaced = true
 			sm.IsWaitingForOrder.Store(step, true)
