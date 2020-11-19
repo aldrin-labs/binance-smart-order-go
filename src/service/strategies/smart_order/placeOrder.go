@@ -529,7 +529,9 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 				log.Print("order 0")
 			}
 			if step != Canceled {
+				sm.OrdersMux.Lock()
 				model.State.Orders = append(model.State.Orders, response.Data.OrderId)
+				sm.OrdersMux.Unlock()
 				sm.StateMgmt.UpdateOrders(model.ID, model.State)
 			}
 			break

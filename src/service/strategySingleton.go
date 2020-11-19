@@ -41,7 +41,6 @@ func GetStrategyService() *StrategyService {
 		sm := mongodb.StateMgmt{}
 		statsd := statsd_client.StatsdClient{}
 		statsd.Init()
-		go sm.InitOrdersWatch()
 		singleton = &StrategyService{
 			strategies: map[string]*strategies.Strategy{},
 			dataFeed: df,
@@ -97,8 +96,11 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 		GetStrategyService().strategies[strategy.Model.ID.String()] = strategy
 		go strategy.Start()
 	}
+
 	go ss.InitPositionsWatch()
-	ss.WatchStrategies(isLocalBuild, accountId)
+	go ss.stateMgmt.InitOrdersWatch()
+	_ = ss.WatchStrategies(isLocalBuild, accountId)
+
 	//ss.WatchStrategies()
 	if err := cur.Err(); err != nil {
 		log.Print("log.Fatal at the end of init func")
@@ -482,6 +484,7 @@ func (ss *StrategyService) InitPositionsWatch() {
 				}
 			}
 		}(positionEventDecoded)
+		log.Println("InitPositionsWatch End")
 	}
 }
 
