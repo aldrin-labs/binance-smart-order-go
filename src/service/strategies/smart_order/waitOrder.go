@@ -2,7 +2,6 @@ package smart_order
 
 import (
 	"context"
-	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
 	"log"
 )
@@ -77,7 +76,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			model.State.ExecutedAmount += order.Filled
 			model.State.ExitPrice = order.Average
 
-			sm.calculateAndSavePNL(model, sm.StateMgmt, step)
+			sm.calculateAndSavePNL(model, step, order.Filled)
 			sm.StateMgmt.UpdateExecutedAmount(model.ID, model.State)
 			if model.State.ExecutedAmount >= model.Conditions.EntryOrder.Amount {
 				return true
@@ -88,6 +87,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			}
 			model.State.EntryPrice = order.Average
 			model.State.State = InEntry
+			model.State.PositionAmount += order.Filled
 			sm.StateMgmt.UpdateEntryPrice(model.ID, model.State)
 			return true
 		case WaitForEntry:
@@ -95,9 +95,12 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			if model.State.EntryPrice > 0 && !isMultiEntry {
 				return false
 			}
-			log.Print("waitoForEntry in waitOrder average ", order.Average)
+			log.Print("waitForEntry in waitOrder average ", order.Average)
+
 			model.State.EntryPrice = order.Average
 			model.State.State = InEntry
+			model.State.PositionAmount += order.Filled
+
 			log.Print("isMultiEntry ", isMultiEntry)
 			if isMultiEntry {
 				model.State.State = InMultiEntry
@@ -127,7 +130,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 				sm.placeMultiEntryOrders(false)
 			}
 
-			sm.calculateAndSavePNL(model, sm.StateMgmt, step)
+			sm.calculateAndSavePNL(model, step, order.Filled)
 
 			if model.State.ExecutedAmount >= amount || model.Conditions.CloseStrategyAfterFirstTAP {
 				isTrailingHedgeOrder := model.Conditions.HedgeStrategyId != nil || model.Conditions.Hedging
@@ -148,7 +151,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 				amount = amount * 0.99
 			}
 
-			sm.calculateAndSavePNL(model, sm.StateMgmt, step)
+			sm.calculateAndSavePNL(model, step, order.Filled)
 			log.Print("model.State.ExecutedAmount >= amount in SL ", model.State.ExecutedAmount >= amount)
 			if model.State.ExecutedAmount >= amount {
 				return true
@@ -163,7 +166,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 				amount = amount * 0.99
 			}
 
-			sm.calculateAndSavePNL(model, sm.StateMgmt, step)
+			sm.calculateAndSavePNL(model, step, order.Filled)
 			log.Print("model.State.ExecutedAmount >= amount in ForcedLoss ", model.State.ExecutedAmount >= amount)
 			if model.State.ExecutedAmount >= amount {
 				return true
@@ -178,7 +181,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 				amount = amount * 0.99
 			}
 
-			sm.calculateAndSavePNL(model, sm.StateMgmt, step)
+			sm.calculateAndSavePNL(model, step, order.Filled)
 			// close sm if bep executed
 			if model.State.ExecutedAmount >= amount || isMultiEntry {
 				model.State.State = End
@@ -196,7 +199,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 				amount = amount * 0.99
 			}
 
-			sm.calculateAndSavePNL(model, sm.StateMgmt, step)
+			sm.calculateAndSavePNL(model, step, order.Filled)
 
 			if model.State.ExecutedAmount >= amount {
 				model.State.State = End
@@ -220,7 +223,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 	return false
 }
 
-func (sm *SmartOrder) calculateAndSavePNL(model *models.MongoStrategy, stateMgmt interfaces.IStateMgmt, step interface{}) float64 {
+func (sm *SmartOrder) calculateAndSavePNL(model *models.MongoStrategy,  step interface{}, filledAmount float64) float64 {
 
 	leverage := model.Conditions.Leverage
 	if leverage == 0 {
@@ -230,21 +233,14 @@ func (sm *SmartOrder) calculateAndSavePNL(model *models.MongoStrategy, stateMgmt
 	sideCoefficient := 1.0
 	isMultiEntry := len(model.Conditions.EntryLevels) > 0
 
-	amount := model.Conditions.EntryOrder.Amount
+	log.Println("PositionAmount ", model.State.PositionAmount, " filledAmount ", filledAmount)
+	model.State.PositionAmount -= filledAmount
+
+	amount := model.State.PositionAmount
 	entryPrice := model.State.EntryPrice
 	// somehow we execute tap without entry
 	if entryPrice == 0 {
 		entryPrice = model.State.SavedEntryPrice
-	}
-	
-	if isMultiEntry {
-		// TODO, for avg without placeEntryAfterTAP
-		// we should include case wen it was simple averaging and we execute one target with profit and other with SL for example
-		// so for SL we'll use not all amount
-
-		// we execute this func after close order execution
-		// but selected target points to next target which is in state "placed entry order"
-		amount = sm.getAveragingEntryAmount(model, sm.SelectedEntryTarget - 1)
 	}
 
 	side := model.Conditions.EntryOrder.Side
@@ -264,7 +260,7 @@ func (sm *SmartOrder) calculateAndSavePNL(model *models.MongoStrategy, stateMgmt
 
 
 	if model.Conditions.CreatedByTemplate {
-		go stateMgmt.SavePNL(model.Conditions.TemplateStrategyId, profitAmount)
+		go sm.Strategy.GetStateMgmt().SavePNL(model.Conditions.TemplateStrategyId, profitAmount)
 	}
 
 	// if we got profit from target from averaging
@@ -274,7 +270,7 @@ func (sm *SmartOrder) calculateAndSavePNL(model *models.MongoStrategy, stateMgmt
 		model.State.EntryPrice = 0
 	}
 
-	stateMgmt.UpdateStrategyState(model.ID, model.State)
+	sm.Strategy.GetStateMgmt().UpdateStrategyState(model.ID, model.State)
 
 	return profitAmount
 }

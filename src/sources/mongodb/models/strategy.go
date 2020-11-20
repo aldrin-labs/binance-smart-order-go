@@ -155,6 +155,7 @@ type MongoStrategyState struct {
 	ProfitAt        int64 `json:"profitAt,omitempty" bson:"profitAt"`
 	CloseStrategyAfterFirstTAP bool `json:"closeStrategyAfterFirstTAP,omitempty" bson:"closeStrategyAfterFirstTAP"`
 
+	PositionAmount           float64 `json:"positionAmount,omitempty" bson:"positionAmount"`
 	ReceivedProfitAmount     float64 `json:"receivedProfitAmount,omitempty" bson:"receivedProfitAmount"`
 	ReceivedProfitPercentage float64 `json:"receivedProfitPercentage,omitempty" bson:"receivedProfitPercentage"`
 }
