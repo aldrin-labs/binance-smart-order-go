@@ -243,6 +243,11 @@ func (sm *SmartOrder) calculateAndSavePNL(model *models.MongoStrategy,  step int
 		entryPrice = model.State.SavedEntryPrice
 	}
 
+	if entryPrice == 0 || model.State.ExitPrice == 0 {
+		log.Println("calculateAndSavePNL: entry or exit price 0, entry: ", entryPrice, " exit: ", model.State.ExitPrice)
+		return 0
+	}
+
 	side := model.Conditions.EntryOrder.Side
 	if side == "sell" {
 		sideCoefficient = -1.0
