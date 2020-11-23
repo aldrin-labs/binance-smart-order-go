@@ -97,15 +97,24 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			}
 			log.Print("waitForEntry in waitOrder average ", order.Average)
 
-			model.State.EntryPrice = order.Average
-			model.State.State = InEntry
-			model.State.PositionAmount += order.Filled
-
-			log.Print("isMultiEntry ", isMultiEntry)
 			if isMultiEntry {
 				model.State.State = InMultiEntry
+				// calc average weight
+				if model.State.EntryPrice > 0 {
+					log.Println("model.State.EntryPrice before: ", model.State.EntryPrice, " order.Filled: ", order.Filled)
+					total := model.State.EntryPrice * model.State.PositionAmount + order.Average * order.Filled
+					model.State.EntryPrice = total / (model.State.PositionAmount + order.Filled)
+					log.Println("model.State.EntryPrice after: ", model.State.EntryPrice)
+				} else {
+					model.State.EntryPrice = order.Average
+				}
+			} else { // not avg
+				model.State.EntryPrice = order.Average
+				model.State.State = InEntry
 			}
-			// approx here we should place new take profit
+
+			model.State.PositionAmount += order.Filled
+
 			sm.StateMgmt.UpdateEntryPrice(model.ID, model.State)
 			return true
 		case TakeProfit:
