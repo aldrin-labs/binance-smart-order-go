@@ -236,7 +236,7 @@ func (sm *SmartOrder) calculateAndSavePNL(model *models.MongoStrategy,  step int
 	log.Println("PositionAmount ", model.State.PositionAmount, " filledAmount ", filledAmount)
 	model.State.PositionAmount -= filledAmount
 
-	amount := model.State.PositionAmount
+	amount := filledAmount
 	entryPrice := model.State.EntryPrice
 	// somehow we execute tap without entry
 	if entryPrice == 0 {
