@@ -239,7 +239,7 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 		orderType = prefix + "limit"
 		fee := 0.12
 
-		log.Println("amount", amount)
+		log.Println("WithoutLoss amount ", amount, " entryPrice ", model.State.EntryPrice)
 		if amount > 0 {
 			baseAmount = amount
 		}
@@ -256,7 +256,7 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 		if model.Conditions.Hedging || model.Conditions.HedgeMode {
 			fee = fee * 4
 		} else if len(model.Conditions.EntryLevels) > 0 {
-			fee = fee * float64(sm.SelectedEntryTarget + 1)
+			fee = fee * float64(sm.SelectedEntryTarget + 2)
 		} else {
 			fee = fee * 2
 		}
@@ -274,6 +274,11 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 
 		if price > 0 {
 			orderPrice = price
+		}
+		
+		if len(model.Conditions.EntryLevels) > 0 {
+			orderType = "take-profit-" + "limit"
+			break
 		}
 
 		currentOHLCVp := sm.DataFeed.GetPriceForPairAtExchange(sm.Strategy.GetModel().Conditions.Pair, sm.ExchangeName, sm.Strategy.GetModel().Conditions.MarketType)
@@ -387,39 +392,32 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 		}
 
 		if len(model.Conditions.EntryLevels) > 0 {
-			baseAmount = 0.0
-			for i, target := range model.Conditions.EntryLevels {
-				if i <= sm.SelectedEntryTarget {
-					if target.Type == 0 {
-						baseAmount += target.Amount
-					} else {
-						baseAmount += target.Amount * model.Conditions.EntryOrder.Amount / 100
-					}
-				}
-			}
+			baseAmount = sm.getAveragingEntryAmount(model, sm.SelectedEntryTarget)
 		}
 		//log.Print("take profit price, orderPrice in the end", price, orderPrice)
 		// model.State.ExecutedAmount += amount
 		break
 	case Canceled:
-		{
-			currentState, _ := sm.State.State(context.TODO())
-			thereIsNoEntryToExit := (currentState == WaitForEntry && model.State.Amount == 0) || currentState == TrailingEntry || currentState == End || model.State.ExecutedAmount >= model.Conditions.EntryOrder.Amount
-			if thereIsNoEntryToExit {
+		currentState, _ := sm.State.State(context.TODO())
+		thereIsNoEntryToExit := (currentState == WaitForEntry && model.State.Amount == 0) || currentState == TrailingEntry ||
+			currentState == End || model.State.ExecutedAmount >= model.Conditions.EntryOrder.Amount
+
+		// if canceled order was already placed
+		isWaitingForOrder, ok := sm.IsWaitingForOrder.Load(Canceled)
+		if thereIsNoEntryToExit || (ok && isWaitingForOrder.(bool)) {
 				return
 			}
-			side = oppositeSide
-			reduceOnly = true
-			baseAmount = model.Conditions.EntryOrder.Amount
-			orderType = "market"
-			if isSpot {
-				sm.TryCancelAllOrdersConsistently(sm.Strategy.GetModel().State.Orders)
-			}
-			if model.State.Amount > 0 && currentState == WaitForEntry {
-				baseAmount = model.State.Amount
-			}
-			break
+		side = oppositeSide
+		reduceOnly = true
+		baseAmount = model.Conditions.EntryOrder.Amount
+		orderType = "market"
+		if isSpot {
+			sm.TryCancelAllOrdersConsistently(sm.Strategy.GetModel().State.Orders)
 		}
+		if model.State.Amount > 0 && currentState == WaitForEntry {
+			baseAmount = model.State.Amount
+		}
+		break
 	}
 	baseAmount = sm.toFixed(baseAmount, sm.QuantityAmountPrecision)
 	orderPrice = sm.toFixed(orderPrice, sm.QuantityPricePrecision)
@@ -484,7 +482,7 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 		} else {
 			request.KeyParams.PositionSide = "BOTH"
 		}
-		log.Print("create order step ", step, " amount ", baseAmount)
+		log.Print("create order strategyId ", sm.Strategy.GetModel().ID, " step ", step, " amount ", baseAmount)
 		if step == WaitForEntry {
 			sm.IsEntryOrderPlaced = true
 			sm.IsWaitingForOrder.Store(step, true)
@@ -526,61 +524,96 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 					model.State.ForcedLossOrderIds = append(model.State.ForcedLossOrderIds, response.Data.OrderId)
 				} else if step == TakeProfit {
 					model.State.TakeProfitOrderIds = append(model.State.TakeProfitOrderIds, response.Data.OrderId)
+				} else if step == WaitForEntry {
+					model.State.WaitForEntryIds = append(model.State.WaitForEntryIds, response.Data.OrderId)
 				}
 			} else {
 				log.Print("order 0")
 			}
 			if step != Canceled {
+				sm.OrdersMux.Lock()
 				model.State.Orders = append(model.State.Orders, response.Data.OrderId)
+				sm.OrdersMux.Unlock()
 				sm.StateMgmt.UpdateOrders(model.ID, model.State)
 			}
 			break
 		} else {
 			log.Print(response.Status)
-			// need correct message from exchange_service when down
-			//if len(response.Data.Msg) > 0 && strings.Contains(response.Data.Msg, "network error") {
-			//	time.Sleep(time.Second * 5)
-			//	continue
-			//}
-			if len(response.Data.Msg) > 0 && attemptsToPlaceOrder < 1 && strings.Contains(response.Data.Msg, "Key is processing") {
-				attemptsToPlaceOrder += 1
-				time.Sleep(time.Minute * 1)
-				continue
-			}
-			if len(response.Data.Msg) > 0 && attemptsToPlaceOrder < 3 && strings.Contains(response.Data.Msg, "position side does not match") {
-				attemptsToPlaceOrder += 1
-				time.Sleep(time.Second * 5)
-				continue
-			}
-			if len(response.Data.Msg) > 0 && attemptsToPlaceOrder < 3 && strings.Contains(response.Data.Msg, "invalid json") {
-				attemptsToPlaceOrder += 1
-				time.Sleep(2 * time.Second)
-				continue
-			}
-			if len(response.Data.Msg) > 0 && strings.Contains(response.Data.Msg, "immediately trigger") {
-				if step == TrailingEntry {
-					orderType = "market"
-					stopPrice = 0.0
-					ifShouldCancelPreviousOrder = false
+
+			// if error
+			if len(response.Data.Msg) > 0 {
+				// TODO
+				// need correct message from exchange_service when down
+				//if len(response.Data.Msg) > 0 && strings.Contains(response.Data.Msg, "network error") {
+				//	time.Sleep(time.Second * 5)
+				//	continue
+				//}
+
+				if strings.Contains(response.Data.Msg, "Key is processing") && attemptsToPlaceOrder < 1  {
+					attemptsToPlaceOrder += 1
+					time.Sleep(time.Minute * 1)
 					continue
-				} else if step == Stoploss || step == "ForcedLoss" {
-					if len(model.Conditions.EntryLevels) > 0 {
+				}
+				if strings.Contains(response.Data.Msg, "position side does not match") && attemptsToPlaceOrder < 3 {
+					attemptsToPlaceOrder += 1
+					time.Sleep(time.Second * 5)
+					continue
+				}
+				if strings.Contains(response.Data.Msg, "invalid json") && attemptsToPlaceOrder < 3 {
+					attemptsToPlaceOrder += 1
+					time.Sleep(2 * time.Second)
+					continue
+				}
+				if strings.Contains(response.Data.Msg, "ReduceOnly Order Failed") && attemptsToPlaceOrder < 3 {
+					attemptsToPlaceOrder += 1
+					time.Sleep(5 * time.Second)
+					continue
+				}
+				if strings.Contains(response.Data.Msg, "Cannot read property 'text' of undefined") && attemptsToPlaceOrder < 3 {
+					attemptsToPlaceOrder += 1
+					time.Sleep(5 * time.Second)
+					continue
+				}
+				if strings.Contains(response.Data.Msg, "immediately trigger") {
+					if step == TrailingEntry {
+						orderType = "market"
+						stopPrice = 0.0
+						ifShouldCancelPreviousOrder = false
+						continue
+					} else if len(model.Conditions.EntryLevels) > 0 &&
+						(step == Stoploss || step == "ForcedLoss") && attemptsToPlaceOrder < 3 {
+
+						lossPercentage := model.Conditions.StopLoss
+						if step == "ForcedLoss" {
+							lossPercentage = model.Conditions.ForcedLoss
+						}
+
+						price = sm.getLastTargetPrice(model)
+
+						if side == "sell" {
+							orderPrice = price * (1 - lossPercentage/100/leverage)
+						} else {
+							orderPrice = price * (1 + lossPercentage/100/leverage)
+						}
+
+						attemptsToPlaceOrder += 1
+						time.Sleep(5 * time.Second)
+						continue
+					} else {
+						sm.PlaceOrder(0, 0.0, Canceled)
 						break
 					}
-				} else {
-					sm.PlaceOrder(0, 0.0, Canceled)
+				}
+				if strings.Contains(response.Data.Msg, "ReduceOnly Order is rejected") {
+					model.Enabled = false
+					go sm.StateMgmt.UpdateState(model.ID, model.State)
 					break
 				}
-			}
-			if len(response.Data.Msg) > 0 && strings.Contains(response.Data.Msg, "ReduceOnly Order is rejected") {
-				model.Enabled = false
-				go sm.StateMgmt.UpdateState(model.ID, model.State)
-				break
-			}
-			if len(response.Data.Msg) > 0 {
+
 				model.Enabled = false
 				model.State.State = Error
 				model.State.Msg = response.Data.Msg
+				sm.Statsd.Inc("strategy_service.error_state")
 				go sm.StateMgmt.UpdateState(model.ID, model.State)
 				break
 			}

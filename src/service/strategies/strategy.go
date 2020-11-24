@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
+	statsd_client "gitlab.com/crypto_project/core/strategy_service/src/statsd"
 	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -22,6 +23,7 @@ type Strategy struct {
 	Datafeed        interfaces.IDataFeed
 	Trading         trading.ITrading
 	StateMgmt       interfaces.IStateMgmt
+	Statsd          statsd_client.StatsdClient
 	Singleton		interfaces.ICreateRequest
 }
 func (strategy *Strategy) GetModel() *models.MongoStrategy {
@@ -43,11 +45,15 @@ func (strategy *Strategy) GetStateMgmt() interfaces.IStateMgmt {
 	return strategy.StateMgmt
 }
 
+func (strategy *Strategy) GetStatsd() statsd_client.StatsdClient {
+	return strategy.Statsd
+}
+
 func (strategy *Strategy) Start() {
 	switch strategy.Model.Type {
 	case 1:
 		println("runSmartOrder")
-		strategy.StrategyRuntime = RunSmartOrder(strategy, strategy.Datafeed, strategy.Trading, strategy.Model.AccountId, )
+		strategy.StrategyRuntime = RunSmartOrder(strategy, strategy.Datafeed, strategy.Trading, strategy.Statsd, strategy.Model.AccountId, )
 	case 2:
 		println("makerOnly")
 		strategy.StrategyRuntime = RunMakerOnlyOrder(strategy, strategy.Datafeed, strategy.Trading, strategy.Model.AccountId, )
