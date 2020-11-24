@@ -57,10 +57,10 @@ type RawOrderbookOHLCV []struct {
 }
 
 type RawSpread struct {
-	BestBidPrice string `json:"b"`
-	BestAskPrice string `json:"a"`
-	BestBidQty string `json:"B"`
-	BestAskQty string `json:"A"`
+	BestBidPrice float64 `json:"b,string"`
+	BestAskPrice float64 `json:"a,string"`
+	BestBidQty float64 `json:"B,string"`
+	BestAskQty float64 `json:"A,string"`
 	Symbol       string `json:"s"`
 }
 
@@ -119,7 +119,6 @@ func (rl *BinanceLoop) UpdateSpread(data []byte) {
 	//exchange := "binance"
 	//marketType := 1
 
-	log.Println("spread", spread)
 	//bid, _ := strconv.ParseFloat(spread.BestBidPrice, 10)
 	//ask, _ := strconv.ParseFloat(spread.BestAskPrice, 10)
 	//
