@@ -14,6 +14,8 @@ github.com/Cryptocurrencies-AI/go-binance v1.0.2-0.20201124182343-b1c0991fd043 h
 github.com/Cryptocurrencies-AI/go-binance v1.0.2-0.20201124182343-b1c0991fd043/go.mod h1:Zt24+oSmN40dNzPGojhPECH9QebC4r94GNrqlV2euDM=
 github.com/Cryptocurrencies-AI/go-binance v1.0.2-0.20201124183355-13ea3c04381c h1:m3glC1kZUqhR7ZSjOF75zKKWtVBxdPmUqkM8YOb2sn8=
 github.com/Cryptocurrencies-AI/go-binance v1.0.2-0.20201124183355-13ea3c04381c/go.mod h1:Zt24+oSmN40dNzPGojhPECH9QebC4r94GNrqlV2euDM=
+github.com/Cryptocurrencies-AI/go-binance v1.0.2-0.20201124204917-41a5c22efb7e h1:yMDvILv5AnL2wu8v2LUravx3KgrobCWwQcNpu66pEXs=
+github.com/Cryptocurrencies-AI/go-binance v1.0.2-0.20201124204917-41a5c22efb7e/go.mod h1:Zt24+oSmN40dNzPGojhPECH9QebC4r94GNrqlV2euDM=
 github.com/Cryptocurrencies-AI/go-binance v1.0.2 h1:6v6zi/zdU5uTR0S2jSAfBI962kNfe9vrb8iiDPi9Fbw=
 github.com/Knetic/govaluate v3.0.1-0.20171022003610-9aa49832a739+incompatible/go.mod h1:r7JcOSlj0wfOMncg0iLm8Leh48TZaKVeNIfJntJ2wa0=
 github.com/Shopify/sarama v1.19.0/go.mod h1:FVkBWblsNy7DGZRfXLU0O9RCGt5g3g3yEuWXgklEdEo=

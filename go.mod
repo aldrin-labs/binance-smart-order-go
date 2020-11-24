@@ -3,7 +3,7 @@ module gitlab.com/crypto_project/core/strategy_service
 go 1.13
 
 require (
-	github.com/Cryptocurrencies-AI/go-binance v1.0.2-0.20201124183355-13ea3c04381c
+	github.com/Cryptocurrencies-AI/go-binance v1.0.2-0.20201124204917-41a5c22efb7e
 	github.com/buaazp/fasthttprouter v0.1.1
 	github.com/cactus/go-statsd-client/statsd v0.0.0-20200728222731-a2baea3bbfc6
 	github.com/go-kit/kit v0.10.0

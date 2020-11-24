@@ -103,33 +103,29 @@ func (rl *BinanceLoop) GetPrice(pair, exchange string, marketType int64) *interf
 }
 
 func (rl *BinanceLoop) SubscribeToSpread() {
-	go ListenBinanceSpread(func(data *binance.MarkPriceAllStrEvent) error {
+	go ListenBinanceSpread(func(data *binance.SpreadAllEvent) error {
 		go rl.UpdateSpread(data.Data)
 		return nil
 	})
 }
 
 func (rl *BinanceLoop) UpdateSpread(data []byte) {
-	var spread []RawSpread
+	var spread RawSpread
 	tryparse := json.Unmarshal(data, &spread)
 	if tryparse != nil {
 		log.Print(tryparse)
 	}
 
-	//exchange := "binance"
-	//marketType := 1
+	exchange := "binance"
+	marketType := 1
 
-	//bid, _ := strconv.ParseFloat(spread.BestBidPrice, 10)
-	//ask, _ := strconv.ParseFloat(spread.BestAskPrice, 10)
-	//
-	//log.Println("ask ", ask, "bid", bid, "pair", spread.Symbol)
-	//spreadData := interfaces.SpreadData{
-	//	Close:   bid,
-	//	BestBid: bid,
-	//	BestAsk: ask,
-	//}
-	//
-	//rl.SpreadMap.Store(exchange+spread.Symbol+strconv.FormatInt(int64(marketType), 10), spreadData)
+	spreadData := interfaces.SpreadData{
+		Close:   spread.BestBidPrice,
+		BestBid: spread.BestBidPrice,
+		BestAsk: spread.BestAskPrice,
+	}
+
+	rl.SpreadMap.Store(exchange+spread.Symbol+strconv.FormatInt(int64(marketType), 10), spreadData)
 }
 
 func (rl *BinanceLoop) GetSpread(pair, exchange string, marketType int64) *interfaces.SpreadData {

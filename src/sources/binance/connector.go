@@ -62,7 +62,7 @@ func ListenBinanceMarkPrice(onMessage func(data *binance.MarkPriceAllStrEvent) e
 	return nil
 }
 
-func ListenBinanceSpread(onMessage func(data *binance.MarkPriceAllStrEvent) error) error {
+func ListenBinanceSpread(onMessage func(data *binance.SpreadAllEvent) error) error {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
