@@ -13,6 +13,7 @@ func (sm *SmartOrder) checkTimeouts() {
 		go func(iteration int) {
 			time.Sleep(time.Duration(sm.Strategy.GetModel().Conditions.WaitingEntryTimeout) * time.Second)
 			currentState, _ := sm.State.State(context.TODO())
+			log.Println("currentState ", currentState, " sm.Lock ", sm.Lock, " iteration == sm.Strategy.GetModel().State.Iteration ", iteration == sm.Strategy.GetModel().State.Iteration)
 			if (currentState == WaitForEntry || currentState == TrailingEntry) && sm.Lock == false && iteration == sm.Strategy.GetModel().State.Iteration {
 				sm.Lock = true
 				switch len(sm.Strategy.GetModel().State.Orders) {
@@ -58,8 +59,12 @@ func (sm *SmartOrder) checkTimeouts() {
 						return
 					}
 				default:
-					sm.Lock = false
-					return
+					if len(sm.Strategy.GetModel().Conditions.EntryLevels) > 0 {
+						sm.TryCancelAllOrders(sm.Strategy.GetModel().State.Orders)
+					} else {
+						sm.Lock = false
+						return
+					}
 				}
 
 				err := sm.State.Fire(TriggerTimeout)

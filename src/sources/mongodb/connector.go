@@ -103,6 +103,7 @@ func (sm *StateMgmt) InitOrdersWatch() {
 			}
 		}(eventDecoded)
 	}
+	log.Println("InitOrdersWatch End")
 }
 
 func (sm *StateMgmt) EnableStrategy(strategyId *primitive.ObjectID) {
@@ -466,6 +467,35 @@ func (sm *StateMgmt) UpdateState(strategyId *primitive.ObjectID, state *models.M
 	}
 	log.Print("updated state", updated.ModifiedCount, state.State)
 }
+
+func (sm *StateMgmt) UpdateStrategyState(strategyId *primitive.ObjectID, state *models.MongoStrategyState) {
+	col := GetCollection("core_strategies")
+	var request bson.D
+	request = bson.D{
+		{"_id", strategyId},
+	}
+	var update bson.D
+	updates := bson.D{
+		{
+			"state", state,
+		},
+	}
+	if len(state.Msg) > 0 {
+		updates = append(updates, bson.E{Key: "state.msg", Value: state.Msg})
+	}
+	update = bson.D{
+		{
+			"$set", updates,
+		},
+	}
+	updated, err := col.UpdateOne(context.TODO(), request, update)
+	if err != nil {
+		log.Print("error in arg", err.Error())
+		return
+	}
+	log.Print("updated state of strategy ", updated.ModifiedCount, state.State)
+}
+
 func (sm *StateMgmt) UpdateExecutedAmount(strategyId *primitive.ObjectID, state *models.MongoStrategyState) {
 	col := GetCollection("core_strategies")
 	var request bson.D
@@ -505,7 +535,7 @@ func (sm *StateMgmt) UpdateOrders(strategyId *primitive.ObjectID, state *models.
 	request = bson.D{
 		{"_id", strategyId},
 	}
-	if len(state.ExecutedOrders) == 0 {
+	if len(state.ExecutedOrders) == 0 || state.ExecutedOrders == nil {
 		return
 	}
 	var update bson.D
@@ -544,6 +574,9 @@ func (sm *StateMgmt) UpdateEntryPrice(strategyId *primitive.ObjectID, state *mod
 				},
 				{
 					"state.state", state.State,
+				},
+				{
+					"state.positionAmount", state.PositionAmount,
 				},
 			},
 		},
@@ -664,4 +697,30 @@ func (sm *StateMgmt) SaveStrategyConditions(strategy *models.MongoStrategy) {
 	strategy.State.TrailingExitPrice = strategy.Conditions.TrailingExitPrice
 	strategy.State.TakeProfitPrice = strategy.Conditions.TakeProfitPrice
 	strategy.State.TakeProfitHedgePrice = strategy.Conditions.TakeProfitHedgePrice
+}
+
+func (sm *StateMgmt) UpdateStateAndConditions(strategyId *primitive.ObjectID, model *models.MongoStrategy) {
+	col := GetCollection("core_strategies")
+	var request bson.D
+	request = bson.D{
+		{"_id", strategyId},
+	}
+	var update bson.D
+	update = bson.D{
+		{
+			"$set", bson.D{
+			{
+				"conditions", model.Conditions,
+			},
+			{
+				"state", model.State,
+			},
+		},
+		},
+	}
+	_, err := col.UpdateOne(context.TODO(), request, update)
+	if err != nil {
+		log.Print("error in arg", err.Error())
+	}
+	// log.Print(res)
 }
