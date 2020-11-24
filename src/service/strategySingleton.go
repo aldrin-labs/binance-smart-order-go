@@ -8,7 +8,8 @@ import (
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies/smart_order"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
-	"gitlab.com/crypto_project/core/strategy_service/src/sources/redis"
+	// "gitlab.com/crypto_project/core/strategy_service/src/sources/redis"
+	"gitlab.com/crypto_project/core/strategy_service/src/sources/websocket"
 	statsd_client "gitlab.com/crypto_project/core/strategy_service/src/statsd"
 	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"go.mongodb.org/mongo-driver/bson"
@@ -36,7 +37,8 @@ var once sync.Once
 // GetStrategyService to get singleton
 func GetStrategyService() *StrategyService {
 	once.Do(func() {
-		df := redis.InitRedis()
+		// df := redis.InitRedis()
+		df := websocket.InitWebsocket()
 		tr := trading.InitTrading()
 		sm := mongodb.StateMgmt{}
 		statsd := statsd_client.StatsdClient{}
