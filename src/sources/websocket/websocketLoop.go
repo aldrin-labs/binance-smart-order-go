@@ -1,12 +1,7 @@
 package websocket
 
 import (
-"context"
-"encoding/json"
 "gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
-"log"
-"strconv"
-"strings"
 "sync"
 )
 
@@ -100,7 +95,7 @@ func (rl *WebsocketLoop) GetPrice(pair, exchange string, marketType int64) *inte
 	//	ohlcv := ohlcvRaw.(interfaces.OHLCV)
 	//	return &ohlcv
 	//}
-	//return nil
+	return nil
 }
 
 func (rl *WebsocketLoop) SubscribeToSpread() {
@@ -140,5 +135,5 @@ func (rl *WebsocketLoop) GetSpread(pair, exchange string, marketType int64) *int
 	//	spread := spreadRaw.(interfaces.SpreadData)
 	//	return &spread
 	//}
-	//return nil
+	return nil
 }
