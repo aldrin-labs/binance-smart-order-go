@@ -128,6 +128,9 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 		}
 
 		if len(model.Conditions.EntryLevels) > 0 {
+			if amount > 0 {
+				baseAmount = amount
+			}
 			stopLoss := model.Conditions.StopLoss
 			if side == "sell" {
 				orderPrice = price * (1 - stopLoss/100/leverage)

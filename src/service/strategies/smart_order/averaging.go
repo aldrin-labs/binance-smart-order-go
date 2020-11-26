@@ -41,7 +41,7 @@ func (sm *SmartOrder) placeMultiEntryOrders(stopLoss bool) {
 	}
 
 	if stopLoss {
-		go sm.PlaceOrder(currentPrice, 0.0, Stoploss)
+		go sm.PlaceOrder(currentPrice, sumAmount, Stoploss)
 		if model.Conditions.ForcedLoss > 0 {
 			go sm.PlaceOrder(currentPrice, 0.0, "ForcedLoss")
 		}
