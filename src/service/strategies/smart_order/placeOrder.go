@@ -535,9 +535,10 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 			}
 			if step != Canceled {
 				sm.OrdersMux.Lock()
+				log.Println("added order to state.Orders id:", response.Data.OrderId)
 				model.State.Orders = append(model.State.Orders, response.Data.OrderId)
 				sm.OrdersMux.Unlock()
-				sm.StateMgmt.UpdateOrders(model.ID, model.State)
+				go sm.StateMgmt.UpdateOrders(model.ID, model.State)
 			}
 			break
 		} else {

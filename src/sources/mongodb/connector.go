@@ -549,6 +549,13 @@ func (sm *StateMgmt) UpdateOrders(strategyId *primitive.ObjectID, state *models.
 						},
 					},
 				},
+				{
+					"state.orders", bson.D{
+						{
+							"$each", state.Orders,
+						},
+					},
+				},
 			},
 		},
 	}
