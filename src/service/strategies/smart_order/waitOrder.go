@@ -278,7 +278,7 @@ func (sm *SmartOrder) calculateAndSavePNL(model *models.MongoStrategy,  step int
 	}
 
 	// if we got profit from target from averaging
-	if step == TakeProfit && isMultiEntry {
+	if (step == TakeProfit || step == "WithoutLoss") && isMultiEntry {
 		model.State.ExitPrice = 0
 		model.State.SavedEntryPrice = entryPrice
 		model.State.EntryPrice = 0
