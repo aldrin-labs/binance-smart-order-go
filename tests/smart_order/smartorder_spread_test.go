@@ -62,7 +62,7 @@ func TestSmartOrderEntryBySpread(t *testing.T) {
 	}
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(&tradingApi, df)
-	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
+	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
 	go smartOrder.Start()
 	time.Sleep(1800 * time.Millisecond)
 	isInState, _ := smartOrder.State.IsInState(smart_order.InEntry)

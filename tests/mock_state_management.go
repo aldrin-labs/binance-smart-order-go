@@ -16,6 +16,14 @@ type MockStateMgmt struct {
 	DataFeed      *MockDataFeed
 }
 
+func (sm *MockStateMgmt) UpdateStrategyState(strategyId *primitive.ObjectID, state *models.MongoStrategyState) {
+	panic("implement me")
+}
+
+func (sm *MockStateMgmt) UpdateStateAndConditions(strategyId *primitive.ObjectID, model *models.MongoStrategy) {
+	panic("implement me")
+}
+
 func (sm *MockStateMgmt) SaveStrategy(strategy *models.MongoStrategy) *models.MongoStrategy {
 	panic("implement me")
 }
