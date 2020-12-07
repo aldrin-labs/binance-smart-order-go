@@ -9,6 +9,7 @@ import (
 // returns conditions of smart order depending on the scenario
 func GetTestSmartOrderStrategy(scenario string) models.MongoStrategy {
 	smartOrder := models.MongoStrategy{
+		// ID:          &primitive.ObjectID{0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x61, 0x62},
 		ID:          &primitive.ObjectID{},
 		Conditions:  &models.MongoStrategyCondition{},
 		State:       &models.MongoStrategyState{Amount: 1000},

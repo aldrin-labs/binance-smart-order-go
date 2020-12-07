@@ -17,7 +17,6 @@ type MockStateMgmt struct {
 }
 
 func (sm *MockStateMgmt) UpdateStrategyState(strategyId *primitive.ObjectID, state *models.MongoStrategyState) {
-	panic("implement me")
 }
 
 func (sm *MockStateMgmt) UpdateStateAndConditions(strategyId *primitive.ObjectID, model *models.MongoStrategy) {
