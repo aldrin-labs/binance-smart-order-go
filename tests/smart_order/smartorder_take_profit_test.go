@@ -51,8 +51,8 @@ func TestSmartTakeProfit(t *testing.T) {
 	// check that one call with 'sell' and one with 'BTC_USDT' should be done
 	sellCallCount, sellFound := tradingApi.CallCount.Load("sell")
 	btcUsdtCallCount, usdtBtcFound := tradingApi.CallCount.Load("BTC_USDT")
-	if !sellFound || !usdtBtcFound || sellCallCount == 0 || btcUsdtCallCount == 0 {
-		t.Error("There were 0 trading api calls with sell params and 0 with BTC_USDT params")
+	if !sellFound || !usdtBtcFound || sellCallCount != 1 || btcUsdtCallCount != 1 {
+		t.Error("There were", sellCallCount, "trading api calls with sell params and", btcUsdtCallCount, "with BTC_USDT params")
 	} else {
 		fmt.Println("Success! There were " + strconv.Itoa(sellCallCount.(int)) + " trading api calls with sell params and " + strconv.Itoa(btcUsdtCallCount.(int)) + " with BTC_USDT params")
 	}
