@@ -51,7 +51,7 @@ func TestSmartExitOnStopMarket(t *testing.T) {
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
 	strategy := strategies.Strategy{
-		Model: &smartOrderModel,
+		Model:     &smartOrderModel,
 		StateMgmt: &sm,
 	}
 	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
@@ -126,7 +126,7 @@ func TestSmartExitOnStopMarketTimeout(t *testing.T) {
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
 	strategy := strategies.Strategy{
-		Model: &smartOrderModel,
+		Model:     &smartOrderModel,
 		StateMgmt: &sm,
 	}
 	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
@@ -182,7 +182,7 @@ func TestSmartExitAfterTimeoutLoss(t *testing.T) {
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
 	strategy := strategies.Strategy{
-		Model: &smartOrderModel,
+		Model:     &smartOrderModel,
 		StateMgmt: &sm,
 	}
 	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
@@ -241,13 +241,13 @@ func TestSmartOrderReturnToInEntryAfterTimeoutLoss(t *testing.T) {
 		Low:    6600,
 		Close:  6600,
 		Volume: 30,
-	},{
+	}, {
 		Open:   6600,
 		High:   7005,
 		Low:    6600,
 		Close:  6700,
 		Volume: 30,
-	},{
+	}, {
 		Open:   6700,
 		High:   7005,
 		Low:    6900,
@@ -271,7 +271,7 @@ func TestSmartOrderReturnToInEntryAfterTimeoutLoss(t *testing.T) {
 		Low:    7105,
 		Close:  7105,
 		Volume: 30,
-	},{
+	}, {
 		Open:   7105,
 		High:   7205,
 		Low:    7205,
@@ -287,7 +287,7 @@ func TestSmartOrderReturnToInEntryAfterTimeoutLoss(t *testing.T) {
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
 	strategy := strategies.Strategy{
-		Model: &smartOrderModel,
+		Model:     &smartOrderModel,
 		StateMgmt: &sm,
 	}
 	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)

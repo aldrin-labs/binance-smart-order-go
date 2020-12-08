@@ -6,9 +6,11 @@ import (
 	"log"
 	"os"
 )
+
 type StatsdClient struct {
 	Client *statsd.Statter
 }
+
 func (sd *StatsdClient) Init() {
 	host := os.Getenv("STATSD_HOST")
 	if host == "" {

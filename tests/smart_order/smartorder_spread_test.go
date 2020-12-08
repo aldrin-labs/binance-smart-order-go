@@ -44,15 +44,15 @@ func TestSmartOrderEntryBySpread(t *testing.T) {
 	fakeDataStream := []interfaces.SpreadData{{
 		BestAsk: 7006,
 		BestBid: 6000,
-		Close:  7005,
+		Close:   7005,
 	}, {
 		BestAsk: 7006,
 		BestBid: 6000,
-		Close:  7005,
+		Close:   7005,
 	}, {
 		BestAsk: 7006,
 		BestBid: 6000,
-		Close:  7005,
+		Close:   7005,
 	}}
 	df := tests.NewMockedSpreadDataFeed(fakeDataStream, fakeOHLCVDataStream)
 
@@ -60,7 +60,7 @@ func TestSmartOrderEntryBySpread(t *testing.T) {
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(&tradingApi, df)
 	strategy := strategies.Strategy{
-		Model: &smartOrderModel,
+		Model:     &smartOrderModel,
 		StateMgmt: &sm,
 	}
 	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)

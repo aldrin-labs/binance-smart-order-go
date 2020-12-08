@@ -259,7 +259,7 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 		if model.Conditions.Hedging || model.Conditions.HedgeMode {
 			fee = fee * 4
 		} else if len(model.Conditions.EntryLevels) > 0 {
-			fee = fee * float64(sm.SelectedEntryTarget + 2)
+			fee = fee * float64(sm.SelectedEntryTarget+2)
 		} else {
 			fee = fee * 2
 		}
@@ -278,7 +278,7 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 		if price > 0 {
 			orderPrice = price
 		}
-		
+
 		if len(model.Conditions.EntryLevels) > 0 {
 			orderType = "take-profit-" + "limit"
 			break
@@ -408,8 +408,8 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 		// if canceled order was already placed
 		isWaitingForOrder, ok := sm.IsWaitingForOrder.Load(Canceled)
 		if thereIsNoEntryToExit || (ok && isWaitingForOrder.(bool)) {
-				return
-			}
+			return
+		}
 		side = oppositeSide
 		reduceOnly = true
 		baseAmount = model.Conditions.EntryOrder.Amount
@@ -553,7 +553,7 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 				//	continue
 				//}
 
-				if strings.Contains(response.Data.Msg, "Key is processing") && attemptsToPlaceOrder < 1  {
+				if strings.Contains(response.Data.Msg, "Key is processing") && attemptsToPlaceOrder < 1 {
 					attemptsToPlaceOrder += 1
 					time.Sleep(time.Minute * 1)
 					continue

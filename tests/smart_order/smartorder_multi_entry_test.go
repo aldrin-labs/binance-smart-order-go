@@ -46,7 +46,7 @@ func TestSmartOrderMultiEntryPlacing(t *testing.T) {
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
 	strategy := strategies.Strategy{
-		Model: &smartOrderModel,
+		Model:     &smartOrderModel,
 		StateMgmt: &sm,
 	}
 	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
@@ -82,13 +82,13 @@ func TestSmartOrderMultiEntryStopLoss(t *testing.T) {
 		Low:    6800,
 		Close:  5900,
 		Volume: 30,
-	},{
+	}, {
 		Open:   7005,
 		High:   7100,
 		Low:    6800,
 		Close:  5900,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
@@ -100,7 +100,7 @@ func TestSmartOrderMultiEntryStopLoss(t *testing.T) {
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
 	strategy := strategies.Strategy{
-		Model: &smartOrderModel,
+		Model:     &smartOrderModel,
 		StateMgmt: &sm,
 	}
 	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
@@ -134,169 +134,169 @@ func TestSmartOrderMultiEntryTAP(t *testing.T) {
 		Low:    6800,
 		Close:  5900,
 		Volume: 30,
-	},{
+	}, {
 		Open:   7005,
 		High:   7100,
 		Low:    6800,
 		Close:  5900,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{
+	}, {
 		Open:   7005,
 		High:   7100,
 		Low:    6800,
 		Close:  5900,
 		Volume: 30,
-	},{
+	}, {
 		Open:   7005,
 		High:   7100,
 		Low:    6800,
 		Close:  5950,
 		Volume: 30,
-	},{
+	}, {
 		Open:   7005,
 		High:   7100,
 		Low:    6800,
@@ -308,7 +308,7 @@ func TestSmartOrderMultiEntryTAP(t *testing.T) {
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
 	strategy := strategies.Strategy{
-		Model: &smartOrderModel,
+		Model:     &smartOrderModel,
 		StateMgmt: &sm,
 	}
 	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
@@ -343,211 +343,211 @@ func TestSmartOrderMultiEntryClosingAfterFirstTAP(t *testing.T) {
 		Low:    6800,
 		Close:  5900,
 		Volume: 30,
-	},{
+	}, {
 		Open:   7005,
 		High:   7100,
 		Low:    6800,
 		Close:  5900,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5700,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5700,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5700,
 		Volume: 30,
-	},{
+	}, {
 		Open:   7005,
 		High:   7100,
 		Low:    6800,
 		Close:  5700,
 		Volume: 30,
-	},{
+	}, {
 		Open:   7005,
 		High:   7100,
 		Low:    6800,
 		Close:  5700,
 		Volume: 30,
-	},{
+	}, {
 		Open:   7005,
 		High:   7100,
 		Low:    6800,
 		Close:  5700,
 		Volume: 30,
-	},{
+	}, {
 		Open:   7005,
 		High:   7100,
 		Low:    6800,
 		Close:  5700,
 		Volume: 30,
-	},{
+	}, {
 		Open:   7005,
 		High:   7100,
 		Low:    6800,
 		Close:  5700,
 		Volume: 30,
-	},{
+	}, {
 		Open:   7005,
 		High:   7100,
 		Low:    6800,
 		Close:  5700,
 		Volume: 30,
-	},{
+	}, {
 		Open:   7005,
 		High:   7100,
 		Low:    6800,
 		Close:  5700,
 		Volume: 30,
-	},{
+	}, {
 		Open:   7005,
 		High:   7100,
 		Low:    6800,
 		Close:  5700,
 		Volume: 30,
-	},{
+	}, {
 		Open:   7005,
 		High:   7100,
 		Low:    6800,
 		Close:  5700,
 		Volume: 30,
-	},{
+	}, {
 		Open:   7005,
 		High:   7100,
 		Low:    6800,
@@ -559,7 +559,7 @@ func TestSmartOrderMultiEntryClosingAfterFirstTAP(t *testing.T) {
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
 	strategy := strategies.Strategy{
-		Model: &smartOrderModel,
+		Model:     &smartOrderModel,
 		StateMgmt: &sm,
 	}
 	tradingApi.BuyDelay = 30
@@ -598,211 +598,211 @@ func TestSmartOrderMultiEntryClosingByWithoutLoss(t *testing.T) {
 		Low:    6800,
 		Close:  5900,
 		Volume: 30,
-	},{
+	}, {
 		Open:   7005,
 		High:   7100,
 		Low:    6800,
 		Close:  5900,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5800,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5700,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5700,
 		Volume: 30,
-	},{ // Hit entry
+	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
 		Close:  5700,
 		Volume: 30,
-	},{
+	}, {
 		Open:   7005,
 		High:   7100,
 		Low:    6800,
 		Close:  5700,
 		Volume: 30,
-	},{
+	}, {
 		Open:   7005,
 		High:   7100,
 		Low:    6800,
 		Close:  5700,
 		Volume: 30,
-	},{
+	}, {
 		Open:   7005,
 		High:   7100,
 		Low:    6800,
 		Close:  5700,
 		Volume: 30,
-	},{
+	}, {
 		Open:   7005,
 		High:   7100,
 		Low:    6800,
 		Close:  5700,
 		Volume: 30,
-	},{
+	}, {
 		Open:   7005,
 		High:   7100,
 		Low:    6800,
 		Close:  5700,
 		Volume: 30,
-	},{
+	}, {
 		Open:   7005,
 		High:   7100,
 		Low:    6800,
 		Close:  5700,
 		Volume: 30,
-	},{
+	}, {
 		Open:   7005,
 		High:   7100,
 		Low:    6800,
 		Close:  5700,
 		Volume: 30,
-	},{
+	}, {
 		Open:   7005,
 		High:   7100,
 		Low:    6800,
 		Close:  5700,
 		Volume: 30,
-	},{
+	}, {
 		Open:   7005,
 		High:   7100,
 		Low:    6800,
 		Close:  5700,
 		Volume: 30,
-	},{
+	}, {
 		Open:   7005,
 		High:   7100,
 		Low:    6800,
@@ -814,7 +814,7 @@ func TestSmartOrderMultiEntryClosingByWithoutLoss(t *testing.T) {
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
 	strategy := strategies.Strategy{
-		Model: &smartOrderModel,
+		Model:     &smartOrderModel,
 		StateMgmt: &sm,
 	}
 	tradingApi.BuyDelay = 30
@@ -837,4 +837,3 @@ func TestSmartOrderMultiEntryClosingByWithoutLoss(t *testing.T) {
 		t.Error("Without loss order was not placed or SM was not closed by Without Loss. sellCallCount ", sellCallCount, " state ", state)
 	}
 }
-

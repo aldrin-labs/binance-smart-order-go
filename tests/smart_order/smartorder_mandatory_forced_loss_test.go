@@ -44,7 +44,7 @@ func TestSmartOrderMandatoryForcedLoss(t *testing.T) {
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
 	strategy := strategies.Strategy{
-		Model: &smartOrderModel,
+		Model:     &smartOrderModel,
 		StateMgmt: &sm,
 	}
 	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)

@@ -8,7 +8,6 @@ import (
 	"time"
 )
 
-
 var redisPool *redis.Pool
 var pubsubredisPool *redis.Pool
 
@@ -23,7 +22,7 @@ func GetRedisClientInstance(pubsub bool, master bool, newClient bool) redis.Conn
 		if pubsubredisPool == nil || newClient {
 			log.Print("connect to pubsub redis")
 			pubsubredisPool = &redis.Pool{
-				MaxActive: 3000000,
+				MaxActive:   3000000,
 				MaxIdle:     3000000,
 				IdleTimeout: 260 * time.Second,
 
@@ -54,7 +53,7 @@ func GetRedisClientInstance(pubsub bool, master bool, newClient bool) redis.Conn
 	if redisPool == nil {
 		log.Print("connect to redis")
 		redisPool = &redis.Pool{
-			MaxActive: 300000,
+			MaxActive:   300000,
 			MaxIdle:     300000,
 			IdleTimeout: 20 * time.Second,
 
@@ -87,7 +86,7 @@ func GetRedisClientInstance(pubsub bool, master bool, newClient bool) redis.Conn
 	_, err := con.Do("PING")
 	if err != nil {
 		log.Print("can't connect to the redis database, got error:\n%v", err)
-		time.Sleep(500*time.Millisecond)
+		time.Sleep(500 * time.Millisecond)
 		return GetRedisClientInstance(pubsub, master, newClient)
 	}
 	return con

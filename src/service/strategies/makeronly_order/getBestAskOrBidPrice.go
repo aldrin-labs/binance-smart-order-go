@@ -2,7 +2,7 @@ package makeronly_order
 
 import "errors"
 
-func(po *MakerOnlyOrder) getBestAskOrBidPrice() (float64, error) {
+func (po *MakerOnlyOrder) getBestAskOrBidPrice() (float64, error) {
 	pair := po.Strategy.GetModel().Conditions.Pair
 	marketType := po.Strategy.GetModel().Conditions.MarketType
 	exchange := "binance"

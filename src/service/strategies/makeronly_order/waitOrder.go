@@ -15,7 +15,7 @@ func (mo *MakerOnlyOrder) waitForOrder(orderId string, orderStatus string) {
 func (mo *MakerOnlyOrder) orderCallback(order *models.MongoOrder) {
 	ctx := context.TODO()
 	log.Println("order callback")
-	if order == nil || order.OrderId == ""  || !(order.Status == "filled" || order.Status == "canceled")  {
+	if order == nil || order.OrderId == "" || !(order.Status == "filled" || order.Status == "canceled") {
 		return
 	}
 	mo.OrdersMux.Lock()

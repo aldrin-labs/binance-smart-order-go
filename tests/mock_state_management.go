@@ -43,10 +43,9 @@ func (sm *MockStateMgmt) GetOrderById(orderId *primitive.ObjectID) *models.Mongo
 	panic("implement me")
 }
 
-
 func NewMockedStateMgmt(trading *MockTrading, dataFeed *MockDataFeed) MockStateMgmt {
 	stateMgmt := MockStateMgmt{
-		Trading: trading,
+		Trading:  trading,
 		DataFeed: dataFeed,
 	}
 
@@ -121,7 +120,6 @@ func (sm *MockStateMgmt) UpdateHedgeExitPrice(strategyId *primitive.ObjectID, st
 	sm.StateMap.Store(strategyId, &state)
 }
 
-
 func (sm *MockStateMgmt) UpdateExecutedAmount(strategyId *primitive.ObjectID, state *models.MongoStrategyState) {
 	sm.StateMap.Store(strategyId, &state)
 }
@@ -141,7 +139,6 @@ func (sm *MockStateMgmt) AnyActiveStrats(strategy *models.MongoStrategy) bool {
 func (sm *MockStateMgmt) InitOrdersWatch() {
 	panic("implement me")
 }
-
 
 func (sm *MockStateMgmt) SavePNL(templateStrategyId *primitive.ObjectID, profitAmount float64) {
 	panic("implement me")

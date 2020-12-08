@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/valyala/fasthttp"
 	"github.com/buaazp/fasthttprouter"
+	"github.com/valyala/fasthttp"
 	"gitlab.com/crypto_project/core/strategy_service/src/service"
 	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"log"
@@ -42,7 +42,7 @@ func CreateOrder(ctx *fasthttp.RequestCtx) {
 	if err != nil {
 		println(err.Error())
 	}
- 	_, _ = fmt.Fprint(ctx, string(jsonStr))
+	_, _ = fmt.Fprint(ctx, string(jsonStr))
 }
 
 func CancelOrder(ctx *fasthttp.RequestCtx) {

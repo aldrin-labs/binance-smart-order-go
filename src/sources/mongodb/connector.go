@@ -57,7 +57,7 @@ func Connect(url string, connectTimeout time.Duration) (*mongo.Client, error) {
 }
 
 type StateMgmt struct {
-	OrderCallbacks         *sync.Map
+	OrderCallbacks *sync.Map
 }
 
 func (sm *StateMgmt) InitOrdersWatch() {
@@ -116,10 +116,10 @@ func (sm *StateMgmt) EnableStrategy(strategyId *primitive.ObjectID) {
 	update = bson.D{
 		{
 			"$set", bson.D{
-			{
-				"enabled", true,
+				{
+					"enabled", true,
+				},
 			},
-		},
 		},
 	}
 	_, err := col.UpdateOne(context.TODO(), request, update)
@@ -149,7 +149,7 @@ func (sm *StateMgmt) DisableStrategy(strategyId *primitive.ObjectID) {
 	if err != nil {
 		log.Print("error in arg", err.Error())
 	}
-	
+
 	sm.CheckDisabledStrategy(strategyId, 2, 30)
 }
 
@@ -163,7 +163,7 @@ func (sm *StateMgmt) CheckDisabledStrategy(strategyId *primitive.ObjectID, times
 		if strategy.Enabled {
 			sm.DisableStrategy(strategyId)
 		}
-		sm.CheckDisabledStrategy(strategyId, times - 1, timeout)
+		sm.CheckDisabledStrategy(strategyId, times-1, timeout)
 	}
 }
 
@@ -231,10 +231,10 @@ func (sm *StateMgmt) SaveOrder(order models.MongoOrder, keyId *primitive.ObjectI
 		{"status", order.Status},
 		{"symbol", order.Symbol},
 		{"side", order.Side},
-		{"type",order.Type},
-		{"reduceOnly",order.ReduceOnly},
+		{"type", order.Type},
+		{"reduceOnly", order.ReduceOnly},
 		{"positionSide", order.PositionSide},
-		{"timestamp",float64(time.Now().UnixNano() / 1000000)},
+		{"timestamp", float64(time.Now().UnixNano() / 1000000)},
 	}}}
 	CollName := "core_orders"
 	ctx := context.Background()
@@ -353,7 +353,6 @@ func (sm *StateMgmt) GetOrderById(orderId *primitive.ObjectID) *models.MongoOrde
 	}
 	return order
 }
-
 
 func (sm *StateMgmt) SaveStrategy(strategy *models.MongoStrategy) *models.MongoStrategy {
 	log.Println("saveStrategy")
@@ -676,10 +675,10 @@ func (sm *StateMgmt) EnableHedgeLossStrategy(strategyId *primitive.ObjectID) {
 	update = bson.D{
 		{
 			"$set", bson.D{
-			{
-				"conditions.takeProfitExternal", false,
+				{
+					"conditions.takeProfitExternal", false,
+				},
 			},
-		},
 		},
 	}
 	_, err := col.UpdateOne(context.TODO(), request, update)
@@ -716,13 +715,13 @@ func (sm *StateMgmt) UpdateStateAndConditions(strategyId *primitive.ObjectID, mo
 	update = bson.D{
 		{
 			"$set", bson.D{
-			{
-				"conditions", model.Conditions,
+				{
+					"conditions", model.Conditions,
+				},
+				{
+					"state", model.State,
+				},
 			},
-			{
-				"state", model.State,
-			},
-		},
 		},
 	}
 	_, err := col.UpdateOne(context.TODO(), request, update)
