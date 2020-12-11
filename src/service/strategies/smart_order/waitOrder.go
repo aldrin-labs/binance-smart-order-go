@@ -11,6 +11,8 @@ func (sm *SmartOrder) waitForOrder(orderId string, orderStatus string) {
 	sm.StatusByOrderId.Store(orderId, orderStatus)
 	_ = sm.StateMgmt.SubscribeToOrder(orderId, sm.orderCallback)
 }
+
+// orderCallback supplies order data for smart order state transition attempt.
 func (sm *SmartOrder) orderCallback(order *models.MongoOrder) {
 	//log.Print("order callback in")
 	if order == nil || (order.OrderId == "" && order.PostOnlyInitialOrderId == "") {

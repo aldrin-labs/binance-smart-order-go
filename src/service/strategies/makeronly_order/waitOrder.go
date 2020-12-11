@@ -12,6 +12,7 @@ func (mo *MakerOnlyOrder) waitForOrder(orderId string, orderStatus string) {
 	mo.StatusByOrderId.Store(orderId, orderStatus)
 	_ = mo.StateMgmt.SubscribeToOrder(orderId, mo.orderCallback)
 }
+
 func (mo *MakerOnlyOrder) orderCallback(order *models.MongoOrder) {
 	ctx := context.TODO()
 	log.Println("order callback")

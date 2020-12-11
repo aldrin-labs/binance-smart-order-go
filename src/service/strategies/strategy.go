@@ -49,6 +49,7 @@ func (strategy *Strategy) GetStatsd() statsd_client.StatsdClient {
 	return strategy.Statsd
 }
 
+// Start starts a runtime for the strategy.
 func (strategy *Strategy) Start() {
 	switch strategy.Model.Type {
 	case 1:
@@ -62,12 +63,13 @@ func (strategy *Strategy) Start() {
 	}
 }
 
+// HotReload updates strategy in runtime to keep consistency with presistent state
 func (strategy *Strategy) HotReload(mongoStrategy models.MongoStrategy) {
 	strategy.Model.Enabled = mongoStrategy.Enabled
 	strategy.Model.Conditions = mongoStrategy.Conditions
 	if mongoStrategy.Enabled == false {
 		if strategy.StrategyRuntime != nil {
-			strategy.StrategyRuntime.Stop()
+			strategy.StrategyRuntime.Stop() // stop runtime if disabled by DB, externally
 		}
 	}
 }

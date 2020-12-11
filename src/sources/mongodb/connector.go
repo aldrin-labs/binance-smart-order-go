@@ -60,6 +60,7 @@ type StateMgmt struct {
 	OrderCallbacks *sync.Map
 }
 
+// InitOrdersWatch subscribes to orders updates and invokes StateMgnt callback on `filled` and `canceled` orders update event received.
 func (sm *StateMgmt) InitOrdersWatch() {
 	sm.OrderCallbacks = &sync.Map{}
 	CollName := "core_orders"
@@ -688,6 +689,7 @@ func (sm *StateMgmt) EnableHedgeLossStrategy(strategyId *primitive.ObjectID) {
 	// log.Print(res)
 }
 
+// SaveStrategyConditions saves static (persistent) conditions to dynamic state.
 func (sm *StateMgmt) SaveStrategyConditions(strategy *models.MongoStrategy) {
 	strategy.State.EntryPointPrice = strategy.Conditions.EntryOrder.Price
 	strategy.State.EntryPointType = strategy.Conditions.EntryOrder.OrderType

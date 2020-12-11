@@ -74,6 +74,7 @@ type MongoOrder struct {
 	StopPrice              float64            `json:"stopPrice,omitempty" bson:"stopPrice"`
 	Timestamp              float64            `json:"timestamp,omitempty" bson:"timestamp"`
 }
+
 type MongoPosition struct {
 	ID          primitive.ObjectID `json:"_id" bson:"_id"`
 	KeyId       primitive.ObjectID `json:"keyId" bson:"keyId"`
@@ -85,9 +86,10 @@ type MongoPosition struct {
 	UpdatedAt   time.Time          `json:"updatedAt,omitempty" bson:"updatedAt"`
 }
 
+// A MongoStrategy is the root of a smart trade strategy description.
 type MongoStrategy struct {
 	ID              *primitive.ObjectID     `json:"_id" bson:"_id"`
-	Type            int64                   `json:"type,omitempty" bson:"type"`
+	Type            int64                   `json:"type,omitempty" bson:"type"` // 1 - smart order, 2 - maker only
 	Enabled         bool                    `json:"enabled,omitempty" bson:"enabled"`
 	AccountId       *primitive.ObjectID     `json:"accountId,omitempty" bson:"accountId"`
 	Conditions      *MongoStrategyCondition `json:"conditions,omitempty" bson:"conditions"`
@@ -108,6 +110,7 @@ type MongoStrategyType struct {
 	Required interface{}
 }
 
+// A MongoStrategyState is a set of dynamic parameters for a smart trade.
 type MongoStrategyState struct {
 	ColdStart    bool   `json:"coldStart,omitempty" bson:"coldStart"`
 	State        string `json:"state,omitempty" bson:"state"`
@@ -176,6 +179,7 @@ type MongoEntryPoint struct {
 	OrderType string `json:"orderType,omitempty" bson:"orderType"`
 }
 
+// A MongoStrategyCondition is a set of static (persistent) parameters for a smart trade.
 type MongoStrategyCondition struct {
 	AccountId *primitive.ObjectID `json:"accountId,omitempty" bson:"accountId"`
 

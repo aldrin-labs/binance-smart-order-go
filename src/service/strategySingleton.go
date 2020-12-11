@@ -22,7 +22,7 @@ import (
 	"time"
 )
 
-// StrategyService strategy service type
+// A StrategyService singleton, the root for smart trades runtimes.
 type StrategyService struct {
 	strategies map[string]*strategies.Strategy
 	trading    trading.ITrading
@@ -34,7 +34,7 @@ type StrategyService struct {
 var singleton *StrategyService
 var once sync.Once
 
-// GetStrategyService to get singleton
+// GetStrategyService returns a pointer to instantiated service singleton.
 func GetStrategyService() *StrategyService {
 	once.Do(func() {
 		// df := redis.InitRedis()
@@ -53,6 +53,8 @@ func GetStrategyService() *StrategyService {
 	})
 	return singleton
 }
+
+// Init loads enabled strategies from persistent storage and instantiates subscriptions to positions, orders and strategies updates.
 func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 	//func (ss *StrategyService) Init(wg *sync.WaitGroup) {
 	ctx := context.Background()
@@ -80,6 +82,7 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 	}
 	defer cur.Close(ctx)
 
+	// Add strategies exists to runtime
 	for cur.Next(ctx) {
 
 		// create a value into which the single document can be decoded
@@ -99,11 +102,10 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 		go strategy.Start()
 	}
 
-	go ss.InitPositionsWatch()
-	go ss.stateMgmt.InitOrdersWatch()
-	_ = ss.WatchStrategies(isLocalBuild, accountId)
+	go ss.InitPositionsWatch()                      // subscribe to position updates
+	go ss.stateMgmt.InitOrdersWatch()               // subscribe to order updates
+	_ = ss.WatchStrategies(isLocalBuild, accountId) // subscribe to new smart trades to add them into runtime
 
-	//ss.WatchStrategies()
 	if err := cur.Err(); err != nil {
 		log.Print("log.Fatal at the end of init func")
 		wg.Done()
@@ -111,10 +113,12 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 	}
 }
 
+// GetStrategy creates strategy instance with given arguments.
 func GetStrategy(strategy *models.MongoStrategy, df interfaces.IDataFeed, tr trading.ITrading, st interfaces.IStateMgmt, statsd statsd_client.StatsdClient, ss *StrategyService) *strategies.Strategy {
 	return &strategies.Strategy{Model: strategy, Datafeed: df, Trading: tr, StateMgmt: st, Singleton: ss, Statsd: statsd}
 }
 
+// AddStrategy instantiates given strategy to store in the service instance and start it.
 func (ss *StrategyService) AddStrategy(strategy *models.MongoStrategy) {
 	if ss.strategies[strategy.ID.String()] == nil {
 		sig := GetStrategy(strategy, ss.dataFeed, ss.trading, ss.stateMgmt, ss.statsd, ss)
@@ -364,6 +368,7 @@ func (ss *StrategyService) CancelOrder(request trading.CancelOrderRequest) tradi
 
 const CollName = "core_strategies"
 
+// WatchStrategies subscribes to strategies to add new strategies to runtime or update local data together with persistent storage updates.
 func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) error {
 	//func (ss *StrategyService) WatchStrategies() error {
 	ctx := context.Background()
@@ -399,7 +404,8 @@ func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) 
 		if event.FullDocument.AccountId != nil && event.FullDocument.AccountId.Hex() == "5e4ce62b1318ef1b1e85b6f4" {
 			continue
 		}
-		if event.FullDocument.Type == 2 && event.FullDocument.State.ColdStart {
+
+		if event.FullDocument.Type == 2 && event.FullDocument.State.ColdStart { // 2 means maker only
 			sig := GetStrategy(&event.FullDocument, ss.dataFeed, ss.trading, ss.stateMgmt, ss.statsd, ss)
 			ss.strategies[event.FullDocument.ID.String()] = sig
 			log.Println("continue in maker-only cold start")
@@ -410,13 +416,14 @@ func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) 
 			log.Println("continue watchStrategies in accountId incomparable")
 			continue
 		}
+
 		if ss.strategies[event.FullDocument.ID.String()] != nil {
 			ss.strategies[event.FullDocument.ID.String()].HotReload(event.FullDocument)
 			ss.EditConditions(ss.strategies[event.FullDocument.ID.String()])
 			if event.FullDocument.Enabled == false {
 				delete(ss.strategies, event.FullDocument.ID.String())
 			}
-		} else {
+		} else { // brand new smart trade
 			if event.FullDocument.Enabled == true {
 				ss.AddStrategy(&event.FullDocument)
 			}
@@ -426,6 +433,7 @@ func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) 
 	return nil
 }
 
+// InitPositionsWatch subscribes to smart trade updates for each position update received to disable smart trade if position closed externally.
 func (ss *StrategyService) InitPositionsWatch() {
 	CollPositionsName := "core_positions"
 	CollStrategiesName := "core_strategies"

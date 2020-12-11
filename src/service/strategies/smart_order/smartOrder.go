@@ -667,6 +667,7 @@ func (sm *SmartOrder) TryCancelAllOrders(orderIds []string) {
 	}
 }
 
+// Start continuously checks the state and runs another event loop cycle or stops the smart order if conditions met.
 func (sm *SmartOrder) Start() {
 	ctx := context.TODO()
 
@@ -770,6 +771,7 @@ func (sm *SmartOrder) Stop() {
 	}
 }
 
+// processEventLoop takes new OHCLV data to supply it for the smart order state transition attempt.
 func (sm *SmartOrder) processEventLoop() {
 	currentOHLCVp := sm.DataFeed.GetPriceForPairAtExchange(sm.Strategy.GetModel().Conditions.Pair, sm.ExchangeName, sm.Strategy.GetModel().Conditions.MarketType)
 	if currentOHLCVp != nil {
