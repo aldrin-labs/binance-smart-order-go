@@ -17,6 +17,7 @@ var (
 	compress = flag.Bool("compress", false, "Whether to enable transparent response compression")
 )
 
+// RunServer starts HTTP server serves API to create or cancel a smart trade.
 func RunServer(wg *sync.WaitGroup) {
 	router := fasthttprouter.New()
 	router.GET("/", Index)
@@ -30,10 +31,12 @@ func RunServer(wg *sync.WaitGroup) {
 	}
 }
 
+// Healthz is a handler to answer to strategy service health check requests.
 func Healthz(ctx *fasthttp.RequestCtx) {
 	fmt.Fprint(ctx, "alive!\n")
 }
 
+// CreateOrder is a handler to pass a request to create a smart trade to service instance and return a status for the attempt.
 func CreateOrder(ctx *fasthttp.RequestCtx) {
 	var createOrder trading.CreateOrderRequest
 	_ = json.Unmarshal(ctx.PostBody(), &createOrder)
@@ -45,6 +48,7 @@ func CreateOrder(ctx *fasthttp.RequestCtx) {
 	_, _ = fmt.Fprint(ctx, string(jsonStr))
 }
 
+// CancelOrder is a handler to pass a request to cancel a smart trade to service instance and return a status for the attempt.
 func CancelOrder(ctx *fasthttp.RequestCtx) {
 	log.Println("cancelOrder in ss")
 	var cancelOrder trading.CancelOrderRequest

@@ -58,6 +58,7 @@ func (sm *SmartOrder) entryMultiEntry(ctx context.Context, args ...interface{}) 
 	log.Print("entryMultiEntry")
 	model := sm.Strategy.GetModel()
 
+	// place forced loss, TODO: requires e2e tests
 	isWaitingForcedLoss, forcedLossOk := sm.IsWaitingForOrder.Load("ForcedLoss")
 	if model.Conditions.ForcedLoss > 0 && (!forcedLossOk || !isWaitingForcedLoss.(bool)) && len(model.State.ForcedLossOrderIds) == 0 {
 		sm.IsWaitingForOrder.Store("ForcedLoss", true)
@@ -69,7 +70,7 @@ func (sm *SmartOrder) entryMultiEntry(ctx context.Context, args ...interface{}) 
 		sm.PlaceOrder(0, sm.getAveragingEntryAmount(model, sm.SelectedEntryTarget), "WithoutLoss")
 	}
 
-	// cancel old TAP
+	// cancel old TAP, TODO: we are not confident to keep it or remove, requires tests
 	isWaitingForOrder, ok := sm.IsWaitingForOrder.Load(TakeProfit)
 	if ok && isWaitingForOrder.(bool) {
 		state, _ := sm.State.State(ctx)

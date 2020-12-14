@@ -15,7 +15,6 @@ func GetStrategy(cur *mongo.Cursor, df interfaces.IDataFeed, tr trading.ITrading
 	return &Strategy{Model: &result, Datafeed: df, Trading: tr, StateMgmt: sm, Singleton: createOrder}, err
 }
 
-// Strategy object
 type Strategy struct {
 	Model           *models.MongoStrategy
 	StrategyRuntime interfaces.IStrategyRuntime
@@ -63,7 +62,7 @@ func (strategy *Strategy) Start() {
 	}
 }
 
-// HotReload updates strategy in runtime to keep consistency with presistent state
+// HotReload updates strategy in runtime to keep consistency with persistent state.
 func (strategy *Strategy) HotReload(mongoStrategy models.MongoStrategy) {
 	strategy.Model.Enabled = mongoStrategy.Enabled
 	strategy.Model.Conditions = mongoStrategy.Conditions

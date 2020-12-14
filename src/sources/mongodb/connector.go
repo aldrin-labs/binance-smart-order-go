@@ -178,6 +178,7 @@ func (sm *StateMgmt) SubscribeToOrder(orderId string, onOrderStatusUpdate func(o
 	return nil
 }
 
+// GetAssets returns IDs related to given market pair (e. g. BTCUSD) and type (e. g. Spot) given.
 func GetAssets(pair string, marketType int64) (*primitive.ObjectID, *primitive.ObjectID, *primitive.ObjectID) {
 	CollName := "core_markets"
 	ctx := context.Background()
@@ -195,6 +196,7 @@ func GetAssets(pair string, marketType int64) (*primitive.ObjectID, *primitive.O
 	}
 	return market.BaseId, market.QuoteId, market.ID
 }
+
 func GetKeyIdAndExchangeId(keyId *primitive.ObjectID) (*primitive.ObjectID, *primitive.ObjectID) {
 	CollName := "core_keys"
 	ctx := context.Background()
@@ -213,6 +215,7 @@ func GetKeyIdAndExchangeId(keyId *primitive.ObjectID) (*primitive.ObjectID, *pri
 
 }
 
+// SaveOrder upserts the order in a persistent storage.
 func (sm *StateMgmt) SaveOrder(order models.MongoOrder, keyId *primitive.ObjectID, marketType int64) {
 	log.Println("saveOrder", order, time.Now().Unix())
 	baseId, quoteId, marketId := GetAssets(order.Symbol, marketType)
@@ -689,7 +692,7 @@ func (sm *StateMgmt) EnableHedgeLossStrategy(strategyId *primitive.ObjectID) {
 	// log.Print(res)
 }
 
-// SaveStrategyConditions saves static (persistent) conditions to dynamic state.
+// SaveStrategyConditions updates dynamic state with given static (persistent) conditions.
 func (sm *StateMgmt) SaveStrategyConditions(strategy *models.MongoStrategy) {
 	strategy.State.EntryPointPrice = strategy.Conditions.EntryOrder.Price
 	strategy.State.EntryPointType = strategy.Conditions.EntryOrder.OrderType
@@ -707,6 +710,7 @@ func (sm *StateMgmt) SaveStrategyConditions(strategy *models.MongoStrategy) {
 	strategy.State.TakeProfitHedgePrice = strategy.Conditions.TakeProfitHedgePrice
 }
 
+// UpdateStateAndConditions updates state and conditions in a persistent storage.
 func (sm *StateMgmt) UpdateStateAndConditions(strategyId *primitive.ObjectID, model *models.MongoStrategy) {
 	col := GetCollection("core_strategies")
 	var request bson.D

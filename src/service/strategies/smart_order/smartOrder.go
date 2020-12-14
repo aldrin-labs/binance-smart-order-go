@@ -84,6 +84,7 @@ func (sm *SmartOrder) toFixed(num float64, precision int64) float64 {
 	return float64(round(num*output)) / output
 }
 
+// NewSmartOrder instantiates new smart order with given strategy.
 func NewSmartOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed, TradingAPI trading.ITrading, Statsd statsd_client.StatsdClient, keyId *primitive.ObjectID, stateMgmt interfaces.IStateMgmt) *SmartOrder {
 
 	sm := &SmartOrder{Strategy: strategy, DataFeed: DataFeed, ExchangeApi: TradingAPI, KeyId: keyId, StateMgmt: stateMgmt, Lock: false, SelectedExitTarget: 0, OrdersMap: map[string]bool{}}
@@ -723,7 +724,7 @@ func (sm *SmartOrder) Stop() {
 		}()
 	}
 
-	// we should get rid of it, it should not work like this
+	// TODO: we should get rid of it, it should not work like this
 	StateS := model.State.State
 	if state != End && StateS != Timeout &&
 		!model.Conditions.EntrySpreadHunter && model.Conditions.WaitingEntryTimeout > 0 {
