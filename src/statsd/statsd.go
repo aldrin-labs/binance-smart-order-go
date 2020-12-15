@@ -13,10 +13,7 @@ type StatsdClient struct {
 
 func (sd *StatsdClient) Init() {
 	host := os.Getenv("STATSD_HOST")
-	if host == "" {
-		host = "graphite.infra"
-	}
-	port := "8125"
+	port := os.Getenv("STATSD_PORT")
 	log.Printf("Statsd connecting to %s:%s", host, port)
 	config := &statsd.ClientConfig{
 		Address: fmt.Sprintf("%s:%s", host, port),
