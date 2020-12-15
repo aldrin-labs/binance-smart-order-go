@@ -53,6 +53,7 @@ func (sm *SmartOrder) placeMultiEntryOrders(stopLoss bool) {
 
 }
 
+// entryMultiEntry executes once multiEntryOrder got executed
 func (sm *SmartOrder) entryMultiEntry(ctx context.Context, args ...interface{}) error {
 	sm.StopMux.Lock()
 	log.Print("entryMultiEntry")
