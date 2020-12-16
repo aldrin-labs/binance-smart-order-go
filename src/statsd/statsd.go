@@ -15,14 +15,14 @@ type StatsdClient struct {
 func (sd *StatsdClient) Init() {
 	host := os.Getenv("STATSD_HOST")
 	if host == "" {
-		host := "graphite.infra"
+		host = "graphite.infra"
 	}
 	// port := os.Getenv("STATSD_PORT")
 	port := "8125"
 	log.Printf("Statsd connecting to %s:%s", host, port)
 	config := &statsd.ClientConfig{
-		Address: fmt.Sprintf("%s:%s", host, port),
-		Prefix:  "strategy_service",
+		Address:       fmt.Sprintf("%s:%s", host, port),
+		Prefix:        "strategy_service",
 		FlushInterval: 1000 * time.Millisecond, // fixed max delay for alerts
 	}
 	client, err := statsd.NewClientWithConfig(config)
@@ -31,7 +31,7 @@ func (sd *StatsdClient) Init() {
 		return
 	}
 	sd.Client = &client
-	log.Println("Statsd init successful")
+	log.Println("Statsd init successful.")
 }
 
 func (sd *StatsdClient) Inc(statName string) {
@@ -47,6 +47,15 @@ func (sd *StatsdClient) Timing(statName string, value int64) {
 		err := (*sd.Client).Timing(statName, value, 1.0)
 		if err != nil {
 			log.Println("Error on Statsd Timing:" + err.Error())
+		}
+	}
+}
+
+func (sd *StatsdClient) TimingDuration(statName string, value time.Duration) {
+	if sd.Client != nil {
+		err := (*sd.Client).TimingDuration(statName, value, 1.0)
+		if err != nil {
+			log.Println("Error on Statsd TimingDuration:" + err.Error())
 		}
 	}
 }
