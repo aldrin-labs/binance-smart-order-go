@@ -131,6 +131,7 @@ func (ss *StrategyService) AddStrategy(strategy *models.MongoStrategy) {
 
 // CreateOrder instantiates smart trade strategy with requested parameters and adds it to the service runtime.
 func (ss *StrategyService) CreateOrder(request trading.CreateOrderRequest) trading.OrderResponse {
+	t1 := time.Now()
 	id := primitive.NewObjectID()
 	var reduceOnly bool
 	if request.KeyParams.ReduceOnly == nil {
@@ -293,11 +294,13 @@ func (ss *StrategyService) CreateOrder(request trading.CreateOrderRequest) tradi
 			Msg:     "",
 		},
 	}
+	ss.statsd.TimingDuration("strategy_service.create_order", time.Since(t1))
 	return response
 }
 
 // CancelOrder tries to cancel an order notifying state manager to update a persistent storage.
 func (ss *StrategyService) CancelOrder(request trading.CancelOrderRequest) trading.OrderResponse {
+	t1 := time.Now()
 	id, _ := primitive.ObjectIDFromHex(request.KeyParams.OrderId)
 	strategy := ss.strategies[id.String()]
 	order := ss.stateMgmt.GetOrderById(&id)
@@ -352,6 +355,7 @@ func (ss *StrategyService) CancelOrder(request trading.CancelOrderRequest) tradi
 
 	go ss.stateMgmt.SaveOrder(updatedOrder, request.KeyId, request.KeyParams.MarketType)
 
+	ss.statsd.TimingDuration("strategy_service.cancel_order", time.Since(t1))
 	return trading.OrderResponse{
 		Status: "OK",
 		Data: trading.OrderResponseData{
