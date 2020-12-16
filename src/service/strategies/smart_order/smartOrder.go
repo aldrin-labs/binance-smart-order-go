@@ -728,6 +728,7 @@ func (sm *SmartOrder) Stop() {
 
 	// TODO: we should get rid of it, it should not work like this
 	StateS := model.State.State
+
 	if state != End && StateS != Timeout &&
 		!model.Conditions.EntrySpreadHunter && model.Conditions.WaitingEntryTimeout > 0 {
 		// we should check after some time if we have opened order and this one got executed before been canceled
