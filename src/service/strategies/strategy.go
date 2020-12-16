@@ -71,4 +71,5 @@ func (strategy *Strategy) HotReload(mongoStrategy models.MongoStrategy) {
 			strategy.StrategyRuntime.Stop() // stop runtime if disabled by DB, externally
 		}
 	}
+	strategy.Statsd.Inc("strategy_service.hot_reload")
 }
