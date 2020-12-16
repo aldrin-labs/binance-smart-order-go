@@ -675,6 +675,7 @@ func (sm *SmartOrder) Start() {
 	state, _ := sm.State.State(context.Background())
 	localState := sm.Strategy.GetModel().State.State
 	for state != End && localState != End && state != Canceled && state != Timeout {
+		cycle_started_at := time.Now()
 		if sm.Strategy.GetModel().Enabled == false {
 			state, _ = sm.State.State(ctx)
 			break
@@ -689,6 +690,7 @@ func (sm *SmartOrder) Start() {
 		time.Sleep(60 * time.Millisecond)
 		state, _ = sm.State.State(ctx)
 		localState = sm.Strategy.GetModel().State.State
+		sm.Statsd.TimingDuration("strategy_service.smart_order.cycle_time", time.Since(cycle_started_at))
 	}
 	sm.Stop()
 	log.Print("STOPPED smartorder ", state.(string))
@@ -770,6 +772,12 @@ func (sm *SmartOrder) Stop() {
 		//_ = sm.onStart(nil)
 		sm.Start()
 	}
+
+	if amount := sm.Strategy.GetModel().State.PositionAmount; amount != 0.0 {
+		log.Println("Smart order strategy", sm.Strategy.GetModel().ID.String(), "stopped with non-zero amount", amount)
+		sm.Statsd.Inc("strategy_service.smart_order.stopped_with_nonzero_amount")
+	}
+
 }
 
 // processEventLoop takes new OHCLV data to supply it for the smart order state transition attempt.
