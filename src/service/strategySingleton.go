@@ -123,14 +123,16 @@ func (ss *StrategyService) AddStrategy(strategy *models.MongoStrategy) {
 	if ss.strategies[strategy.ID.String()] == nil {
 		sig := GetStrategy(strategy, ss.dataFeed, ss.trading, ss.stateMgmt, ss.statsd, ss)
 		log.Print("start objid ", sig.Model.ID.String())
-		ss.statsd.Inc("strategy_service.created_strategy")
 		ss.strategies[sig.Model.ID.String()] = sig
 		go sig.Start()
+		ss.statsd.Inc("strategy_service.created_strategy")
+		ss.statsd.Gauge("strategy_service.active_strategies", int64(len(ss.strategies)))
 	}
 }
 
 // CreateOrder instantiates smart trade strategy with requested parameters and adds it to the service runtime.
 func (ss *StrategyService) CreateOrder(request trading.CreateOrderRequest) trading.OrderResponse {
+	ss.statsd.Inc("strategy_service.create_request")
 	t1 := time.Now()
 	id := primitive.NewObjectID()
 	var reduceOnly bool
@@ -431,6 +433,7 @@ func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) 
 			}
 		} else { // brand new smart trade
 			if event.FullDocument.Enabled == true {
+				ss.statsd.Inc("strategy_service.create_from_db")
 				ss.AddStrategy(&event.FullDocument)
 			}
 		}
