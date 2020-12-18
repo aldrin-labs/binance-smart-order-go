@@ -42,6 +42,7 @@ func (sd *StatsdClient) Inc(statName string) {
 		}
 	}
 }
+
 func (sd *StatsdClient) Timing(statName string, value int64) {
 	if sd.Client != nil {
 		err := (*sd.Client).Timing(statName, value, 1.0)
@@ -56,6 +57,15 @@ func (sd *StatsdClient) TimingDuration(statName string, value time.Duration) {
 		err := (*sd.Client).TimingDuration(statName, value, 1.0)
 		if err != nil {
 			log.Println("Error on Statsd TimingDuration:" + err.Error())
+		}
+	}
+}
+
+func (sd *StatsdClient) Gauge(statName string, value int64) {
+	if sd.Client != nil {
+		err := (*sd.Client).Gauge(statName, value, 1.0)
+		if err != nil {
+			log.Println("Error on Statsd Gauge:" + err.Error())
 		}
 	}
 }
