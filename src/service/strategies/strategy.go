@@ -54,9 +54,11 @@ func (strategy *Strategy) Start() {
 	case 1:
 		println("runSmartOrder")
 		strategy.StrategyRuntime = RunSmartOrder(strategy, strategy.Datafeed, strategy.Trading, strategy.Statsd, strategy.Model.AccountId)
+		strategy.Statsd.Inc("strategy.sm_runtime_start")
 	case 2:
 		println("makerOnly")
 		strategy.StrategyRuntime = RunMakerOnlyOrder(strategy, strategy.Datafeed, strategy.Trading, strategy.Model.AccountId)
+		strategy.Statsd.Inc("strategy.mo_runtime_start")
 	default:
 		fmt.Println("this type of strategy is not supported yet: ", strategy.Model.ID.String(), strategy.Model.Type)
 	}
@@ -71,5 +73,5 @@ func (strategy *Strategy) HotReload(mongoStrategy models.MongoStrategy) {
 			strategy.StrategyRuntime.Stop() // stop runtime if disabled by DB, externally
 		}
 	}
-	strategy.Statsd.Inc("strategy_service.hot_reload")
+	strategy.Statsd.Inc("strategy.hot_reload")
 }

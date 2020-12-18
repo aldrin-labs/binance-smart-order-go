@@ -674,6 +674,7 @@ func (sm *SmartOrder) Start() {
 
 	state, _ := sm.State.State(context.Background())
 	localState := sm.Strategy.GetModel().State.State
+	sm.Statsd.Inc("smart_order.start")
 	for state != End && localState != End && state != Canceled && state != Timeout {
 		cycle_started_at := time.Now()
 		if sm.Strategy.GetModel().Enabled == false {
@@ -690,7 +691,7 @@ func (sm *SmartOrder) Start() {
 		time.Sleep(60 * time.Millisecond)
 		state, _ = sm.State.State(ctx)
 		localState = sm.Strategy.GetModel().State.State
-		sm.Statsd.TimingDuration("smart_order.cycle_time", time.Since(cycle_started_at))
+		sm.Statsd.TimingDuration("smart_order.cycle_time", time.Since(cycle_started_at)) // TODO: check rate
 	}
 	sm.Stop()
 	log.Print("STOPPED smartorder ", state.(string))
@@ -733,6 +734,7 @@ func (sm *SmartOrder) Stop() {
 		!model.Conditions.EntrySpreadHunter && model.Conditions.WaitingEntryTimeout > 0 {
 		// we should check after some time if we have opened order and this one got executed before been canceled
 		go func() {
+			sm.Statsd.Inc("smart_order.place_cancel_order_in_stop_func_attempt")
 			time.Sleep(5 * time.Second)
 			if model.State.PositionAmount > 0 && model.State.EntryPrice > 0 {
 				log.Println(
@@ -741,7 +743,7 @@ func (sm *SmartOrder) Stop() {
 					" model.State.EntryPrice ", model.State.EntryPrice,
 					" state ", state, " StateS ", StateS,
 				)
-				sm.Statsd.Inc("smart_order.place_cancel_order_in_stop_func")
+				sm.Statsd.Inc("smart_order.place_cancel_order_in_stop_func_with_nonzero_amount")
 				sm.PlaceOrder(0, model.State.PositionAmount, Canceled)
 			}
 		}()
@@ -778,7 +780,7 @@ func (sm *SmartOrder) Stop() {
 		log.Println("Smart order strategy", sm.Strategy.GetModel().ID.String(), "stopped with non-zero amount", amount)
 		sm.Statsd.Inc("smart_order.stopped_with_nonzero_amount")
 	}
-
+	sm.Statsd.Inc("smart_order.stop_attempt")
 }
 
 // processEventLoop takes new OHCLV data to supply it for the smart order state transition attempt.
