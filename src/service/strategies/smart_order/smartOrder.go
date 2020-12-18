@@ -690,7 +690,7 @@ func (sm *SmartOrder) Start() {
 		time.Sleep(60 * time.Millisecond)
 		state, _ = sm.State.State(ctx)
 		localState = sm.Strategy.GetModel().State.State
-		sm.Statsd.TimingDuration("strategy_service.smart_order.cycle_time", time.Since(cycle_started_at))
+		sm.Statsd.TimingDuration("smart_order.cycle_time", time.Since(cycle_started_at))
 	}
 	sm.Stop()
 	log.Print("STOPPED smartorder ", state.(string))
@@ -741,7 +741,7 @@ func (sm *SmartOrder) Stop() {
 					" model.State.EntryPrice ", model.State.EntryPrice,
 					" state ", state, " StateS ", StateS,
 				)
-				sm.Statsd.Inc("strategy_service.place_cancel_order_in_stop_func")
+				sm.Statsd.Inc("smart_order.place_cancel_order_in_stop_func")
 				sm.PlaceOrder(0, model.State.PositionAmount, Canceled)
 			}
 		}()
@@ -776,7 +776,7 @@ func (sm *SmartOrder) Stop() {
 
 	if amount := sm.Strategy.GetModel().State.PositionAmount; amount != 0.0 {
 		log.Println("Smart order strategy", sm.Strategy.GetModel().ID.String(), "stopped with non-zero amount", amount)
-		sm.Statsd.Inc("strategy_service.smart_order.stopped_with_nonzero_amount")
+		sm.Statsd.Inc("smart_order.stopped_with_nonzero_amount")
 	}
 
 }

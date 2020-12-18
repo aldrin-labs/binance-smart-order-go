@@ -617,7 +617,7 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 				model.Enabled = false
 				model.State.State = Error
 				model.State.Msg = response.Data.Msg
-				sm.Statsd.Inc("strategy_service.error_state")
+				sm.Statsd.Inc("smart_order.error_state")
 				go sm.StateMgmt.UpdateState(model.ID, model.State)
 				break
 			}
