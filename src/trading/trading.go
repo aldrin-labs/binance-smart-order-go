@@ -66,6 +66,7 @@ func InitTrading() ITrading {
 	return tr
 }
 
+// Request encodes data to JSON, sends it to exchange service and returns decoded response.
 func Request(method string, data interface{}) interface{} {
 	url := "http://" + os.Getenv("EXCHANGESERVICE") + "/" + method
 	fmt.Println("URL:>", url)
@@ -186,6 +187,7 @@ func toFixed(num float64, precision int) float64 {
 	return float64(round(num*output)) / output
 }
 
+// CreateOrder requests exchange service to create an order.
 func (t *Trading) CreateOrder(order CreateOrderRequest) OrderResponse {
 	order.KeyParams.Params.Update = true
 	if order.KeyParams.PostOnly != nil && *order.KeyParams.PostOnly == false {

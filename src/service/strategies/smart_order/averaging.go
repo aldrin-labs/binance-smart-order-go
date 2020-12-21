@@ -41,7 +41,7 @@ func (sm *SmartOrder) placeMultiEntryOrders(stopLoss bool) {
 	}
 
 	if stopLoss {
-		go sm.PlaceOrder(currentPrice, 0.0, Stoploss)
+		go sm.PlaceOrder(currentPrice, sumAmount, Stoploss)
 		if model.Conditions.ForcedLoss > 0 {
 			go sm.PlaceOrder(currentPrice, 0.0, "ForcedLoss")
 		}
@@ -51,18 +51,19 @@ func (sm *SmartOrder) placeMultiEntryOrders(stopLoss bool) {
 	// we should replace stop loss if it's simple avg without placeEntryAfterTAP
 	// coz it may affect on existing position by amount > left from entry targets
 
-
 }
 
+// entryMultiEntry executes once multiEntryOrder got executed
 func (sm *SmartOrder) entryMultiEntry(ctx context.Context, args ...interface{}) error {
 	sm.StopMux.Lock()
 	log.Print("entryMultiEntry")
 	model := sm.Strategy.GetModel()
 
+	// place forced loss, TODO: requires e2e tests
 	isWaitingForcedLoss, forcedLossOk := sm.IsWaitingForOrder.Load("ForcedLoss")
 	if model.Conditions.ForcedLoss > 0 && (!forcedLossOk || !isWaitingForcedLoss.(bool)) && len(model.State.ForcedLossOrderIds) == 0 {
 		sm.IsWaitingForOrder.Store("ForcedLoss", true)
-		time.AfterFunc(3 * time.Second, func() {sm.PlaceOrder(model.State.EntryPrice, 0.0, "ForcedLoss")})
+		time.AfterFunc(3*time.Second, func() { sm.PlaceOrder(model.State.EntryPrice, 0.0, "ForcedLoss") })
 	}
 
 	// place BEP
@@ -70,7 +71,7 @@ func (sm *SmartOrder) entryMultiEntry(ctx context.Context, args ...interface{}) 
 		sm.PlaceOrder(0, sm.getAveragingEntryAmount(model, sm.SelectedEntryTarget), "WithoutLoss")
 	}
 
-	// cancel old TAP
+	// cancel old TAP, TODO: we are not confident to keep it or remove, requires tests
 	isWaitingForOrder, ok := sm.IsWaitingForOrder.Load(TakeProfit)
 	if ok && isWaitingForOrder.(bool) {
 		state, _ := sm.State.State(ctx)

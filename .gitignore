@@ -2,3 +2,4 @@
 .env*
 .idea
 ./tests/.env
+tags
