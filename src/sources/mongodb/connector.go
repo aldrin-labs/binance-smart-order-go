@@ -57,10 +57,9 @@ func Connect(url string, connectTimeout time.Duration) (*mongo.Client, error) {
 }
 
 type StateMgmt struct {
-	OrderCallbacks *sync.Map
+	OrderCallbacks         *sync.Map
 }
 
-// InitOrdersWatch subscribes to orders updates and invokes StateMgnt callback on `filled` and `canceled` orders update event received.
 func (sm *StateMgmt) InitOrdersWatch() {
 	sm.OrderCallbacks = &sync.Map{}
 	CollName := "core_orders"
@@ -117,10 +116,10 @@ func (sm *StateMgmt) EnableStrategy(strategyId *primitive.ObjectID) {
 	update = bson.D{
 		{
 			"$set", bson.D{
-				{
-					"enabled", true,
-				},
+			{
+				"enabled", true,
 			},
+		},
 		},
 	}
 	_, err := col.UpdateOne(context.TODO(), request, update)
@@ -150,7 +149,7 @@ func (sm *StateMgmt) DisableStrategy(strategyId *primitive.ObjectID) {
 	if err != nil {
 		log.Print("error in arg", err.Error())
 	}
-
+	
 	sm.CheckDisabledStrategy(strategyId, 2, 30)
 }
 
@@ -164,7 +163,7 @@ func (sm *StateMgmt) CheckDisabledStrategy(strategyId *primitive.ObjectID, times
 		if strategy.Enabled {
 			sm.DisableStrategy(strategyId)
 		}
-		sm.CheckDisabledStrategy(strategyId, times-1, timeout)
+		sm.CheckDisabledStrategy(strategyId, times - 1, timeout)
 	}
 }
 
@@ -178,7 +177,6 @@ func (sm *StateMgmt) SubscribeToOrder(orderId string, onOrderStatusUpdate func(o
 	return nil
 }
 
-// GetAssets returns IDs related to given market pair (e. g. BTCUSD) and type (e. g. Spot) given.
 func GetAssets(pair string, marketType int64) (*primitive.ObjectID, *primitive.ObjectID, *primitive.ObjectID) {
 	CollName := "core_markets"
 	ctx := context.Background()
@@ -196,7 +194,6 @@ func GetAssets(pair string, marketType int64) (*primitive.ObjectID, *primitive.O
 	}
 	return market.BaseId, market.QuoteId, market.ID
 }
-
 func GetKeyIdAndExchangeId(keyId *primitive.ObjectID) (*primitive.ObjectID, *primitive.ObjectID) {
 	CollName := "core_keys"
 	ctx := context.Background()
@@ -215,7 +212,6 @@ func GetKeyIdAndExchangeId(keyId *primitive.ObjectID) (*primitive.ObjectID, *pri
 
 }
 
-// SaveOrder upserts the order in a persistent storage.
 func (sm *StateMgmt) SaveOrder(order models.MongoOrder, keyId *primitive.ObjectID, marketType int64) {
 	log.Println("saveOrder", order, time.Now().Unix())
 	baseId, quoteId, marketId := GetAssets(order.Symbol, marketType)
@@ -235,10 +231,10 @@ func (sm *StateMgmt) SaveOrder(order models.MongoOrder, keyId *primitive.ObjectI
 		{"status", order.Status},
 		{"symbol", order.Symbol},
 		{"side", order.Side},
-		{"type", order.Type},
-		{"reduceOnly", order.ReduceOnly},
+		{"type",order.Type},
+		{"reduceOnly",order.ReduceOnly},
 		{"positionSide", order.PositionSide},
-		{"timestamp", float64(time.Now().UnixNano() / 1000000)},
+		{"timestamp",float64(time.Now().UnixNano() / 1000000)},
 	}}}
 	CollName := "core_orders"
 	ctx := context.Background()
@@ -357,6 +353,7 @@ func (sm *StateMgmt) GetOrderById(orderId *primitive.ObjectID) *models.MongoOrde
 	}
 	return order
 }
+
 
 func (sm *StateMgmt) SaveStrategy(strategy *models.MongoStrategy) *models.MongoStrategy {
 	log.Println("saveStrategy")
@@ -552,13 +549,6 @@ func (sm *StateMgmt) UpdateOrders(strategyId *primitive.ObjectID, state *models.
 						},
 					},
 				},
-				{
-					"state.orders", bson.D{
-						{
-							"$each", state.Orders,
-						},
-					},
-				},
 			},
 		},
 	}
@@ -679,10 +669,10 @@ func (sm *StateMgmt) EnableHedgeLossStrategy(strategyId *primitive.ObjectID) {
 	update = bson.D{
 		{
 			"$set", bson.D{
-				{
-					"conditions.takeProfitExternal", false,
-				},
+			{
+				"conditions.takeProfitExternal", false,
 			},
+		},
 		},
 	}
 	_, err := col.UpdateOne(context.TODO(), request, update)
@@ -692,7 +682,6 @@ func (sm *StateMgmt) EnableHedgeLossStrategy(strategyId *primitive.ObjectID) {
 	// log.Print(res)
 }
 
-// SaveStrategyConditions updates dynamic state with given static (persistent) conditions.
 func (sm *StateMgmt) SaveStrategyConditions(strategy *models.MongoStrategy) {
 	strategy.State.EntryPointPrice = strategy.Conditions.EntryOrder.Price
 	strategy.State.EntryPointType = strategy.Conditions.EntryOrder.OrderType
@@ -710,7 +699,6 @@ func (sm *StateMgmt) SaveStrategyConditions(strategy *models.MongoStrategy) {
 	strategy.State.TakeProfitHedgePrice = strategy.Conditions.TakeProfitHedgePrice
 }
 
-// UpdateStateAndConditions updates state and conditions in a persistent storage.
 func (sm *StateMgmt) UpdateStateAndConditions(strategyId *primitive.ObjectID, model *models.MongoStrategy) {
 	col := GetCollection("core_strategies")
 	var request bson.D
@@ -721,13 +709,13 @@ func (sm *StateMgmt) UpdateStateAndConditions(strategyId *primitive.ObjectID, mo
 	update = bson.D{
 		{
 			"$set", bson.D{
-				{
-					"conditions", model.Conditions,
-				},
-				{
-					"state", model.State,
-				},
+			{
+				"conditions", model.Conditions,
 			},
+			{
+				"state", model.State,
+			},
+		},
 		},
 	}
 	_, err := col.UpdateOne(context.TODO(), request, update)

@@ -59,9 +59,9 @@ type RawOrderbookOHLCV []struct {
 type RawSpread struct {
 	BestBidPrice float64 `json:"b,string"`
 	BestAskPrice float64 `json:"a,string"`
-	BestBidQty   float64 `json:"B,string"`
-	BestAskQty   float64 `json:"A,string"`
-	Symbol       string  `json:"s"`
+	BestBidQty float64 `json:"B,string"`
+	BestAskQty float64 `json:"A,string"`
+	Symbol       string `json:"s"`
 }
 
 func (rl *BinanceLoop) SubscribeToPairs() {

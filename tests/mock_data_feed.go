@@ -5,9 +5,9 @@ import (
 )
 
 type MockDataFeed struct {
-	tickerData        []interfaces.OHLCV
-	spreadData        []interfaces.SpreadData
-	currentTick       int
+	tickerData  []interfaces.OHLCV
+	spreadData  []interfaces.SpreadData
+	currentTick int
 	currentSpreadTick int
 }
 
@@ -22,10 +22,10 @@ func NewMockedDataFeed(mockedStream []interfaces.OHLCV) *MockDataFeed {
 
 func NewMockedSpreadDataFeed(mockedStream []interfaces.SpreadData, mockedOHLCVStream []interfaces.OHLCV) *MockDataFeed {
 	dataFeed := MockDataFeed{
-		spreadData:        mockedStream,
-		tickerData:        mockedOHLCVStream,
+		spreadData:  mockedStream,
+		tickerData: mockedOHLCVStream,
 		currentSpreadTick: -1,
-		currentTick:       -1,
+		currentTick: -1,
 	}
 
 	return &dataFeed
