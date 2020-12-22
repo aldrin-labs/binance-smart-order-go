@@ -35,13 +35,12 @@ func TestSmartTakeProfit(t *testing.T) {
 	}}
 	df := tests.NewMockedDataFeed(fakeDataStream)
 	tradingApi := tests.NewMockedTradingAPI()
+	strategy := strategies.Strategy{
+		Model: &smartOrderModel,
+	}
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
-	strategy := strategies.Strategy{
-		Model:     &smartOrderModel,
-		StateMgmt: &sm,
-	}
-	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
+	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
@@ -51,8 +50,8 @@ func TestSmartTakeProfit(t *testing.T) {
 	// check that one call with 'sell' and one with 'BTC_USDT' should be done
 	sellCallCount, sellFound := tradingApi.CallCount.Load("sell")
 	btcUsdtCallCount, usdtBtcFound := tradingApi.CallCount.Load("BTC_USDT")
-	if !sellFound || !usdtBtcFound || sellCallCount != 1 || btcUsdtCallCount != 1 {
-		t.Error("There were", sellCallCount, "trading api calls with sell params and", btcUsdtCallCount, "with BTC_USDT params")
+	if !sellFound || !usdtBtcFound || sellCallCount == 0 || btcUsdtCallCount == 0 {
+		t.Error("There were 0 trading api calls with sell params and 0 with BTC_USDT params")
 	} else {
 		fmt.Println("Success! There were " + strconv.Itoa(sellCallCount.(int)) + " trading api calls with sell params and " + strconv.Itoa(btcUsdtCallCount.(int)) + " with BTC_USDT params")
 	}
@@ -114,14 +113,13 @@ func TestSmartOrderTakeProfit(t *testing.T) {
 	smartOrderModel := GetTestSmartOrderStrategy("takeProfit")
 	df := tests.NewMockedDataFeed(fakeDataStream)
 	tradingApi := tests.NewMockedTradingAPI()
+	strategy := strategies.Strategy{
+		Model: &smartOrderModel,
+	}
 	keyId := primitive.NewObjectID()
 	//sm := mongodb.StateMgmt{}
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
-	strategy := strategies.Strategy{
-		Model:     &smartOrderModel,
-		StateMgmt: &sm,
-	}
-	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
+	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
@@ -185,13 +183,13 @@ func TestSmartOrderTakeProfitAllTargets(t *testing.T) {
 	smartOrderModel := GetTestSmartOrderStrategy("multiplePriceTargets")
 	df := tests.NewMockedDataFeed(fakeDataStream)
 	tradingApi := tests.NewMockedTradingAPI()
-	keyId := primitive.NewObjectID()
-	sm := tests.NewMockedStateMgmt(tradingApi, df)
 	strategy := strategies.Strategy{
-		Model:     &smartOrderModel,
-		StateMgmt: &sm,
+		Model: &smartOrderModel,
 	}
-	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm) //TODO
+	keyId := primitive.NewObjectID()
+
+	sm := tests.NewMockedStateMgmt(tradingApi, df)
+	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm) //TODO
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})

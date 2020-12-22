@@ -5,7 +5,7 @@ import (
 	"log"
 )
 
-func (po *MakerOnlyOrder) run() {
+func(po *MakerOnlyOrder) run() {
 	//pair := po.Strategy.GetModel().Conditions.Pair
 	//marketType := po.Strategy.GetModel().Conditions.MarketType
 	//exchange := "binance"

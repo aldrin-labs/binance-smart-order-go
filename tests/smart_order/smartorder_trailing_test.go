@@ -53,14 +53,13 @@ func TestSmartOrderTrailingEntryAndThenActivateTrailingWithHighLeverage(t *testi
 	df := tests.NewMockedDataFeed(fakeDataStream)
 	tradingApi := tests.NewMockedTradingAPI()
 	tradingApi.SellDelay = 30000
+	strategy := strategies.Strategy{
+		Model: &smartOrderModel,
+	}
 	keyId := primitive.NewObjectID()
 	//sm := mongodb.StateMgmt{}
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
-	strategy := strategies.Strategy{
-		Model:     &smartOrderModel,
-		StateMgmt: &sm,
-	}
-	smartOrder := smart_order.NewSmartOrder(&strategy, df, sm.Trading, strategy.Statsd, &keyId, &sm)
+	smartOrder := smart_order.NewSmartOrder(&strategy, df, sm.Trading, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
@@ -118,13 +117,13 @@ func TestSmartOrderTrailingEntryAndTrailingExitWithHighLeverage(t *testing.T) {
 	tradingApi := tests.NewMockedTradingAPI()
 	tradingApi.BuyDelay = 100
 	tradingApi.SellDelay = 100
-	keyId := primitive.NewObjectID()
-	sm := tests.NewMockedStateMgmt(tradingApi, df)
 	strategy := strategies.Strategy{
-		Model:     &smartOrderModel,
-		StateMgmt: &sm,
+		Model: &smartOrderModel,
 	}
-	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
+	keyId := primitive.NewObjectID()
+
+	sm := tests.NewMockedStateMgmt(tradingApi, df)
+	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
@@ -191,14 +190,13 @@ func TestSmartOrderTrailingEntryAndFollowTrailingMaximumsWithoutEarlyExitWithHig
 	tradingApi := tests.NewMockedTradingAPI()
 	tradingApi.BuyDelay = 100
 	tradingApi.SellDelay = 20100
-	//sm := mongodb.StateMgmt{}
-	sm := tests.NewMockedStateMgmt(tradingApi, df)
 	strategy := strategies.Strategy{
 		Model: &smartOrderModel,
-		StateMgmt: &sm,
 	}
 	keyId := primitive.NewObjectID()
-	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
+	//sm := mongodb.StateMgmt{}
+	sm := tests.NewMockedStateMgmt(tradingApi, df)
+	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})

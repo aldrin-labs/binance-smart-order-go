@@ -48,13 +48,12 @@ func TestSmartExitOnStopMarket(t *testing.T) {
 
 	tradingApi.BuyDelay = 1000
 	tradingApi.SellDelay = 1000
+	strategy := strategies.Strategy{
+		Model: &smartOrderModel,
+	}
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
-	strategy := strategies.Strategy{
-		Model:     &smartOrderModel,
-		StateMgmt: &sm,
-	}
-	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
+	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
@@ -123,13 +122,13 @@ func TestSmartExitOnStopMarketTimeout(t *testing.T) {
 	smartOrderModel := GetTestSmartOrderStrategy("stopLossMarketTimeout")
 	df := tests.NewMockedDataFeed(fakeDataStream)
 	tradingApi := tests.NewMockedTradingAPI()
+
+	strategy := strategies.Strategy{
+		Model: &smartOrderModel,
+	}
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
-	strategy := strategies.Strategy{
-		Model:     &smartOrderModel,
-		StateMgmt: &sm,
-	}
-	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
+	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
@@ -179,13 +178,12 @@ func TestSmartExitAfterTimeoutLoss(t *testing.T) {
 	smartOrderModel := GetTestSmartOrderStrategy("stopLossMarketTimeoutLoss")
 	df := tests.NewMockedDataFeed(fakeDataStream)
 	tradingApi := tests.NewMockedTradingAPI()
+	strategy := strategies.Strategy{
+		Model: &smartOrderModel,
+	}
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
-	strategy := strategies.Strategy{
-		Model:     &smartOrderModel,
-		StateMgmt: &sm,
-	}
-	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
+	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
@@ -241,13 +239,13 @@ func TestSmartOrderReturnToInEntryAfterTimeoutLoss(t *testing.T) {
 		Low:    6600,
 		Close:  6600,
 		Volume: 30,
-	}, {
+	},{
 		Open:   6600,
 		High:   7005,
 		Low:    6600,
 		Close:  6700,
 		Volume: 30,
-	}, {
+	},{
 		Open:   6700,
 		High:   7005,
 		Low:    6900,
@@ -271,7 +269,7 @@ func TestSmartOrderReturnToInEntryAfterTimeoutLoss(t *testing.T) {
 		Low:    7105,
 		Close:  7105,
 		Volume: 30,
-	}, {
+	},{
 		Open:   7105,
 		High:   7205,
 		Low:    7205,
@@ -284,13 +282,12 @@ func TestSmartOrderReturnToInEntryAfterTimeoutLoss(t *testing.T) {
 	tradingApi := tests.NewMockedTradingAPI()
 	tradingApi.BuyDelay = 1000
 	tradingApi.SellDelay = 1000
+	strategy := strategies.Strategy{
+		Model: &smartOrderModel,
+	}
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
-	strategy := strategies.Strategy{
-		Model:     &smartOrderModel,
-		StateMgmt: &sm,
-	}
-	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
+	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
