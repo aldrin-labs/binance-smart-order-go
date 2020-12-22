@@ -9,12 +9,14 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
+
 func GetStrategy(cur *mongo.Cursor, df interfaces.IDataFeed, tr trading.ITrading, sm interfaces.IStateMgmt, createOrder interfaces.ICreateRequest) (*Strategy, error) {
 	var result models.MongoStrategy
 	err := cur.Decode(&result)
-	return &Strategy{Model: &result, Datafeed: df, Trading: tr, StateMgmt: sm, Singleton: createOrder}, err
+	return &Strategy{Model: &result, Datafeed: df, Trading: tr, StateMgmt: sm, Singleton: createOrder }, err
 }
 
+// Strategy object
 type Strategy struct {
 	Model           *models.MongoStrategy
 	StrategyRuntime interfaces.IStrategyRuntime
@@ -22,13 +24,12 @@ type Strategy struct {
 	Trading         trading.ITrading
 	StateMgmt       interfaces.IStateMgmt
 	Statsd          statsd_client.StatsdClient
-	Singleton       interfaces.ICreateRequest
+	Singleton		interfaces.ICreateRequest
 }
-
 func (strategy *Strategy) GetModel() *models.MongoStrategy {
 	return strategy.Model
 }
-func (strategy *Strategy) GetSingleton() interfaces.ICreateRequest {
+func (strategy *Strategy) GetSingleton() interfaces.ICreateRequest  {
 	return strategy.Singleton
 }
 func (strategy *Strategy) GetRuntime() interfaces.IStrategyRuntime {
@@ -48,30 +49,26 @@ func (strategy *Strategy) GetStatsd() statsd_client.StatsdClient {
 	return strategy.Statsd
 }
 
-// Start starts a runtime for the strategy.
 func (strategy *Strategy) Start() {
 	switch strategy.Model.Type {
 	case 1:
 		println("runSmartOrder")
-		strategy.StrategyRuntime = RunSmartOrder(strategy, strategy.Datafeed, strategy.Trading, strategy.Statsd, strategy.Model.AccountId)
-		strategy.Statsd.Inc("strategy.sm_runtime_start")
+		strategy.StrategyRuntime = RunSmartOrder(strategy, strategy.Datafeed, strategy.Trading, strategy.Statsd, strategy.Model.AccountId, )
 	case 2:
 		println("makerOnly")
-		strategy.StrategyRuntime = RunMakerOnlyOrder(strategy, strategy.Datafeed, strategy.Trading, strategy.Model.AccountId)
-		strategy.Statsd.Inc("strategy.mo_runtime_start")
+		strategy.StrategyRuntime = RunMakerOnlyOrder(strategy, strategy.Datafeed, strategy.Trading, strategy.Model.AccountId, )
 	default:
 		fmt.Println("this type of strategy is not supported yet: ", strategy.Model.ID.String(), strategy.Model.Type)
 	}
 }
 
-// HotReload updates strategy in runtime to keep consistency with persistent state.
+
 func (strategy *Strategy) HotReload(mongoStrategy models.MongoStrategy) {
 	strategy.Model.Enabled = mongoStrategy.Enabled
 	strategy.Model.Conditions = mongoStrategy.Conditions
 	if mongoStrategy.Enabled == false {
 		if strategy.StrategyRuntime != nil {
-			strategy.StrategyRuntime.Stop() // stop runtime if disabled by DB, externally
+			strategy.StrategyRuntime.Stop()
 		}
 	}
-	strategy.Statsd.Inc("strategy.hot_reload")
 }

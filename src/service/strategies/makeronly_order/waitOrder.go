@@ -12,11 +12,10 @@ func (mo *MakerOnlyOrder) waitForOrder(orderId string, orderStatus string) {
 	mo.StatusByOrderId.Store(orderId, orderStatus)
 	_ = mo.StateMgmt.SubscribeToOrder(orderId, mo.orderCallback)
 }
-
 func (mo *MakerOnlyOrder) orderCallback(order *models.MongoOrder) {
 	ctx := context.TODO()
 	log.Println("order callback")
-	if order == nil || order.OrderId == "" || !(order.Status == "filled" || order.Status == "canceled") {
+	if order == nil || order.OrderId == ""  || !(order.Status == "filled" || order.Status == "canceled")  {
 		return
 	}
 	mo.OrdersMux.Lock()

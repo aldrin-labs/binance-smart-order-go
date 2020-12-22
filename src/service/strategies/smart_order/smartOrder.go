@@ -84,7 +84,6 @@ func (sm *SmartOrder) toFixed(num float64, precision int64) float64 {
 	return float64(round(num*output)) / output
 }
 
-// NewSmartOrder instantiates new smart order with given strategy.
 func NewSmartOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed, TradingAPI trading.ITrading, Statsd statsd_client.StatsdClient, keyId *primitive.ObjectID, stateMgmt interfaces.IStateMgmt) *SmartOrder {
 
 	sm := &SmartOrder{Strategy: strategy, DataFeed: DataFeed, ExchangeApi: TradingAPI, KeyId: keyId, StateMgmt: stateMgmt, Lock: false, SelectedExitTarget: 0, OrdersMap: map[string]bool{}}
@@ -248,7 +247,7 @@ func (sm *SmartOrder) checkWaitEntry(ctx context.Context, args ...interface{}) b
 	if len(sm.Strategy.GetModel().Conditions.EntryLevels) > 0 {
 		return false
 	}
-	currentOHLCV := args[0].(interfaces.OHLCV)
+		currentOHLCV := args[0].(interfaces.OHLCV)
 	model := sm.Strategy.GetModel()
 	conditionPrice := model.Conditions.EntryOrder.Price
 	isInstantMarketOrder := model.Conditions.EntryOrder.ActivatePrice == 0 && model.Conditions.EntryOrder.OrderType == "market"
@@ -668,7 +667,6 @@ func (sm *SmartOrder) TryCancelAllOrders(orderIds []string) {
 	}
 }
 
-// Start continuously checks the state and runs another event loop cycle or stops the smart order if conditions met.
 func (sm *SmartOrder) Start() {
 	ctx := context.TODO()
 
@@ -676,7 +674,6 @@ func (sm *SmartOrder) Start() {
 	localState := sm.Strategy.GetModel().State.State
 	sm.Statsd.Inc("smart_order.start")
 	for state != End && localState != End && state != Canceled && state != Timeout {
-		cycle_started_at := time.Now()
 		if sm.Strategy.GetModel().Enabled == false {
 			state, _ = sm.State.State(ctx)
 			break
@@ -691,99 +688,66 @@ func (sm *SmartOrder) Start() {
 		time.Sleep(60 * time.Millisecond)
 		state, _ = sm.State.State(ctx)
 		localState = sm.Strategy.GetModel().State.State
-		sm.Statsd.TimingDuration("smart_order.cycle_time", time.Since(cycle_started_at)) // TODO: check rate
 	}
 	sm.Stop()
 	log.Print("STOPPED smartorder ", state.(string))
 }
 
 func (sm *SmartOrder) Stop() {
-	model := sm.Strategy.GetModel()
-	// use it to not execute this func twice
+	log.Print("stop func orders len", len(sm.Strategy.GetModel().State.Orders))
 	if sm.StopLock {
-		if model.Conditions.ContinueIfEnded == false {
-			sm.StateMgmt.DisableStrategy(model.ID)
+		if sm.Strategy.GetModel().Conditions.ContinueIfEnded == false {
+			sm.StateMgmt.DisableStrategy(sm.Strategy.GetModel().ID)
 		}
 		log.Print("cancel orders in stop at start")
-		go sm.TryCancelAllOrders(model.State.Orders)
+		go sm.TryCancelAllOrders(sm.Strategy.GetModel().State.Orders)
 		return
 	}
-
 	sm.StopLock = true
 	state, _ := sm.State.State(context.Background())
-
-	// cancel orders
-	if model.Conditions.MarketType == 0 && state != End {
-		log.Print("cancel orders in stop for stop")
-		sm.TryCancelAllOrdersConsistently(model.State.Orders)
+	if sm.Strategy.GetModel().Conditions.MarketType == 0 && state != End {
+		log.Print("cancel orders in stop")
+		sm.TryCancelAllOrdersConsistently(sm.Strategy.GetModel().State.Orders)
 	} else {
-		log.Print("cancel orders for futures and step not End")
-		go sm.TryCancelAllOrders(model.State.Orders)
+		log.Print("cancel orders a bit lower than start of stop")
+		go sm.TryCancelAllOrders(sm.Strategy.GetModel().State.Orders)
 
 		// handle case when order was creating while Stop func execution
 		go func() {
 			time.Sleep(5 * time.Second)
-			go sm.TryCancelAllOrders(model.State.Orders)
+			go sm.TryCancelAllOrders(sm.Strategy.GetModel().State.Orders)
 		}()
 	}
-
-	// TODO: we should get rid of it, it should not work like this
-	StateS := model.State.State
-
-	if state != End && StateS != Timeout &&
-		!model.Conditions.EntrySpreadHunter && model.Conditions.WaitingEntryTimeout > 0 {
-		// we should check after some time if we have opened order and this one got executed before been canceled
-		go func() {
-			sm.Statsd.Inc("smart_order.place_cancel_order_in_stop_func_attempt")
-			time.Sleep(5 * time.Second)
-			if model.State.PositionAmount > 0 && model.State.EntryPrice > 0 {
-				log.Println(
-					"placing canceled order in stop for SM ", model.ID,
-					" model.State.PositionAmount ", model.State.PositionAmount,
-					" model.State.EntryPrice ", model.State.EntryPrice,
-					" state ", state, " StateS ", StateS,
-				)
-				sm.Statsd.Inc("smart_order.place_cancel_order_in_stop_func_with_nonzero_amount")
-				sm.PlaceOrder(0, model.State.PositionAmount, Canceled)
-			}
-		}()
+	StateS := sm.Strategy.GetModel().State.State
+	if state != End && StateS != Timeout && sm.Strategy.GetModel().Conditions.EntrySpreadHunter == false {
+		sm.Statsd.Inc("strategy_service.ended_with_not_end_status")
+		sm.PlaceOrder(0, 0.0, Canceled)
 	}
-
-	if !model.Conditions.ContinueIfEnded {
-		sm.StateMgmt.DisableStrategy(model.ID)
+	if sm.Strategy.GetModel().Conditions.ContinueIfEnded == false {
+		sm.StateMgmt.DisableStrategy(sm.Strategy.GetModel().ID)
 	}
 	sm.StopLock = false
-
-	// continue if ended option - go to new iteration
-	if (StateS == Timeout || state == Timeout) &&
-		model.Conditions.ContinueIfEnded && !model.Conditions.PositionWasClosed {
+	if (StateS == Timeout || state == Timeout) && sm.Strategy.GetModel().Conditions.ContinueIfEnded == true && !sm.Strategy.GetModel().Conditions.PositionWasClosed {
 		sm.IsWaitingForOrder = sync.Map{}
 		sm.IsEntryOrderPlaced = false
-		sm.StateMgmt.EnableStrategy(model.ID)
-		model.Enabled = true
-		stateModel := model.State
+		sm.StateMgmt.EnableStrategy(sm.Strategy.GetModel().ID)
+		sm.Strategy.GetModel().Enabled = true
+		stateModel := sm.Strategy.GetModel().State
 		stateModel.State = WaitForEntry
 		stateModel.EntryPrice = 0
 		stateModel.ExecutedAmount = 0
 		stateModel.Amount = 0
 		stateModel.Orders = []string{}
 		stateModel.Iteration += 1
-		sm.StateMgmt.UpdateState(model.ID, stateModel)
-		sm.StateMgmt.UpdateExecutedAmount(model.ID, stateModel)
-		sm.StateMgmt.SaveStrategyConditions(model)
+		sm.StateMgmt.UpdateState(sm.Strategy.GetModel().ID, stateModel)
+		sm.StateMgmt.UpdateExecutedAmount(sm.Strategy.GetModel().ID, stateModel)
+		sm.StateMgmt.SaveStrategyConditions(sm.Strategy.GetModel())
 		_ = sm.State.Fire(Restart)
 		//_ = sm.onStart(nil)
 		sm.Start()
 	}
-
-	if amount := sm.Strategy.GetModel().State.PositionAmount; amount != 0.0 {
-		log.Println("Smart order strategy", sm.Strategy.GetModel().ID.String(), "stopped with non-zero amount", amount)
-		sm.Statsd.Inc("smart_order.stopped_with_nonzero_amount")
-	}
-	sm.Statsd.Inc("smart_order.stop_attempt")
 }
 
-// processEventLoop takes new OHCLV data to supply it for the smart order state transition attempt.
 func (sm *SmartOrder) processEventLoop() {
 	currentOHLCVp := sm.DataFeed.GetPriceForPairAtExchange(sm.Strategy.GetModel().Conditions.Pair, sm.ExchangeName, sm.Strategy.GetModel().Conditions.MarketType)
 	if currentOHLCVp != nil {

@@ -46,18 +46,20 @@ type MakerOnlyOrder struct {
 	SelectedExitTarget      int
 	TemplateOrderId         string
 	OrdersMux               sync.Mutex
-	MakerOnlyOrder          *models.MongoOrder
+	MakerOnlyOrder			*models.MongoOrder
 
 	OrderParams trading.Order
 }
+
 
 func (sm *MakerOnlyOrder) IsOrderExistsInMap(orderId string) bool {
 	return false
 }
 
-func (sm *MakerOnlyOrder) SetSelectedExitTarget(selectedExitTarget int) {}
+func (sm *MakerOnlyOrder) SetSelectedExitTarget(selectedExitTarget int){}
 
-func (sm *MakerOnlyOrder) Stop() {
+
+func (sm *MakerOnlyOrder) Stop(){
 	attempts := 0
 	ctx := context.TODO()
 	state, _ := sm.State.State(ctx)
@@ -73,7 +75,7 @@ func (sm *MakerOnlyOrder) Stop() {
 			sm.MakerOnlyOrder.Status = "canceled"
 			go sm.StateMgmt.SaveOrder(*sm.MakerOnlyOrder, sm.KeyId, sm.Strategy.GetModel().Conditions.MarketType)
 		} else {
-			go func() {
+			go func(){
 				for {
 					if sm.MakerOnlyOrder != nil || attempts >= 50 {
 						sm.MakerOnlyOrder.Status = "canceled"
@@ -123,13 +125,13 @@ func (sm *MakerOnlyOrder) CancelEntryOrder() {
 		// we canceled prev order now time to place new one
 	}
 }
-func (sm *MakerOnlyOrder) TryCancelAllOrders(orderIds []string)             {}
-func (sm *MakerOnlyOrder) TryCancelAllOrdersConsistently(orderIds []string) {}
+func (sm *MakerOnlyOrder) TryCancelAllOrders(orderIds []string){}
+func (sm *MakerOnlyOrder) TryCancelAllOrdersConsistently(orderIds []string){}
 func NewMakerOnlyOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed, TradingAPI trading.ITrading, keyId *primitive.ObjectID, stateMgmt interfaces.IStateMgmt) *MakerOnlyOrder {
 	PO := &MakerOnlyOrder{Strategy: strategy, DataFeed: DataFeed, ExchangeApi: TradingAPI, KeyId: keyId, StateMgmt: stateMgmt, Lock: false, SelectedExitTarget: 0, OrdersMap: map[string]bool{}}
 	initState := PlaceOrder
 	model := strategy.GetModel()
-	go func() {
+	go func(){
 		var mongoOrder *models.MongoOrder
 		for {
 			mongoOrder = stateMgmt.GetOrder(strategy.GetModel().Conditions.MakerOrderId.Hex())
@@ -175,7 +177,7 @@ func (sm *MakerOnlyOrder) Start() {
 	localState := sm.Strategy.GetModel().State.State
 
 	for state != Filled && state != Canceled && (sm.MakerOnlyOrder == nil || sm.MakerOnlyOrder.Status == "open") &&
-		localState != Filled && localState != Canceled {
+		localState != Filled && localState != Canceled  {
 		if sm.Strategy.GetModel().Enabled == false {
 			break
 		}
@@ -192,6 +194,7 @@ func (sm *MakerOnlyOrder) Start() {
 	sm.Stop()
 	println("STOPPED postonly")
 }
+
 
 func (sm *MakerOnlyOrder) processEventLoop() {
 	log.Println("loop")

@@ -149,7 +149,7 @@ func TestSmartOrderMarketEntryAndTrailingExit(t *testing.T) {
 			Low:    7000,
 			Close:  7005,
 			Volume: 30,
-		}, { // Its trading around, like in real life
+		},{ // Its trading around, like in real life
 			Open:   7005,
 			High:   7005,
 			Low:    7005,
@@ -198,13 +198,12 @@ func TestSmartOrderMarketEntryAndTrailingExit(t *testing.T) {
 	tradingApi := tests.NewMockedTradingAPIWithMarketAccess(df)
 	tradingApi.BuyDelay = 300
 	tradingApi.SellDelay = 300
+	strategy := strategies.Strategy{
+		Model: &smartOrderModel,
+	}
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
-	strategy := strategies.Strategy{
-		Model:     &smartOrderModel,
-		StateMgmt: &sm,
-	}
-	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
+	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
@@ -253,7 +252,7 @@ func TestSmartOrderMarketEntryAndThenFollowTrailing(t *testing.T) {
 			Low:    7005,
 			Close:  7000,
 			Volume: 30,
-		}, { // Its trading around, like in real life
+		},{ // Its trading around, like in real life
 			Open:   7005,
 			High:   7005,
 			Low:    7005,
@@ -329,7 +328,7 @@ func TestSmartOrderMarketEntryAndThenFollowTrailing(t *testing.T) {
 			Low:    7005,
 			Close:  7000,
 			Volume: 30,
-		}, { // Going up..
+		},{ // Going up..
 			Open:   7005,
 			High:   7005,
 			Low:    7005,
@@ -369,7 +368,7 @@ func TestSmartOrderMarketEntryAndThenFollowTrailing(t *testing.T) {
 			Low:    7015,
 			Close:  7015,
 			Volume: 30,
-		}, { // Oh wow, its pump!
+		},{ // Oh wow, its pump!
 			Open:   7045,
 			High:   7045,
 			Low:    7045,
@@ -400,13 +399,12 @@ func TestSmartOrderMarketEntryAndThenFollowTrailing(t *testing.T) {
 	tradingApi := tests.NewMockedTradingAPIWithMarketAccess(df)
 	tradingApi.BuyDelay = 300
 	tradingApi.SellDelay = 300
+	strategy := strategies.Strategy{
+		Model: &smartOrderModel,
+	}
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
-	strategy := strategies.Strategy{
-		Model:     &smartOrderModel,
-		StateMgmt: &sm,
-	}
-	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
+	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})

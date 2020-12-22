@@ -17,7 +17,7 @@ func (sm *SmartOrder) exit(ctx context.Context, args ...interface{}) (stateless.
 	}
 	log.Print("state in exit ", state.(string), " model.State.State ", model.State.State)
 	log.Print("model.State.ExecutedAmount >= amount in exit ", model.State.ExecutedAmount >= amount)
-	if model.State.State != WaitLossHedge && model.State.ExecutedAmount >= amount { // all trades executed, nothing more to trade
+	if model.State.State != WaitLossHedge && model.State.ExecutedAmount >= amount  { // all trades executed, nothing more to trade
 		if model.Conditions.ContinueIfEnded {
 			isParentHedge := model.Conditions.Hedging == true
 			isTrailingHedgeOrder := model.Conditions.HedgeStrategyId != nil || isParentHedge
@@ -40,10 +40,10 @@ func (sm *SmartOrder) exit(ctx context.Context, args ...interface{}) (stateless.
 			go sm.TryCancelAllOrders(sm.Strategy.GetModel().State.Orders)
 
 			newState := models.MongoStrategyState{
-				State:          "",
+				State: "",
 				ExecutedAmount: 0,
-				Amount:         0,
-				Iteration:      sm.Strategy.GetModel().State.Iteration + 1,
+				Amount: 0,
+				Iteration: sm.Strategy.GetModel().State.Iteration + 1,
 			}
 			model.State = &newState
 			sm.IsEntryOrderPlaced = false

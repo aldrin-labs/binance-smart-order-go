@@ -11,8 +11,6 @@ func (sm *SmartOrder) waitForOrder(orderId string, orderStatus string) {
 	sm.StatusByOrderId.Store(orderId, orderStatus)
 	_ = sm.StateMgmt.SubscribeToOrder(orderId, sm.orderCallback)
 }
-
-// orderCallback supplies order data for smart order state transition attempt.
 func (sm *SmartOrder) orderCallback(order *models.MongoOrder) {
 	//log.Print("order callback in")
 	if order == nil || (order.OrderId == "" && order.PostOnlyInitialOrderId == "") {
@@ -20,7 +18,7 @@ func (sm *SmartOrder) orderCallback(order *models.MongoOrder) {
 	}
 	//currentState, _ := sm.State.State(context.Background())
 	//model := sm.Strategy.GetModel()
-	if !(order.Status == "filled" || order.Status == "canceled") {
+	if !(order.Status == "filled" || order.Status == "canceled")  {
 		return
 	}
 	sm.OrdersMux.Lock()
@@ -104,7 +102,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 				// calc average weight
 				if model.State.EntryPrice > 0 {
 					log.Println("model.State.EntryPrice before: ", model.State.EntryPrice, " order.Filled: ", order.Filled)
-					total := model.State.EntryPrice*model.State.PositionAmount + order.Average*order.Filled
+					total := model.State.EntryPrice * model.State.PositionAmount + order.Average * order.Filled
 					model.State.EntryPrice = total / (model.State.PositionAmount + order.Filled)
 					log.Println("model.State.EntryPrice after: ", model.State.EntryPrice)
 				} else {
@@ -234,7 +232,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 	return false
 }
 
-func (sm *SmartOrder) calculateAndSavePNL(model *models.MongoStrategy, step interface{}, filledAmount float64) float64 {
+func (sm *SmartOrder) calculateAndSavePNL(model *models.MongoStrategy,  step interface{}, filledAmount float64) float64 {
 
 	leverage := model.Conditions.Leverage
 	if leverage == 0 {
@@ -265,21 +263,22 @@ func (sm *SmartOrder) calculateAndSavePNL(model *models.MongoStrategy, step inte
 	}
 
 	log.Println("model.State.ExitPrice ", model.State.ExitPrice, " model.State.EntryPrice ", entryPrice, " leverage ", leverage)
-	profitPercentage := ((model.State.ExitPrice/entryPrice)*100 - 100) * leverage * sideCoefficient
+	profitPercentage := ((model.State.ExitPrice / entryPrice) * 100 - 100) * leverage * sideCoefficient
 	log.Println("profitPercentage ", profitPercentage)
 	profitAmount := (amount / leverage) * entryPrice * (profitPercentage / 100)
 	log.Println("profitAmount ", profitAmount)
 
-	log.Println("before ", model.State.ReceivedProfitPercentage, " ", model.State.ReceivedProfitAmount)
+	log.Println("before ", model.State.ReceivedProfitPercentage," ", model.State.ReceivedProfitAmount)
 	model.State.ReceivedProfitPercentage += profitPercentage
 	model.State.ReceivedProfitAmount += profitAmount
+
 
 	if model.Conditions.CreatedByTemplate {
 		go sm.Strategy.GetStateMgmt().SavePNL(model.Conditions.TemplateStrategyId, profitAmount)
 	}
 
 	// if we got profit from target from averaging
-	if (step == TakeProfit || step == "WithoutLoss") && isMultiEntry {
+	if step == TakeProfit && isMultiEntry {
 		model.State.ExitPrice = 0
 		model.State.SavedEntryPrice = entryPrice
 		model.State.EntryPrice = 0

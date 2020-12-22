@@ -7,6 +7,7 @@ import (
 	"github.com/go-kit/kit/log"
 	"os"
 	"os/signal"
+
 )
 
 func GetBinanceClientInstance() (binance.Binance, context.CancelFunc) {
