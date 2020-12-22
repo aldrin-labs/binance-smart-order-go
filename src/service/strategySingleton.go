@@ -126,7 +126,6 @@ func (ss *StrategyService) AddStrategy(strategy * models.MongoStrategy) {
 }
 
 func (ss *StrategyService) CreateOrder(request trading.CreateOrderRequest) trading.OrderResponse {
-	t1 := time.Now()
 	id := primitive.NewObjectID()
 	var reduceOnly bool
 	if request.KeyParams.ReduceOnly == nil {
