@@ -672,6 +672,7 @@ func (sm *SmartOrder) Start() {
 
 	state, _ := sm.State.State(context.Background())
 	localState := sm.Strategy.GetModel().State.State
+	sm.Statsd.Inc("smart_order.start")
 	for state != End && localState != End && state != Canceled && state != Timeout {
 		if sm.Strategy.GetModel().Enabled == false {
 			state, _ = sm.State.State(ctx)
