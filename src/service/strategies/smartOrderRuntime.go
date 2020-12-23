@@ -19,6 +19,7 @@ type KeyAsset struct {
 	Free  float64            `json:"free" bson:"free"`
 }
 
+// RunSmartOrder starts a runtime for the strategy with given interfaces to market data and trading API.
 func RunSmartOrder(strategy *Strategy, df interfaces.IDataFeed, td trading.ITrading, st statsd_client.StatsdClient, keyId *primitive.ObjectID) interfaces.IStrategyRuntime {
 	if strategy.Model.Conditions.Leverage == 0 {
 		strategy.Model.Conditions.Leverage = 1
@@ -51,15 +52,15 @@ func RunSmartOrder(strategy *Strategy, df interfaces.IDataFeed, td trading.ITrad
 		if res.Status != "OK" {
 			strategy.Model.State = &models.MongoStrategyState{
 				State: smart_order.Error,
-				Msg: res.ErrorMessage,
+				Msg:   res.ErrorMessage,
 			}
 		}
 	}
 	if strategy.Model.State == nil {
 		strategy.Model.State = &models.MongoStrategyState{
-			ReceivedProfitAmount: 0,
+			ReceivedProfitAmount:     0,
 			ReceivedProfitPercentage: 0,
-			State: "",
+			State:                    "",
 		}
 	}
 
@@ -80,7 +81,7 @@ func DetermineRelativeEntryAmount(strategy *Strategy, keyAsset KeyAsset, df inte
 			if attempts > 10 {
 				strategy.Model.State = &models.MongoStrategyState{
 					State: smart_order.Error,
-					Msg: "currentOHLCVp is nil. Please contact us in telegram",
+					Msg:   "currentOHLCVp is nil. Please contact us in telegram",
 				}
 				break
 			}

@@ -32,11 +32,11 @@ func (sm *SmartOrder) checkTrailingEntry(ctx context.Context, args ...interface{
 	isSpotMarketEntry := sm.Strategy.GetModel().Conditions.MarketType == 0 && sm.Strategy.GetModel().Conditions.EntryOrder.OrderType == "market"
 	switch side {
 	case "buy":
-		if  !isSpotMarketEntry && (activateTrailing || currentOHLCV.Close < edgePrice) {
+		if !isSpotMarketEntry && (activateTrailing || currentOHLCV.Close < edgePrice) {
 			edgePrice = sm.Strategy.GetModel().State.TrailingEntryPrice
 			go sm.placeTrailingOrder(currentOHLCV.Close, time.Now().UnixNano(), 0, side, true, TrailingEntry)
 		}
-		if isSpotMarketEntry && ( activateTrailing || (currentOHLCV.Close/edgePrice-1)*100 >= deviation ) {
+		if isSpotMarketEntry && (activateTrailing || (currentOHLCV.Close/edgePrice-1)*100 >= deviation) {
 			return true
 		}
 		break
