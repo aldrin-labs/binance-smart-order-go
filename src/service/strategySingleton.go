@@ -87,15 +87,15 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 
 		// create a value into which the single document can be decoded
 		strategy, err := strategies.GetStrategy(cur, ss.dataFeed, ss.trading, ss.stateMgmt, ss)
-		if strategy.Model.AccountId != nil && strategy.Model.AccountId.Hex() == "5e4ce62b1318ef1b1e85b6f4" {
-			continue
-		}
 		if err != nil {
 			log.Print("log.Fatal on processing enabled strategy")
 			log.Print("err ", err)
 			log.Print("cur string ", cur.Current.String())
 			continue
 			log.Fatal(err)
+		}
+		if strategy.Model.AccountId != nil && strategy.Model.AccountId.Hex() == "5e4ce62b1318ef1b1e85b6f4" {
+			continue
 		}
 		log.Print("objid " + strategy.Model.ID.String())
 		GetStrategyService().strategies[strategy.Model.ID.String()] = strategy
