@@ -3,8 +3,7 @@ package smart_order
 import (
 	"context"
 	"gitlab.com/crypto_project/core/strategy_service/src/trading"
-	"log"
-	"strconv"
+	"go.uber.org/zap"
 	"time"
 )
 
@@ -13,7 +12,11 @@ func (sm *SmartOrder) checkTimeouts() {
 		go func(iteration int) {
 			time.Sleep(time.Duration(sm.Strategy.GetModel().Conditions.WaitingEntryTimeout) * time.Second)
 			currentState, _ := sm.State.State(context.TODO())
-			log.Println("currentState ", currentState, " sm.Lock ", sm.Lock, " iteration == sm.Strategy.GetModel().State.Iteration ", iteration == sm.Strategy.GetModel().State.Iteration)
+			sm.Strategy.GetLogger().Info("", // TODO(khassanov): clarify it
+				zap.String("currentState ", currentState.(string)),
+				zap.Bool("sm.Lock", sm.Lock),
+				zap.Bool("iteration == sm.Strategy.GetModel().State.Iteration ", iteration == sm.Strategy.GetModel().State.Iteration),
+			)
 			if (currentState == WaitForEntry || currentState == TrailingEntry) && sm.Lock == false && iteration == sm.Strategy.GetModel().State.Iteration {
 				sm.Lock = true
 				switch len(sm.Strategy.GetModel().State.Orders) {
@@ -31,10 +34,10 @@ func (sm *SmartOrder) checkTimeouts() {
 							if len(sm.Strategy.GetModel().State.Orders) > 0 {
 								res := sm.tryCancelEntryOrder()
 								if res.Status == "OK" {
-									log.Print("order canceled continue timeout code")
+									sm.Strategy.GetLogger().Info("order canceled continue timeout code")
 									break
 								} else {
-									log.Print("order already filled")
+									sm.Strategy.GetLogger().Info("order already filled")
 									sm.Lock = false
 									return
 								}
@@ -46,15 +49,15 @@ func (sm *SmartOrder) checkTimeouts() {
 						break
 					}
 				case 1:
-					log.Print("orderId in check timeout")
+					sm.Strategy.GetLogger().Info("orderId in check timeout")
 					res := sm.tryCancelEntryOrder()
 					// if ok then we canceled order and we can go to next iteration
 					if res.Status == "OK" {
-						log.Print("order canceled continue timeout code")
+						sm.Strategy.GetLogger().Info("order canceled continue timeout code")
 						break
 					} else {
 						// otherwise order was already filled
-						log.Print("order already filled")
+						sm.Strategy.GetLogger().Info("order already filled")
 						sm.Lock = false
 						return
 					}
@@ -69,7 +72,9 @@ func (sm *SmartOrder) checkTimeouts() {
 
 				err := sm.State.Fire(TriggerTimeout)
 				if err != nil {
-					log.Print("fire checkTimeout err", err.Error())
+					sm.Strategy.GetLogger().Warn("fire checkTimeout err",
+						zap.String("err", err.Error()),
+					)
 				}
 				sm.Strategy.GetModel().State.State = Timeout
 				sm.StateMgmt.UpdateState(sm.Strategy.GetModel().ID, sm.Strategy.GetModel().State)
@@ -94,7 +99,10 @@ func (sm *SmartOrder) checkTimeouts() {
 					} else {
 						activatePrice = activatePrice * (1 + sm.Strategy.GetModel().Conditions.ActivationMoveStep/100/sm.Strategy.GetModel().Conditions.Leverage)
 					}
-					log.Print("changed activate price from " + strconv.FormatFloat(sm.Strategy.GetModel().Conditions.EntryOrder.ActivatePrice, 'g', -1, 64) + " to " + strconv.FormatFloat(activatePrice, 'g', -1, 64))
+					sm.Strategy.GetLogger().Info("changed activate price",
+						zap.Float64("from", sm.Strategy.GetModel().Conditions.EntryOrder.ActivatePrice),
+						zap.Float64("to", activatePrice),
+					)
 					sm.Strategy.GetModel().Conditions.EntryOrder.ActivatePrice = activatePrice
 				}
 			}
@@ -105,7 +113,7 @@ func (sm *SmartOrder) checkTimeouts() {
 
 func (sm *SmartOrder) tryCancelEntryOrder() trading.OrderResponse {
 	orderId := sm.Strategy.GetModel().State.Orders[0]
-	log.Print("orderId in check timeout")
+	sm.Strategy.GetLogger().Info("orderId in check timeout")
 	var res trading.OrderResponse
 	if orderId != "0" {
 		res = sm.ExchangeApi.CancelOrder(trading.CancelOrderRequest{

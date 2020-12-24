@@ -18,7 +18,7 @@ func GetStrategy(cur *mongo.Cursor, df interfaces.IDataFeed, tr trading.ITrading
 		return &Strategy{}, err
 	}
 	loggerConfig := zap.NewProductionConfig()
-	logPath := fmt.Sprintf("/var/lib/strategy_service/strategy-%q.log", model.ID.Hex())
+	logPath := fmt.Sprintf("/var/log/strategy_service/strategy-%v.log", model.ID.Hex())
 	loggerConfig.OutputPaths = []string{logPath}
 	logger, err := loggerConfig.Build()
 	if err != nil {
@@ -65,6 +65,10 @@ func (strategy *Strategy) GetStateMgmt() interfaces.IStateMgmt {
 
 func (strategy *Strategy) GetStatsd() statsd_client.StatsdClient {
 	return strategy.Statsd
+}
+
+func (strategy *Strategy) GetLogger() *zap.Logger {
+	return strategy.Log
 }
 
 // ID returns unique identifier the strategy holds.
