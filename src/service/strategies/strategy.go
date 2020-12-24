@@ -67,6 +67,10 @@ func (strategy *Strategy) GetStatsd() statsd_client.StatsdClient {
 	return strategy.Statsd
 }
 
+func (strategy *Strategy) GetLogger() *zap.Logger {
+	return strategy.Log
+}
+
 // ID returns unique identifier the strategy holds.
 func (strategy *Strategy) ID() string {
 	return fmt.Sprintf("%q", strategy.Model.ID.Hex())
