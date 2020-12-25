@@ -129,10 +129,29 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 // GetStrategy creates strategy instance with given arguments.
 func GetStrategy(strategy *models.MongoStrategy, df interfaces.IDataFeed, tr trading.ITrading, st interfaces.IStateMgmt, statsd statsd_client.StatsdClient, ss *StrategyService) *strategies.Strategy {
 	// TODO(khassanov): why we use this instead of the same from the `strategy` package?
+	// TODO(khassanov): remove code copy got from the same in the strategy package
 	loggerConfig := zap.NewProductionConfig()
-	logPath := fmt.Sprintf("/var/log/strategy_service/strategy-%v.log", strategy.ID.Hex())
+	isLocalBuild := os.Getenv("LOCAL") == "true"
+	var logRoot string
+	if isLocalBuild { // write to current directory, TODO(khassanov): set console encoder instead of json
+		cwd, _ := os.Getwd()
+		logRoot = fmt.Sprintf("%s/log", cwd)
+	} else {
+		logRoot = "/var/log/strategy_service"
+	}
+	logPath := fmt.Sprintf("%s/strategy-%v.log", logRoot, strategy.ID.Hex())
 	loggerConfig.OutputPaths = []string{logPath}
-	logger, _ := loggerConfig.Build() // TODO(khassanov): check err
+	var logger *zap.Logger
+	logger, err := loggerConfig.Build()
+	if err != nil {
+		// log to stdout with strategy id field
+		logger, _ = zap.NewProduction()
+		logger = logger.With(zap.String("StrategyID", strategy.ID.Hex()))
+		logger.Error("can't create dedicated log file, writing log to stdout",
+			zap.Error(err),
+			zap.String("path", logPath),
+		)
+	}
 	return &strategies.Strategy{
 		Model: strategy,
 		Datafeed: df,
