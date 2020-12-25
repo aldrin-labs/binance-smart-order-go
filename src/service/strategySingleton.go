@@ -476,7 +476,10 @@ func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) 
 		}
 
 		if isLocalBuild && (event.FullDocument.AccountId == nil || event.FullDocument.AccountId.Hex() != accountId) {
-			ss.log.Info("continue watchStrategies in accountId incomparable")
+			ss.log.Warn("continue watchStrategies in accountId incomparable",
+				zap.String("event account id", event.FullDocument.AccountId.Hex()),
+				zap.String("account id in .env", accountId),
+			)
 			continue
 		}
 
