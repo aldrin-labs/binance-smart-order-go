@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/mitchellh/mapstructure"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
@@ -84,8 +85,13 @@ func Request(method string, data interface{}) interface{} {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Error("", zap.Error(err))
-
+		retryDelay := time.Duration(200)
+		log.Error("request not successful",
+			zap.String("url", url),
+			// zap.Error(err),
+			zap.String("retry in ms", retryDelay.String()),
+		)
+		time.Sleep(retryDelay * time.Millisecond)
 		return Request(method, data)
 	}
 	defer resp.Body.Close()
