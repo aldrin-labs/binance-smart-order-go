@@ -1,6 +1,7 @@
 package strategies
 
 import (
+	"os"
 	"fmt"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
@@ -18,7 +19,15 @@ func GetStrategy(cur *mongo.Cursor, df interfaces.IDataFeed, tr trading.ITrading
 		return &Strategy{}, err
 	}
 	loggerConfig := zap.NewProductionConfig()
-	logPath := fmt.Sprintf("/var/log/strategy_service/strategy-%v.log", model.ID.Hex())
+	isLocalBuild := os.Getenv("LOCAL") == "true"
+	var logRoot string
+	if isLocalBuild { // write to current directory
+		cwd, _ := os.Getwd()
+		logRoot = fmt.Sprintf("%s/log", cwd)
+	} else {
+		logRoot = "/var/log/strategy_service"
+	}
+	logPath := fmt.Sprintf("%s/strategy-%v.log", logRoot, model.ID.Hex())
 	loggerConfig.OutputPaths = []string{logPath}
 	logger, err := loggerConfig.Build()
 	if err != nil {
