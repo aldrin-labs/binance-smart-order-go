@@ -12,6 +12,10 @@ import (
 )
 
 // GetStrategy instantiates strategy with resources created and given.
+//
+// Per-strategy logging works as follows. Deployed it tries to append /var/log/strategy_service/strategy-${STRATEGY_ID}.
+// It creates a new file if necessary. If it is not possible, logger writes to stdout adding "StrategyID" filed to
+// all the log messages runtime generates. Local build writes to ./log/strategy-{$STRATEGY_ID} or stdout too.
 func GetStrategy(cur *mongo.Cursor, df interfaces.IDataFeed, tr trading.ITrading, sm interfaces.IStateMgmt, createOrder interfaces.ICreateRequest) (*Strategy, error) {
 	var model models.MongoStrategy
 	err := cur.Decode(&model)
@@ -21,7 +25,7 @@ func GetStrategy(cur *mongo.Cursor, df interfaces.IDataFeed, tr trading.ITrading
 	loggerConfig := zap.NewProductionConfig()
 	isLocalBuild := os.Getenv("LOCAL") == "true"
 	var logRoot string
-	if isLocalBuild { // write to current directory
+	if isLocalBuild { // write to current directory, TODO(khassanov): set console encoder instead of json
 		cwd, _ := os.Getwd()
 		logRoot = fmt.Sprintf("%s/log", cwd)
 	} else {
@@ -29,9 +33,16 @@ func GetStrategy(cur *mongo.Cursor, df interfaces.IDataFeed, tr trading.ITrading
 	}
 	logPath := fmt.Sprintf("%s/strategy-%v.log", logRoot, model.ID.Hex())
 	loggerConfig.OutputPaths = []string{logPath}
-	logger, err := loggerConfig.Build()
+	var logger *zap.Logger
+	logger, err = loggerConfig.Build()
 	if err != nil {
-		return &Strategy{}, err // don't create a silent strategy, TODO(khassanov): don't fail here, add an alert
+		// log to stdout with strategy id field
+		logger, _ = zap.NewProduction()
+		logger = logger.With(zap.String("StrategyID", model.ID.Hex()))
+		logger.Error("can't create dedicated log file, writing log to stdout",
+			zap.Error(err),
+			zap.String("path", logPath),
+		)
 	}
 	return &Strategy{Model: &model, Datafeed: df, Trading: tr, StateMgmt: sm, Singleton: createOrder, Log: logger}, nil
 }
