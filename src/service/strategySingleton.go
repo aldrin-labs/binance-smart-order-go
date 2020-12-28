@@ -39,7 +39,8 @@ var once sync.Once
 // GetStrategyService returns a pointer to instantiated service singleton.
 func GetStrategyService() *StrategyService {
 	once.Do(func() {
-		logger, _ := zap.NewProduction()
+		logger, _ := zap.NewProduction() // TODO(khassanov): handle the error
+		logger = logger.With(zap.String("logger", "ss"))
 		// df := redis.InitRedis()
 		df := binance.InitBinance()
 		tr := trading.InitTrading()
@@ -130,28 +131,9 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 func GetStrategy(strategy *models.MongoStrategy, df interfaces.IDataFeed, tr trading.ITrading, st interfaces.IStateMgmt, statsd statsd_client.StatsdClient, ss *StrategyService) *strategies.Strategy {
 	// TODO(khassanov): why we use this instead of the same from the `strategy` package?
 	// TODO(khassanov): remove code copy got from the same in the strategy package
-	loggerConfig := zap.NewProductionConfig()
-	isLocalBuild := os.Getenv("LOCAL") == "true"
-	var logRoot string
-	if isLocalBuild { // write to current directory, TODO(khassanov): set console encoder instead of json
-		cwd, _ := os.Getwd()
-		logRoot = fmt.Sprintf("%s/log", cwd)
-	} else {
-		logRoot = "/var/log/strategy_service"
-	}
-	logPath := fmt.Sprintf("%s/strategy-%v.log", logRoot, strategy.ID.Hex())
-	loggerConfig.OutputPaths = []string{logPath}
-	var logger *zap.Logger
-	logger, err := loggerConfig.Build()
-	if err != nil {
-		// log to stdout with strategy id field
-		logger, _ = zap.NewProduction()
-		logger = logger.With(zap.String("StrategyID", strategy.ID.Hex()))
-		logger.Error("can't create dedicated log file, writing log to stdout",
-			zap.Error(err),
-			zap.String("path", logPath),
-		)
-	}
+	logger, _ := zap.NewProduction() // TODO(khassanov): handle the error
+	loggerName := fmt.Sprintf("sm-%v", strategy.ID.Hex())
+	logger = logger.With(zap.String("logger", loggerName))
 	return &strategies.Strategy{
 		Model: strategy,
 		Datafeed: df,

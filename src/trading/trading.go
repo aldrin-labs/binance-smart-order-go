@@ -65,6 +65,7 @@ var log *zap.Logger
 
 func init() {
 	log, _ = zap.NewProduction()
+	log = log.With(zap.String("logger", "trading"))
 }
 
 func InitTrading() ITrading {

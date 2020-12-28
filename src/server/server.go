@@ -21,6 +21,7 @@ var (
 
 func init() {
 	log, _ = zap.NewProduction()
+	log = log.With(zap.String("logger", "srv"))
 }
 
 // RunServer starts HTTP server serves API to create or cancel a smart trade.

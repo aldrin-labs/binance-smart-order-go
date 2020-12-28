@@ -1,7 +1,6 @@
 package strategies
 
 import (
-	"os"
 	"fmt"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
@@ -19,32 +18,10 @@ import (
 func GetStrategy(cur *mongo.Cursor, df interfaces.IDataFeed, tr trading.ITrading, sm interfaces.IStateMgmt, createOrder interfaces.ICreateRequest) (*Strategy, error) {
 	var model models.MongoStrategy
 	err := cur.Decode(&model)
-	if err != nil {
-		return &Strategy{}, err
-	}
-	loggerConfig := zap.NewProductionConfig()
-	isLocalBuild := os.Getenv("LOCAL") == "true"
-	var logRoot string
-	if isLocalBuild { // write to current directory, TODO(khassanov): set console encoder instead of json
-		cwd, _ := os.Getwd()
-		logRoot = fmt.Sprintf("%s/log", cwd)
-	} else {
-		logRoot = "/var/log/strategy_service"
-	}
-	logPath := fmt.Sprintf("%s/strategy-%v.log", logRoot, model.ID.Hex())
-	loggerConfig.OutputPaths = []string{logPath}
-	var logger *zap.Logger
-	logger, err = loggerConfig.Build()
-	if err != nil {
-		// log to stdout with strategy id field
-		logger, _ = zap.NewProduction()
-		logger = logger.With(zap.String("StrategyID", model.ID.Hex()))
-		logger.Error("can't create dedicated log file, writing log to stdout",
-			zap.Error(err),
-			zap.String("path", logPath),
-		)
-	}
-	return &Strategy{Model: &model, Datafeed: df, Trading: tr, StateMgmt: sm, Singleton: createOrder, Log: logger}, nil
+	logger, _ := zap.NewProduction() // TODO(khassanov): handle the error here and above
+	loggerName := fmt.Sprintf("sm-%v", model.ID.Hex())
+	logger = logger.With(zap.String("logger", loggerName))
+	return &Strategy{Model: &model, Datafeed: df, Trading: tr, StateMgmt: sm, Singleton: createOrder, Log: logger}, err
 }
 
 // A Strategy describes user defined rules to order trades and what are interfaces to execute these rules.

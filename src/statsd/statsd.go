@@ -15,6 +15,7 @@ type StatsdClient struct {
 
 func (sd *StatsdClient) Init() {
 	sd.Log, _ = zap.NewProduction()
+	sd.Log = sd.Log.With(zap.String("logger", "statsd"))
 	host := os.Getenv("STATSD_HOST")
 	if host == "" {
 		host = "graphite.infra"
