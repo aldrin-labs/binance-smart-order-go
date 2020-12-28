@@ -3,11 +3,14 @@ package smart_order
 import (
 	"context"
 	statsd_client "gitlab.com/crypto_project/core/strategy_service/src/statsd"
-	"log"
+	"go.uber.org/zap"
+
+	// "go.uber.org/zap"
 	"math"
 	"reflect"
 	"sync"
 	"time"
+	"fmt"
 
 	"github.com/qmuntal/stateless"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
@@ -51,8 +54,9 @@ const (
 	TriggerTimeout           = "TriggerTimeout"
 )
 
+// A SmartOrder takes strategy to execute with context by the service runtime
 type SmartOrder struct {
-	Strategy                interfaces.IStrategy
+	Strategy                interfaces.IStrategy // TODO(khassanov): can we use type instead of the interface here?
 	State                   *stateless.StateMachine
 	ExchangeName            string
 	KeyId                   *primitive.ObjectID
@@ -87,7 +91,17 @@ func (sm *SmartOrder) toFixed(num float64, precision int64) float64 {
 // NewSmartOrder instantiates new smart order with given strategy.
 func NewSmartOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed, TradingAPI trading.ITrading, Statsd statsd_client.StatsdClient, keyId *primitive.ObjectID, stateMgmt interfaces.IStateMgmt) *SmartOrder {
 
-	sm := &SmartOrder{Strategy: strategy, DataFeed: DataFeed, ExchangeApi: TradingAPI, KeyId: keyId, StateMgmt: stateMgmt, Lock: false, SelectedExitTarget: 0, OrdersMap: map[string]bool{}}
+	sm := &SmartOrder{
+		Strategy: strategy,
+		DataFeed: DataFeed,
+		ExchangeApi: TradingAPI,
+		KeyId: keyId,
+		StateMgmt: stateMgmt,
+		Lock: false,
+		SelectedExitTarget: 0,
+		OrdersMap: map[string]bool{},
+	}
+
 	initState := WaitForEntry
 	pricePrecision, amountPrecision := stateMgmt.GetMarketPrecision(strategy.GetModel().Conditions.Pair, strategy.GetModel().Conditions.MarketType)
 	sm.QuantityPricePrecision = pricePrecision
@@ -96,7 +110,15 @@ func NewSmartOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed,
 	if strategy.GetModel().State != nil && strategy.GetModel().State.State != "" && !(strategy.GetModel().State.State == End && strategy.GetModel().Conditions.ContinueIfEnded == true) {
 		initState = strategy.GetModel().State.State
 	}
-	State := stateless.NewStateMachineWithMode(initState, 1)
+	State := stateless.NewStateMachineWithMode(initState, 1) // TODO(khassanov): rename it, State is not a StateMachine
+	// TODO(khassanov): prepare boilerplate state machine in package init and just copy it here
+	State.OnTransitioned(func(ctx context.Context, tr stateless.Transition) {
+		sm.Strategy.GetLogger().Info("sm state transition",
+			zap.String("trigger", fmt.Sprintf("%v", tr.Trigger)),
+			zap.String("source", fmt.Sprintf("%v", tr.Source)),
+			zap.String("dest", fmt.Sprintf("%v", tr.Destination)),
+		)
+	})
 
 	// define triggers and input types:
 	State.SetTriggerParameters(TriggerTrade, reflect.TypeOf(interfaces.OHLCV{}))
@@ -178,7 +200,7 @@ func (sm *SmartOrder) checkIfShouldCancelIfAnyActive() {
 }
 
 func (sm *SmartOrder) onStart(ctx context.Context, args ...interface{}) error {
-	log.Print("onStart executed")
+	sm.Strategy.GetLogger().Info("doing on start checks")
 	sm.checkIfShouldCancelIfAnyActive()
 	sm.hedge()
 	sm.checkIfPlaceOrderInstantlyOnStart()
@@ -226,14 +248,11 @@ func (sm *SmartOrder) getLastTargetAmount() float64 {
 
 func (sm *SmartOrder) exitWaitEntry(ctx context.Context, args ...interface{}) (stateless.State, error) {
 	if sm.Strategy.GetModel().Conditions.EntryOrder.ActivatePrice != 0 {
-		log.Print("move to", TrailingEntry)
 		return TrailingEntry, nil
 	}
 	if len(sm.Strategy.GetModel().Conditions.EntryLevels) > 0 {
-		log.Print("move to ", InMultiEntry)
 		return InMultiEntry, nil
 	}
-	log.Print("move to", InEntry)
 	return InEntry, nil
 }
 
@@ -281,7 +300,6 @@ func (sm *SmartOrder) enterEntry(ctx context.Context, args ...interface{}) error
 	if len(sm.Strategy.GetModel().Conditions.EntryLevels) > 0 {
 		return nil
 	}
-	//log.Print("enter entry")
 	isSpot := sm.Strategy.GetModel().Conditions.MarketType == 0
 	// if we returned to InEntry from Stoploss timeout
 	if sm.Strategy.GetModel().State.StopLossAt == -1 {
@@ -306,7 +324,7 @@ func (sm *SmartOrder) enterEntry(ctx context.Context, args ...interface{}) error
 	if isSpot {
 		sm.PlaceOrder(sm.Strategy.GetModel().State.EntryPrice, 0.0, InEntry)
 		if !sm.Strategy.GetModel().Conditions.TakeProfitExternal {
-			log.Print("place take-profit from enterEntry")
+			sm.Strategy.GetLogger().Info("placing take-profit")
 			sm.PlaceOrder(0, 0.0, TakeProfit)
 		}
 	} else {
@@ -691,10 +709,14 @@ func (sm *SmartOrder) Start() {
 		time.Sleep(60 * time.Millisecond)
 		state, _ = sm.State.State(ctx)
 		localState = sm.Strategy.GetModel().State.State
-		sm.Statsd.TimingDuration("smart_order.cycle_time", time.Since(cycle_started_at)) // TODO: check rate
+
+		// TODO(khassanov): check what the rate we can set here
+		sm.Statsd.TimingDuration("smart_order.cycle_time", time.Since(cycle_started_at))
 	}
 	sm.Stop()
-	log.Print("STOPPED smartorder ", state.(string))
+	sm.Strategy.GetLogger().Info("stopped smart order",
+		zap.String("state", state.(string)),
+	)
 }
 
 func (sm *SmartOrder) Stop() {
@@ -704,7 +726,7 @@ func (sm *SmartOrder) Stop() {
 		if model.Conditions.ContinueIfEnded == false {
 			sm.StateMgmt.DisableStrategy(model.ID)
 		}
-		log.Print("cancel orders in stop at start")
+		sm.Strategy.GetLogger().Info("cancel orders in stop at start")
 		go sm.TryCancelAllOrders(model.State.Orders)
 		return
 	}
@@ -714,10 +736,10 @@ func (sm *SmartOrder) Stop() {
 
 	// cancel orders
 	if model.Conditions.MarketType == 0 && state != End {
-		log.Print("cancel orders in stop for stop")
+		sm.Strategy.GetLogger().Info("cancel orders in stop for stop")
 		sm.TryCancelAllOrdersConsistently(model.State.Orders)
 	} else {
-		log.Print("cancel orders for futures and step not End")
+		sm.Strategy.GetLogger().Info("cancel orders for futures and step not End")
 		go sm.TryCancelAllOrders(model.State.Orders)
 
 		// handle case when order was creating while Stop func execution
@@ -737,11 +759,11 @@ func (sm *SmartOrder) Stop() {
 			sm.Statsd.Inc("smart_order.place_cancel_order_in_stop_func_attempt")
 			time.Sleep(5 * time.Second)
 			if model.State.PositionAmount > 0 && model.State.EntryPrice > 0 {
-				log.Println(
-					"placing canceled order in stop for SM ", model.ID,
-					" model.State.PositionAmount ", model.State.PositionAmount,
-					" model.State.EntryPrice ", model.State.EntryPrice,
-					" state ", state, " StateS ", StateS,
+				sm.Strategy.GetLogger().Warn("placing canceled order in stop for SM",
+					zap.Float64("position amount", model.State.PositionAmount),
+					zap.Float64("entry price", model.State.EntryPrice),
+					zap.String("smart order state", state.(string)),
+					zap.String("strategy state", StateS),
 				)
 				sm.Statsd.Inc("smart_order.place_cancel_order_in_stop_func_with_nonzero_amount")
 				sm.PlaceOrder(0, model.State.PositionAmount, Canceled)
@@ -777,7 +799,9 @@ func (sm *SmartOrder) Stop() {
 	}
 
 	if amount := sm.Strategy.GetModel().State.PositionAmount; amount != 0.0 {
-		log.Println("Smart order strategy", sm.Strategy.GetModel().ID.String(), "stopped with non-zero amount", amount)
+		sm.Strategy.GetLogger().Warn("stopped with non-zero amount",
+			zap.Float64("amount left", amount),
+		)
 		sm.Statsd.Inc("smart_order.stopped_with_nonzero_amount")
 	}
 	sm.Statsd.Inc("smart_order.stop_attempt")

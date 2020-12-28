@@ -4,16 +4,12 @@ import (
 	"context"
 	"fmt"
 	"github.com/Cryptocurrencies-AI/go-binance"
-	"github.com/go-kit/kit/log"
+	"go.uber.org/zap"
 	"os"
 	"os/signal"
 )
 
 func GetBinanceClientInstance() (binance.Binance, context.CancelFunc) {
-	var logger log.Logger
-	logger = log.NewLogfmtLogger(log.NewSyncWriter(os.Stderr))
-	logger = log.With(logger, "time", log.DefaultTimestampUTC, "caller", log.DefaultCaller)
-
 	ctx, cancelCtx := context.WithCancel(context.Background())
 	// use second return value for cancelling request when shutting down the app
 
@@ -21,7 +17,7 @@ func GetBinanceClientInstance() (binance.Binance, context.CancelFunc) {
 		"https://www.binance.com",
 		"",
 		nil,
-		logger,
+		nil,
 		ctx,
 	)
 	b := binance.NewBinance(binanceService)
@@ -35,7 +31,10 @@ func ListenBinanceMarkPrice(onMessage func(data *binance.MarkPriceAllStrEvent) e
 	binance, cancelCtx := GetBinanceClientInstance()
 	kech, done, err := binance.MarkPriceAllStrWebsocket()
 
-	fmt.Println("here ", done, err)
+	log.Info("here",
+		zap.String("done", fmt.Sprintf("%v", done)),
+		zap.Error(err),
+	)
 
 	if err != nil {
 		panic(err)
@@ -51,13 +50,13 @@ func ListenBinanceMarkPrice(onMessage func(data *binance.MarkPriceAllStrEvent) e
 		}
 	}()
 
-	fmt.Println("waiting for interrupt")
+	log.Info("waiting for interrupt")
 	<-interrupt
-	fmt.Println("canceling context")
+	log.Info("canceling context")
 	cancelCtx()
-	fmt.Println("waiting for signal")
+	log.Info("waiting for signal")
 	<-done
-	fmt.Println("exit")
+	log.Info("exit")
 	return nil
 }
 
@@ -68,7 +67,10 @@ func ListenBinanceSpread(onMessage func(data *binance.SpreadAllEvent) error) err
 	binanceInstance, cancelCtx := GetBinanceClientInstance()
 	kech, done, err := binanceInstance.SpreadAllWebsocket()
 
-	fmt.Println("here ", done, err)
+	log.Info("here",
+		zap.String("done", fmt.Sprintf("%v", done)),
+		zap.Error(err),
+	)
 
 	if err != nil {
 		panic(err)
@@ -85,12 +87,12 @@ func ListenBinanceSpread(onMessage func(data *binance.SpreadAllEvent) error) err
 		}
 	}()
 
-	fmt.Println("waiting for interrupt")
+	log.Info("waiting for interrupt")
 	<-interrupt
-	fmt.Println("canceling context")
+	log.Info("canceling context")
 	cancelCtx()
-	fmt.Println("waiting for signal")
+	log.Info("waiting for signal")
 	<-done
-	fmt.Println("exit")
+	log.Info("exit")
 	return nil
 }

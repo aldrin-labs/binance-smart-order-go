@@ -2,7 +2,7 @@ package smart_order
 
 import (
 	"context"
-	"log"
+	"go.uber.org/zap"
 	"strings"
 	"time"
 
@@ -37,7 +37,7 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 	}
 	switch step {
 	case TrailingEntry:
-		log.Print("trailing entry order placing")
+		sm.Strategy.GetLogger().Info("trailing entry order placing")
 		orderType = model.Conditions.EntryOrder.OrderType // TODO find out to remove duplicate lines with 154 & 164
 		isStopOrdersSupport := isFutures || orderType == "limit"
 		if isStopOrdersSupport { // we can place stop order, lets place it
@@ -241,8 +241,10 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 		baseAmount = model.Conditions.EntryOrder.Amount
 		orderType = prefix + "limit"
 		fee := 0.12
-
-		log.Println("WithoutLoss amount ", amount, " entryPrice ", model.State.EntryPrice)
+		sm.Strategy.GetLogger().Info("WithoutLoss",
+			zap.Float64("amount", amount),
+			zap.Float64("entry price", model.State.EntryPrice),
+		)
 		if amount > 0 {
 			baseAmount = amount
 		}
@@ -485,7 +487,10 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 		} else {
 			request.KeyParams.PositionSide = "BOTH"
 		}
-		log.Print("create order strategyId ", sm.Strategy.GetModel().ID, " step ", step, " amount ", baseAmount)
+		sm.Strategy.GetLogger().Info("create order strategyId",
+			zap.String("step", step),
+			zap.Float64("amount", baseAmount),
+		)
 		if step == WaitForEntry {
 			sm.IsEntryOrderPlaced = true
 			sm.IsWaitingForOrder.Store(step, true)
@@ -531,18 +536,22 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 					model.State.WaitForEntryIds = append(model.State.WaitForEntryIds, response.Data.OrderId)
 				}
 			} else {
-				log.Print("order 0")
+				sm.Strategy.GetLogger().Info("order 0")
 			}
 			if step != Canceled {
 				sm.OrdersMux.Lock()
-				log.Println("added order to state.Orders id:", response.Data.OrderId)
+				sm.Strategy.GetLogger().Info("adding order to state.Orders",
+					zap.String("order id", response.Data.OrderId),
+				)
 				model.State.Orders = append(model.State.Orders, response.Data.OrderId)
 				sm.OrdersMux.Unlock()
 				go sm.StateMgmt.UpdateOrders(model.ID, model.State)
 			}
 			break
 		} else {
-			log.Print(response.Status)
+			sm.Strategy.GetLogger().Info("got response",
+				zap.String("status", response.Status),
+			)
 
 			// if error
 			if len(response.Data.Msg) > 0 {
