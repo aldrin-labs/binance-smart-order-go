@@ -710,8 +710,15 @@ func (sm *SmartOrder) Start() {
 		state, _ = sm.State.State(ctx)
 		localState = sm.Strategy.GetModel().State.State
 
-		// TODO(khassanov): check what the rate we can set here
-		sm.Statsd.TimingDuration("smart_order.cycle_time", time.Since(cycle_started_at))
+		// 0.0625 means once in a second for ~60ms loop cycle
+		dt := time.Since(cycle_started_at)
+		sm.Statsd.TimingDurationRated("smart_order.cycle_time", dt, 0.0625)
+		if dt > 1 * time.Second { // TODO(khassanov): check it does not harm us
+			sm.Statsd.TimingDurationRated("smart_order.cycle_time", dt, 1.0)
+			sm.Strategy.GetLogger().Warn("sm loop cycle too long",
+				zap.Durationp("cycle time", &dt),
+			)
+		}
 	}
 	sm.Stop()
 	sm.Strategy.GetLogger().Info("stopped smart order",
