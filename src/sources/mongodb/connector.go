@@ -7,7 +7,7 @@ import (
 	"os"
 	"sync"
 	"time"
-
+	statsd_client "gitlab.com/crypto_project/core/strategy_service/src/statsd"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
 	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"go.mongodb.org/mongo-driver/bson"
@@ -65,6 +65,7 @@ func Connect(url string, connectTimeout time.Duration) (*mongo.Client, error) {
 
 type StateMgmt struct {
 	OrderCallbacks *sync.Map
+	Statsd         *statsd_client.StatsdClient
 }
 
 // InitOrdersWatch subscribes to orders updates and invokes StateMgnt callback on `filled` and `canceled` orders update event received.
@@ -118,6 +119,7 @@ func (sm *StateMgmt) InitOrdersWatch() {
 }
 
 func (sm *StateMgmt) EnableStrategy(strategyId *primitive.ObjectID) {
+	t1 := time.Now()
 	col := GetCollection("core_strategies")
 	var request bson.D
 	request = bson.D{
@@ -137,9 +139,11 @@ func (sm *StateMgmt) EnableStrategy(strategyId *primitive.ObjectID) {
 	if err != nil {
 		log.Error("error in arg", zap.Error(err))
 	}
+	sm.Statsd.TimingDuration("state_mgmt.enable_strategy", time.Since(t1))
 }
 
 func (sm *StateMgmt) DisableStrategy(strategyId *primitive.ObjectID) {
+	t1 := time.Now()
 	col := GetCollection("core_strategies")
 	log.Info("disabling strategy",
 		zap.String("id", strategyId.String()),
@@ -162,8 +166,8 @@ func (sm *StateMgmt) DisableStrategy(strategyId *primitive.ObjectID) {
 	if err != nil {
 		log.Error("error in arg", zap.Error(err))
 	}
-
 	sm.CheckDisabledStrategy(strategyId, 2, 30)
+	sm.Statsd.TimingDuration("state_mgmt.disable_strategy", time.Since(t1))
 }
 
 func (sm *StateMgmt) CheckDisabledStrategy(strategyId *primitive.ObjectID, times int, timeout int64) {
@@ -234,6 +238,7 @@ func GetKeyIdAndExchangeId(keyId *primitive.ObjectID) (*primitive.ObjectID, *pri
 
 // SaveOrder upserts the order in a persistent storage.
 func (sm *StateMgmt) SaveOrder(order models.MongoOrder, keyId *primitive.ObjectID, marketType int64) {
+	t1 := time.Now()
 	log.Info("saving order", zap.String("order", fmt.Sprintf("%v", order)))
 	baseId, quoteId, marketId := GetAssets(order.Symbol, marketType)
 	_, exchangeId := GetKeyIdAndExchangeId(keyId)
@@ -264,6 +269,7 @@ func (sm *StateMgmt) SaveOrder(order models.MongoOrder, keyId *primitive.ObjectI
 	if err != nil {
 		log.Error("", zap.Error(err))
 	}
+	sm.Statsd.TimingDuration("state_mgmt.save_order", time.Since(t1))
 }
 
 func (sm *StateMgmt) SubscribeToHedge(strategyId *primitive.ObjectID, onStrategyUpdate func(strategy *models.MongoStrategy)) error {
@@ -315,6 +321,7 @@ func (sm *StateMgmt) GetPosition(strategyId *primitive.ObjectID, symbol string) 
 }
 
 func (sm *StateMgmt) AnyActiveStrats(strategy *models.MongoStrategy) bool {
+	t1 := time.Now()
 	CollName := "core_strategies"
 	ctx := context.Background()
 	var request bson.D
@@ -326,22 +333,21 @@ func (sm *StateMgmt) AnyActiveStrats(strategy *models.MongoStrategy) bool {
 		{"conditions.marketType", strategy.Conditions.MarketType},
 	}
 	var coll = GetCollection(CollName)
-
 	var foundStrategy *models.MongoStrategy
 	err := coll.FindOne(ctx, request).Decode(&foundStrategy)
 	if err != nil {
 		log.Error("strategy decode error", zap.Error(err))
 		return false
 	}
-
+	sm.Statsd.TimingDuration("state_mgmt.any_active_strats", time.Since(t1))
 	if foundStrategy.ID.Hex() != strategy.ID.Hex() {
 		return true
 	}
-
 	return false
 }
 
 func (sm *StateMgmt) GetOrder(orderId string) *models.MongoOrder {
+	t1 := time.Now()
 	CollName := "core_orders"
 	ctx := context.Background()
 	var request bson.D
@@ -355,10 +361,12 @@ func (sm *StateMgmt) GetOrder(orderId string) *models.MongoOrder {
 	if err != nil {
 		log.Error("", zap.Error(err))
 	}
+	sm.Statsd.TimingDuration("state_mgmt.get_order", time.Since(t1))
 	return order
 }
 
 func (sm *StateMgmt) GetOrderById(orderId *primitive.ObjectID) *models.MongoOrder {
+	t1 := time.Now()
 	CollName := "core_orders"
 	ctx := context.Background()
 	var request bson.D
@@ -372,10 +380,12 @@ func (sm *StateMgmt) GetOrderById(orderId *primitive.ObjectID) *models.MongoOrde
 	if err != nil {
 		log.Error("", zap.Error(err))
 	}
+	sm.Statsd.TimingDuration("state_mgmt.get_order_by_id", time.Since(t1))
 	return order
 }
 
 func (sm *StateMgmt) SaveStrategy(strategy *models.MongoStrategy) *models.MongoStrategy {
+	t1 := time.Now()
 	log.Info("saving strategy")
 	opts := options.Update().SetUpsert(true)
 	filter := bson.D{{"_id", strategy.ID}}
@@ -387,10 +397,12 @@ func (sm *StateMgmt) SaveStrategy(strategy *models.MongoStrategy) *models.MongoS
 	if err != nil {
 		log.Error("", zap.Error(err))
 	}
+	sm.Statsd.TimingDuration("state_mgmt.save_strategy", time.Since(t1))
 	return strategy
 }
 
 func (sm *StateMgmt) CreateStrategy(strategy *models.MongoStrategy) *models.MongoStrategy {
+	t1 := time.Now()
 	log.Info("creating strategy")
 	CollName := "core_strategies"
 	ctx := context.Background()
@@ -399,10 +411,12 @@ func (sm *StateMgmt) CreateStrategy(strategy *models.MongoStrategy) *models.Mong
 	if err != nil {
 		log.Error("", zap.Error(err))
 	}
+	sm.Statsd.TimingDuration("state_mgmt.create_strategy", time.Since(t1))
 	return strategy
 }
 
 func (sm *StateMgmt) GetStrategy(strategyId *primitive.ObjectID) *models.MongoStrategy {
+	t1 := time.Now()
 	CollName := "core_strategies"
 	ctx := context.Background()
 	var request bson.D
@@ -416,10 +430,12 @@ func (sm *StateMgmt) GetStrategy(strategyId *primitive.ObjectID) *models.MongoSt
 	if err != nil {
 		log.Error("", zap.Error(err))
 	}
+	sm.Statsd.TimingDuration("state_mgmt.get_strategy", time.Since(t1))
 	return strategy
 }
 
 func (sm *StateMgmt) GetMarketPrecision(pair string, marketType int64) (int64, int64) {
+	t1 := time.Now()
 	CollName := "core_markets"
 	ctx := context.Background()
 	var request bson.D
@@ -434,11 +450,12 @@ func (sm *StateMgmt) GetMarketPrecision(pair string, marketType int64) (int64, i
 	if err != nil {
 		log.Error("", zap.Error(err))
 	}
-
+	sm.Statsd.TimingDuration("state_mgmt.get_market_precision", time.Since(t1))
 	return market.Properties.Binance.PricePrecision, market.Properties.Binance.QuantityPrecision
 }
 
 func (sm *StateMgmt) UpdateConditions(strategyId *primitive.ObjectID, state *models.MongoStrategyCondition) {
+	t1 := time.Now()
 	col := GetCollection("core_strategies")
 	var request bson.D
 	request = bson.D{
@@ -458,9 +475,11 @@ func (sm *StateMgmt) UpdateConditions(strategyId *primitive.ObjectID, state *mod
 	if err != nil {
 		log.Error("error in arg", zap.Error(err))
 	}
+	sm.Statsd.TimingDuration("state_mgmt.update_conditions", time.Since(t1))
 	// log.Print(res)
 }
 func (sm *StateMgmt) UpdateState(strategyId *primitive.ObjectID, state *models.MongoStrategyState) {
+	t1 := time.Now()
 	col := GetCollection("core_strategies")
 	var request bson.D
 	request = bson.D{
@@ -489,9 +508,11 @@ func (sm *StateMgmt) UpdateState(strategyId *primitive.ObjectID, state *models.M
 		zap.Int64("count", updated.ModifiedCount),
 		zap.String("state", state.State),
 	)
+	sm.Statsd.TimingDuration("state_mgmt.update_state", time.Since(t1))
 }
 
 func (sm *StateMgmt) UpdateStrategyState(strategyId *primitive.ObjectID, state *models.MongoStrategyState) {
+	t1 := time.Now()
 	col := GetCollection("core_strategies")
 	var request bson.D
 	request = bson.D{
@@ -520,9 +541,11 @@ func (sm *StateMgmt) UpdateStrategyState(strategyId *primitive.ObjectID, state *
 		zap.Int64("count", updated.ModifiedCount),
 		zap.String("state", state.State),
 	)
+	sm.Statsd.TimingDuration("state_mgmt.update_strategy_state", time.Since(t1))
 }
 
 func (sm *StateMgmt) UpdateExecutedAmount(strategyId *primitive.ObjectID, state *models.MongoStrategyState) {
+	t1 := time.Now()
 	col := GetCollection("core_strategies")
 	var request bson.D
 	request = bson.D{
@@ -557,8 +580,10 @@ func (sm *StateMgmt) UpdateExecutedAmount(strategyId *primitive.ObjectID, state 
 		zap.Int64("count", updated.ModifiedCount),
 		zap.String("state", state.State),
 	)
+	sm.Statsd.TimingDuration("state_mgmt.update_executed_amount", time.Since(t1))
 }
 func (sm *StateMgmt) UpdateOrders(strategyId *primitive.ObjectID, state *models.MongoStrategyState) {
+	t1 := time.Now()
 	col := GetCollection("core_strategies")
 	var request bson.D
 	request = bson.D{
@@ -597,8 +622,10 @@ func (sm *StateMgmt) UpdateOrders(strategyId *primitive.ObjectID, state *models.
 		zap.Int64("count", updated.ModifiedCount),
 		zap.String("state", state.State),
 	)
+	sm.Statsd.TimingDuration("state_mgmt.update_orders", time.Since(t1))
 }
 func (sm *StateMgmt) UpdateEntryPrice(strategyId *primitive.ObjectID, state *models.MongoStrategyState) {
+	t1 := time.Now()
 	col := GetCollection("core_strategies")
 	var request bson.D
 	request = bson.D{
@@ -629,9 +656,11 @@ func (sm *StateMgmt) UpdateEntryPrice(strategyId *primitive.ObjectID, state *mod
 		zap.Int64("count", updated.ModifiedCount),
 		zap.String("state", state.State),
 	)
+	sm.Statsd.TimingDuration("state_mgmt.update_entry_price", time.Since(t1))
 }
 
 func (sm *StateMgmt) SwitchToHedgeMode(keyId *primitive.ObjectID, trading trading.ITrading) {
+	t1 := time.Now()
 	col := GetCollection("core_keys")
 	var request bson.D
 	request = bson.D{
@@ -645,9 +674,11 @@ func (sm *StateMgmt) SwitchToHedgeMode(keyId *primitive.ObjectID, trading tradin
 	}
 	if keyFound.HedgeMode {
 	}
+	sm.Statsd.TimingDuration("state_mgmt.switch_to_hedge_mode", time.Since(t1))
 }
 
 func (sm *StateMgmt) UpdateHedgeExitPrice(strategyId *primitive.ObjectID, state *models.MongoStrategyState) {
+	t1 := time.Now()
 	col := GetCollection("core_strategies")
 	var request bson.D
 	request = bson.D{
@@ -675,10 +706,11 @@ func (sm *StateMgmt) UpdateHedgeExitPrice(strategyId *primitive.ObjectID, state 
 		zap.Int64("count", updated.ModifiedCount),
 		zap.String("state", state.State),
 	)
+	sm.Statsd.TimingDuration("state_mgmt.update_hedge_exit_price", time.Since(t1))
 }
 
 func (sm *StateMgmt) SavePNL(templateStrategyId *primitive.ObjectID, profitAmount float64) {
-
+	t1 := time.Now()
 	col := GetCollection("core_strategies")
 	var request bson.D
 	request = bson.D{
@@ -704,9 +736,11 @@ func (sm *StateMgmt) SavePNL(templateStrategyId *primitive.ObjectID, profitAmoun
 		zap.String("id", templateStrategyId.String()),
 		zap.Float64("PnL changed", profitAmount),
 	)
+	sm.Statsd.TimingDuration("state_mgmt.save_pnl", time.Since(t1))
 }
 
 func (sm *StateMgmt) EnableHedgeLossStrategy(strategyId *primitive.ObjectID) {
+	t1 := time.Now()
 	col := GetCollection("core_strategies")
 	var request bson.D
 	request = bson.D{
@@ -727,6 +761,7 @@ func (sm *StateMgmt) EnableHedgeLossStrategy(strategyId *primitive.ObjectID) {
 		log.Error("error in arg", zap.Error(err))
 		return
 	}
+	sm.Statsd.TimingDuration("state_mgmt.enable_hadge_loss_strategy", time.Since(t1))
 	// log.Print(res)
 }
 
@@ -750,6 +785,7 @@ func (sm *StateMgmt) SaveStrategyConditions(strategy *models.MongoStrategy) {
 
 // UpdateStateAndConditions updates state and conditions in a persistent storage.
 func (sm *StateMgmt) UpdateStateAndConditions(strategyId *primitive.ObjectID, model *models.MongoStrategy) {
+	t1 := time.Now()
 	col := GetCollection("core_strategies")
 	var request bson.D
 	request = bson.D{
@@ -773,5 +809,6 @@ func (sm *StateMgmt) UpdateStateAndConditions(strategyId *primitive.ObjectID, mo
 		log.Error("error in arg", zap.Error(err))
 		return
 	}
+	sm.Statsd.TimingDuration("state_mgmt.update_state_and_conditions", time.Since(t1))
 	// log.Print(res)
 }

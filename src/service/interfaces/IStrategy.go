@@ -15,6 +15,6 @@ type IStrategy interface {
 	GetTrading() trading.ITrading
 	GetStateMgmt() IStateMgmt
 	GetSingleton() ICreateRequest
-	GetStatsd() statsd_client.StatsdClient
+	GetStatsd() *statsd_client.StatsdClient
 	GetLogger() *zap.Logger
 }
