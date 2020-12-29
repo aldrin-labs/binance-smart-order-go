@@ -78,14 +78,13 @@ func (strategy *Strategy) Start() {
 			zap.Int64("type", strategy.Model.Type),
 		)
 		strategy.StrategyRuntime = RunSmartOrder(strategy, strategy.Datafeed, strategy.Trading, strategy.Statsd, strategy.Model.AccountId)
-		strategy.Statsd.Inc("strategy.sm_runtime_start")
+		strategy.Statsd.Inc("smart_order.runtime_start")
 	case 2:
 		strategy.Log.Info("running maker only order",
 			zap.String("id", strategy.ID()),
 			zap.Int64("type", strategy.Model.Type),
 		)
 		strategy.StrategyRuntime = RunMakerOnlyOrder(strategy, strategy.Datafeed, strategy.Trading, strategy.Model.AccountId)
-		strategy.Statsd.Inc("strategy.mo_runtime_start")
 	default:
 		strategy.Log.Warn("strategy type not supported",
 			zap.String("id", strategy.ID()),

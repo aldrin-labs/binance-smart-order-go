@@ -6,12 +6,15 @@ import (
 	"go.uber.org/zap"
 	"os"
 	"time"
+	"sync"
 )
 
 type StatsdClient struct {
 	Client *statsd.Statter
 	Log    *zap.Logger
 }
+
+var once sync.Once
 
 func (sd *StatsdClient) Init() {
 	sd.Log, _ = zap.NewProduction()
@@ -44,7 +47,9 @@ func (sd *StatsdClient) Inc(statName string) {
 	if sd.Client != nil {
 		err := (*sd.Client).Inc(statName, 1, 1.0)
 		if err != nil {
-			sd.Log.Error("Error on Statsd Inc", zap.Error(err))
+			once.Do(func() {
+				sd.Log.Error("Error on StatsD, further error messages supressed", zap.Error(err))
+			})
 		}
 	}
 }
@@ -53,7 +58,9 @@ func (sd *StatsdClient) IncRated(statName string, rate float32) {
 	if sd.Client != nil {
 		err := (*sd.Client).Inc(statName, 1, rate)
 		if err != nil {
-			sd.Log.Error("Error on Statsd Inc", zap.Error(err))
+			once.Do(func() {
+				sd.Log.Error("Error on StatsD, further error messages supressed", zap.Error(err))
+			})
 		}
 	}
 }
@@ -62,7 +69,9 @@ func (sd *StatsdClient) Timing(statName string, value int64) {
 	if sd.Client != nil {
 		err := (*sd.Client).Timing(statName, value, 1.0)
 		if err != nil {
-			sd.Log.Error("Error on Statsd Timing", zap.Error(err))
+			once.Do(func() {
+				sd.Log.Error("Error on StatsD, further error messages supressed", zap.Error(err))
+			})
 		}
 	}
 }
@@ -80,7 +89,9 @@ func (sd *StatsdClient) TimingDuration(statName string, value time.Duration) {
 	if sd.Client != nil {
 		err := (*sd.Client).TimingDuration(statName, value, 1.0)
 		if err != nil {
-			sd.Log.Error("Error on Statsd TimeDuration", zap.Error(err))
+			once.Do(func() {
+				sd.Log.Error("Error on StatsD, further error messages supressed", zap.Error(err))
+			})
 		}
 	}
 }
@@ -98,7 +109,9 @@ func (sd *StatsdClient) Gauge(statName string, value int64) {
 	if sd.Client != nil {
 		err := (*sd.Client).Gauge(statName, value, 1.0)
 		if err != nil {
-			sd.Log.Error("Error on Statsd Gauge", zap.Error(err))
+			once.Do(func() {
+				sd.Log.Error("Error on StatsD, further error messages supressed", zap.Error(err))
+			})
 		}
 	}
 }
@@ -107,7 +120,9 @@ func (sd *StatsdClient) GaugeRated(statName string, value int64, rate float32) {
 	if sd.Client != nil {
 		err := (*sd.Client).Gauge(statName, value, rate)
 		if err != nil {
-			sd.Log.Error("Error on Statsd Gauge", zap.Error(err))
+			once.Do(func() {
+				sd.Log.Error("Error on StatsD, further error messages supressed", zap.Error(err))
+			})
 		}
 	}
 }
