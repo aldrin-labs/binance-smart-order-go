@@ -62,7 +62,7 @@ type SmartOrder struct {
 	KeyId                   *primitive.ObjectID
 	DataFeed                interfaces.IDataFeed
 	ExchangeApi             trading.ITrading
-	Statsd                  statsd_client.StatsdClient
+	Statsd                  *statsd_client.StatsdClient
 	StateMgmt               interfaces.IStateMgmt
 	IsWaitingForOrder       sync.Map // TODO: this must be filled on start of SM if not first start (e.g. restore the state by checking order statuses)
 	IsEntryOrderPlaced      bool     // we need it for case when response from createOrder was returned after entryTimeout was executed
@@ -89,12 +89,13 @@ func (sm *SmartOrder) toFixed(num float64, precision int64) float64 {
 }
 
 // NewSmartOrder instantiates new smart order with given strategy.
-func NewSmartOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed, TradingAPI trading.ITrading, Statsd statsd_client.StatsdClient, keyId *primitive.ObjectID, stateMgmt interfaces.IStateMgmt) *SmartOrder {
+func NewSmartOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed, TradingAPI trading.ITrading, Statsd *statsd_client.StatsdClient, keyId *primitive.ObjectID, stateMgmt interfaces.IStateMgmt) *SmartOrder {
 
 	sm := &SmartOrder{
 		Strategy: strategy,
 		DataFeed: DataFeed,
 		ExchangeApi: TradingAPI,
+		Statsd: Statsd,
 		KeyId: keyId,
 		StateMgmt: stateMgmt,
 		Lock: false,
