@@ -49,9 +49,27 @@ func (sd *StatsdClient) Inc(statName string) {
 	}
 }
 
+func (sd *StatsdClient) IncRated(statName string, rate float32) {
+	if sd.Client != nil {
+		err := (*sd.Client).Inc(statName, 1, rate)
+		if err != nil {
+			sd.Log.Error("Error on Statsd Inc", zap.Error(err))
+		}
+	}
+}
+
 func (sd *StatsdClient) Timing(statName string, value int64) {
 	if sd.Client != nil {
 		err := (*sd.Client).Timing(statName, value, 1.0)
+		if err != nil {
+			sd.Log.Error("Error on Statsd Timing", zap.Error(err))
+		}
+	}
+}
+
+func (sd *StatsdClient) TimingRated(statName string, value int64, rate float32) {
+	if sd.Client != nil {
+		err := (*sd.Client).Timing(statName, value, rate)
 		if err != nil {
 			sd.Log.Error("Error on Statsd Timing", zap.Error(err))
 		}
@@ -67,9 +85,27 @@ func (sd *StatsdClient) TimingDuration(statName string, value time.Duration) {
 	}
 }
 
+func (sd *StatsdClient) TimingDurationRated(statName string, value time.Duration, rate float32) {
+	if sd.Client != nil {
+		err := (*sd.Client).TimingDuration(statName, value, rate)
+		if err != nil {
+			sd.Log.Error("Error on Statsd TimeDuration", zap.Error(err))
+		}
+	}
+}
+
 func (sd *StatsdClient) Gauge(statName string, value int64) {
 	if sd.Client != nil {
 		err := (*sd.Client).Gauge(statName, value, 1.0)
+		if err != nil {
+			sd.Log.Error("Error on Statsd Gauge", zap.Error(err))
+		}
+	}
+}
+
+func (sd *StatsdClient) GaugeRated(statName string, value int64, rate float32) {
+	if sd.Client != nil {
+		err := (*sd.Client).Gauge(statName, value, rate)
 		if err != nil {
 			sd.Log.Error("Error on Statsd Gauge", zap.Error(err))
 		}
