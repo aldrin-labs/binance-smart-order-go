@@ -4,7 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
-	"log"
+	"go.uber.org/zap"
+	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -99,7 +100,7 @@ func (rl *RedisLoop) FillPair(pair, exchange string) *interfaces.OHLCV {
 
 	responseArr := ohlcvResultArr.([]interface{})
 	for _, value := range responseArr {
-		log.Print(value)
+		log.Info("", zap.String("value", fmt.Sprintf("%v", value)))
 	}
 	return nil
 }
@@ -126,7 +127,7 @@ func (rl *RedisLoop) UpdateSpread(channel string, data []byte) {
 	var spread Spread
 	tryparse := json.Unmarshal(data, &spread)
 	if tryparse != nil {
-		log.Print(tryparse)
+		log.Error("", zap.Error(tryparse))
 	}
 	spreadData := interfaces.SpreadData{
 		Close:   spread.BestBidPrice,

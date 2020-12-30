@@ -10,7 +10,8 @@ import (
 	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"log"
+	"go.uber.org/zap"
+	"fmt"
 	"time"
 )
 
@@ -20,7 +21,7 @@ type KeyAsset struct {
 }
 
 // RunSmartOrder starts a runtime for the strategy with given interfaces to market data and trading API.
-func RunSmartOrder(strategy *Strategy, df interfaces.IDataFeed, td trading.ITrading, st statsd_client.StatsdClient, keyId *primitive.ObjectID) interfaces.IStrategyRuntime {
+func RunSmartOrder(strategy *Strategy, df interfaces.IDataFeed, td trading.ITrading, st *statsd_client.StatsdClient, keyId *primitive.ObjectID) interfaces.IStrategyRuntime {
 	if strategy.Model.Conditions.Leverage == 0 {
 		strategy.Model.Conditions.Leverage = 1
 	}
@@ -34,17 +35,22 @@ func RunSmartOrder(strategy *Strategy, df interfaces.IDataFeed, td trading.ITrad
 		request = bson.D{
 			{"_id", strategy.Model.Conditions.KeyAssetId},
 		}
-		log.Print(keyAssetId)
+		strategy.Log.Info("reading key asset document",
+			zap.String("keyAssetId", keyAssetId),
+		)
 		ctx := context.Background()
 		var keyAsset KeyAsset
 		err := KeyAssets.FindOne(ctx, request).Decode(&keyAsset)
 		if err != nil {
-			log.Print("keyAssetsCursor ", err.Error())
+			strategy.Log.Error("can't find a key asset",
+				zap.String("key asset", fmt.Sprintf("%+v", keyAsset)),
+				zap.String("cursor err", err.Error()),
+			)
 		}
 		keyId = &keyAsset.KeyId
 
 		// type 1 for entry point - relative amount
-		DetermineRelativeEntryAmount(strategy, keyAsset, df)
+		DetermineRelativeEntryAmount(strategy, keyAsset, df) // TODO(khassanov): call for relative only
 	}
 
 	if strategy.Model.Conditions.MarketType == 1 && !strategy.Model.Conditions.SkipInitialSetup {
@@ -54,19 +60,23 @@ func RunSmartOrder(strategy *Strategy, df interfaces.IDataFeed, td trading.ITrad
 				State: smart_order.Error,
 				Msg:   res.ErrorMessage,
 			}
+			strategy.Log.Error("can't update leverage",
+				zap.String("trading interface response", res.ErrorMessage),
+			)
 		}
 	}
 	if strategy.Model.State == nil {
 		strategy.Model.State = &models.MongoStrategyState{
-			ReceivedProfitAmount:     0,
+			ReceivedProfitAmount:     0, // TODO(khassanov): remove obvious defaults?
 			ReceivedProfitPercentage: 0,
 			State:                    "",
 		}
 	}
 
-	strategy.StateMgmt.SaveStrategyConditions(strategy.Model)
+	strategy.StateMgmt.SaveStrategyConditions(strategy.Model) // TODO(khassanov): rename this and the following
 	strategy.StateMgmt.UpdateStateAndConditions(strategy.Model.ID, strategy.Model)
 	runtime := smart_order.NewSmartOrder(strategy, df, td, st, keyId, strategy.StateMgmt)
+	strategy.Log.Info("runtime starts")
 	go runtime.Start()
 
 	return runtime
@@ -83,6 +93,9 @@ func DetermineRelativeEntryAmount(strategy *Strategy, keyAsset KeyAsset, df inte
 					State: smart_order.Error,
 					Msg:   "currentOHLCVp is nil. Please contact us in telegram",
 				}
+				strategy.Log.Warn("can't calc relative entry",
+					zap.Int("attempts", attempts),
+				)
 				break
 			}
 
@@ -101,5 +114,8 @@ func DetermineRelativeEntryAmount(strategy *Strategy, keyAsset KeyAsset, df inte
 				}
 			}
 		}
+		strategy.Log.Info("relative amount calculated",
+			zap.Float64("amount", strategy.Model.Conditions.EntryOrder.Amount),
+		)
 	}
 }

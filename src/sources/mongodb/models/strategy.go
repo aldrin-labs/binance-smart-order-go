@@ -88,7 +88,7 @@ type MongoPosition struct {
 
 // A MongoStrategy is the root of a smart trade strategy description.
 type MongoStrategy struct {
-	ID              *primitive.ObjectID     `json:"_id" bson:"_id"`
+	ID              *primitive.ObjectID     `json:"_id" bson:"_id"` // strategy unique identity
 	Type            int64                   `json:"type,omitempty" bson:"type"` // 1 - smart order, 2 - maker only
 	Enabled         bool                    `json:"enabled,omitempty" bson:"enabled"`
 	AccountId       *primitive.ObjectID     `json:"accountId,omitempty" bson:"accountId"`

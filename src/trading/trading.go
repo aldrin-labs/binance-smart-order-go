@@ -5,11 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
+	"go.uber.org/zap"
 	"math"
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/mitchellh/mapstructure"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
@@ -60,6 +61,13 @@ type ITrading interface {
 type Trading struct {
 }
 
+var log *zap.Logger
+
+func init() {
+	log, _ = zap.NewProduction()
+	log = log.With(zap.String("logger", "trading"))
+}
+
 func InitTrading() ITrading {
 	tr := &Trading{}
 
@@ -69,7 +77,7 @@ func InitTrading() ITrading {
 // Request encodes data to JSON, sends it to exchange service and returns decoded response.
 func Request(method string, data interface{}) interface{} {
 	url := "http://" + os.Getenv("EXCHANGESERVICE") + "/" + method
-	fmt.Println("URL:>", url)
+	log.Info("request", zap.String("url", url))
 
 	var jsonStr, err = json.Marshal(data)
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
@@ -78,17 +86,23 @@ func Request(method string, data interface{}) interface{} {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Print(err.Error())
-
+		retryDelay := time.Duration(200)
+		log.Error("request not successful",
+			zap.String("url", url),
+			// zap.Error(err),
+			zap.String("retry in ms", retryDelay.String()),
+		)
+		time.Sleep(retryDelay * time.Millisecond)
 		return Request(method, data)
 	}
 	defer resp.Body.Close()
-
-	fmt.Println("response Status:", resp.Status)
-	fmt.Println("response Headers:", resp.Header)
 	body, _ := ioutil.ReadAll(resp.Body)
-	fmt.Println("request Body:", string(jsonStr))
-	fmt.Println("response Body:", string(body))
+	log.Info("response",
+		zap.String("status", resp.Status),
+		zap.String("header", fmt.Sprintf("%v", resp.Header)),
+		zap.String("request body", string(jsonStr)),
+		zap.String("response body", string(body)),
+	)
 	var response interface{}
 	_ = json.Unmarshal(body, &response)
 	return response
