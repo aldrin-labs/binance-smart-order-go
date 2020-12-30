@@ -25,6 +25,7 @@ import (
 
 // A StrategyService singleton, the root for smart trades runtimes.
 type StrategyService struct {
+	pairs	   map[string]bool
 	strategies map[string]*strategies.Strategy
 	trading    trading.ITrading
 	dataFeed   interfaces.IDataFeed
@@ -39,15 +40,21 @@ var once sync.Once
 // GetStrategyService returns a pointer to instantiated service singleton.
 func GetStrategyService() *StrategyService {
 	once.Do(func() {
-		logger, _ := zap.NewProduction() // TODO(khassanov): handle the error
-		logger = logger.With(zap.String("logger", "ss"))
+		pairs := map[string]bool { // TODO(khassanov): get pairs
+			"BTCUSDT": true,
+			"BTCUSDC": true,
+			"ETHUSDT": true,
+		}
 		// df := redis.InitRedis()
 		df := binance.InitBinance()
 		tr := trading.InitTrading()
 		statsd := statsd_client.StatsdClient{}
 		statsd.Init()
 		sm := mongodb.StateMgmt{Statsd: &statsd}
+		logger, _ := zap.NewProduction() // TODO(khassanov): handle the error
+		logger = logger.With(zap.String("logger", "ss"))
 		singleton = &StrategyService{
+			pairs: pairs,
 			strategies: map[string]*strategies.Strategy{},
 			dataFeed:   df,
 			trading:    tr,
@@ -113,6 +120,11 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 		if strategy.Model.AccountId != nil && strategy.Model.AccountId.Hex() == "5e4ce62b1318ef1b1e85b6f4" {
 			continue
 		}
+		if _, ok := ss.pairs[strategy.Model.Conditions.Pair]; !ok { continue } // skip a foreign pair
+		if err := strategy.TakeLiability(); err != nil {
+			continue // TODO(khassanov): distinguish a state locked in dlm and network errors
+		}
+		// try to lock
 		ss.log.Info("adding existing strategy",
 			zap.String("ObjectID", strategy.Model.ID.String()),
 		)
@@ -157,6 +169,9 @@ func GetStrategy(strategy *models.MongoStrategy, df interfaces.IDataFeed, tr tra
 func (ss *StrategyService) AddStrategy(strategy *models.MongoStrategy) {
 	if ss.strategies[strategy.ID.String()] == nil {
 		sig := GetStrategy(strategy, ss.dataFeed, ss.trading, ss.stateMgmt, &ss.statsd, ss)
+		if err := sig.TakeLiability(); err != nil {
+			return // TODO(khassanov): distinguish a state locked in dlm and network errors
+		}
 		ss.log.Info("start",
 			zap.String("objid", sig.Model.ID.String()),
 		)
@@ -420,6 +435,7 @@ const CollName = "core_strategies"
 
 // WatchStrategies subscribes to strategies to add new strategies to runtime or update local data together with
 // persistent storage updates.
+// TODO(khassanov) can we remove `isLocalBuild` parameter in favor of environment variable?
 func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) error {
 	//func (ss *StrategyService) WatchStrategies() error {
 	ctx := context.Background()
@@ -459,6 +475,8 @@ func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) 
 		if event.FullDocument.AccountId != nil && event.FullDocument.AccountId.Hex() == "5e4ce62b1318ef1b1e85b6f4" {
 			continue
 		}
+
+		if _, ok := ss.pairs[event.FullDocument.Conditions.Pair]; !ok { continue } // skip a foreign pair
 
 		if event.FullDocument.Type == 2 && event.FullDocument.State.ColdStart { // 2 means maker only
 			sig := GetStrategy(&event.FullDocument, ss.dataFeed, ss.trading, ss.stateMgmt, &ss.statsd, ss)

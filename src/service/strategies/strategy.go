@@ -107,3 +107,14 @@ func (strategy *Strategy) HotReload(mongoStrategy models.MongoStrategy) {
 	}
 	strategy.Statsd.Inc("strategy.hot_reload")
 }
+
+// TakeLiability takes the strategy to work in the instance trying to set a distributed lock.
+func (strategy *Strategy) TakeLiability() error {
+	// TODO(khassanov)
+	return nil
+}
+
+func (strategy *Strategy) ReleaseLiability() error {
+	// TODO(khassanov)
+	return nil
+}
