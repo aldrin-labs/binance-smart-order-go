@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"github.com/Cryptocurrencies-AI/go-binance"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
-	"log"
+	"go.uber.org/zap"
 	"strconv"
 	"strings"
 	"sync"
@@ -16,6 +16,12 @@ type BinanceLoop struct {
 }
 
 var binanceLoop *BinanceLoop
+var log *zap.Logger
+
+func init() {
+	log, _ = zap.NewProduction()
+	log = log.With(zap.String("logger", "binance"))
+}
 
 func InitBinance() interfaces.IDataFeed {
 	if binanceLoop == nil {
@@ -113,7 +119,9 @@ func (rl *BinanceLoop) UpdateSpread(data []byte) {
 	var spread RawSpread
 	tryparse := json.Unmarshal(data, &spread)
 	if tryparse != nil {
-		log.Print(tryparse)
+		log.Info("can't parse spread data",
+			zap.String("err", tryparse.Error()),
+		)
 	}
 
 	exchange := "binance"

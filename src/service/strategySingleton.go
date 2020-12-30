@@ -8,6 +8,7 @@ import (
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies/smart_order"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
+	"fmt"
 	// "gitlab.com/crypto_project/core/strategy_service/src/sources/redis"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/binance"
 	statsd_client "gitlab.com/crypto_project/core/strategy_service/src/statsd"
@@ -16,7 +17,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"log"
+	"go.uber.org/zap"
 	"os"
 	"sync"
 	"time"
@@ -29,6 +30,7 @@ type StrategyService struct {
 	dataFeed   interfaces.IDataFeed
 	stateMgmt  interfaces.IStateMgmt
 	statsd     statsd_client.StatsdClient
+	log        *zap.Logger
 }
 
 var singleton *StrategyService
@@ -37,26 +39,34 @@ var once sync.Once
 // GetStrategyService returns a pointer to instantiated service singleton.
 func GetStrategyService() *StrategyService {
 	once.Do(func() {
+		logger, _ := zap.NewProduction() // TODO(khassanov): handle the error
+		logger = logger.With(zap.String("logger", "ss"))
 		// df := redis.InitRedis()
 		df := binance.InitBinance()
 		tr := trading.InitTrading()
-		sm := mongodb.StateMgmt{}
 		statsd := statsd_client.StatsdClient{}
 		statsd.Init()
+		sm := mongodb.StateMgmt{Statsd: &statsd}
 		singleton = &StrategyService{
 			strategies: map[string]*strategies.Strategy{},
 			dataFeed:   df,
 			trading:    tr,
 			stateMgmt:  &sm,
 			statsd:     statsd,
+			log: 		logger,
 		}
+		logger.Info("strategy service instantiated")
+		statsd.Inc("strategy_service.instantiated")
 	})
 	return singleton
 }
 
 // Init loads enabled strategies from persistent storage and instantiates subscriptions to positions, orders and strategies updates.
 func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
-	//func (ss *StrategyService) Init(wg *sync.WaitGroup) {
+	t1 := time.Now()
+	ss.log.Info("strategy service init",
+		zap.Bool("isLocalBuild", isLocalBuild),
+	)
 	ctx := context.Background()
 	var coll = mongodb.GetCollection("core_strategies")
 	// testStrat, _ := primitive.ObjectIDFromHex("5deecc36ba8a424bfd363aaf")
@@ -72,68 +82,95 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 	//cur, err := coll.Find(ctx, bson.D{{"enabled",true}})
 	cur, err := coll.Find(ctx, bson.D{{"enabled", true}, additionalCondition})
 	if err != nil {
-		log.Print("log.Fatal on finding enabled strategies ", err)
-		wg.Done()
+		ss.log.Error("can't read strategies",
+			zap.String("err", err.Error()),
+		)
+		wg.Done() // TODO(khassanov): should we really fail here?
 		//log.Fatal(err)
 	}
 	if cur == nil {
-		log.Print("finding strategies, cur == nil")
+		ss.log.Error("finding strategies, cur == nil")
 		wg.Done()
 	}
 	defer cur.Close(ctx)
 
 	// Add strategies exists to runtime
+	var strategiesAdded int64 = 0
 	for cur.Next(ctx) {
 
 		// create a value into which the single document can be decoded
-		strategy, err := strategies.GetStrategy(cur, ss.dataFeed, ss.trading, ss.stateMgmt, ss)
+		strategy, err := strategies.GetStrategy(cur, ss.dataFeed, ss.trading, ss.stateMgmt, ss, &ss.statsd)
+		if err != nil {
+			ss.log.Error("failing to process enabled strategy",
+				zap.String("err", err.Error()),
+				zap.String("cur", cur.Current.String()),
+			)
+			continue
+			ss.log.Fatal("",
+				zap.String("err", err.Error()),
+			) // TODO(khassanov): unreachable?
+		}
 		if strategy.Model.AccountId != nil && strategy.Model.AccountId.Hex() == "5e4ce62b1318ef1b1e85b6f4" {
 			continue
 		}
-		if err != nil {
-			log.Print("log.Fatal on processing enabled strategy")
-			log.Print("err ", err)
-			log.Print("cur string ", cur.Current.String())
-			continue
-			log.Fatal(err)
-		}
-		log.Print("objid " + strategy.Model.ID.String())
+		ss.log.Info("adding existing strategy",
+			zap.String("ObjectID", strategy.Model.ID.String()),
+		)
 		GetStrategyService().strategies[strategy.Model.ID.String()] = strategy
 		go strategy.Start()
+		strategiesAdded++
 	}
+	ss.statsd.Gauge("strategy_service.strategies_added_on_init", strategiesAdded)
+	ss.statsd.Gauge("strategy_service.active_strategies", int64(len(ss.strategies)))
 
 	go ss.InitPositionsWatch()                      // subscribe to position updates
 	go ss.stateMgmt.InitOrdersWatch()               // subscribe to order updates
 	_ = ss.WatchStrategies(isLocalBuild, accountId) // subscribe to new smart trades to add them into runtime
 
-	if err := cur.Err(); err != nil {
-		log.Print("log.Fatal at the end of init func")
+	if err := cur.Err(); err != nil { // TODO(khassanov): can we retry here?
 		wg.Done()
-		log.Fatal(err)
+		ss.log.Fatal("log.Fatal at the end of init func")
 	}
+	ss.statsd.Inc("strategy_service.instantiated")
+	ss.statsd.TimingDuration("strategy_service.init", time.Since(t1))
 }
 
 // GetStrategy creates strategy instance with given arguments.
-func GetStrategy(strategy *models.MongoStrategy, df interfaces.IDataFeed, tr trading.ITrading, st interfaces.IStateMgmt, statsd statsd_client.StatsdClient, ss *StrategyService) *strategies.Strategy {
-	return &strategies.Strategy{Model: strategy, Datafeed: df, Trading: tr, StateMgmt: st, Singleton: ss, Statsd: statsd}
+func GetStrategy(strategy *models.MongoStrategy, df interfaces.IDataFeed, tr trading.ITrading, st interfaces.IStateMgmt, statsd *statsd_client.StatsdClient, ss *StrategyService) *strategies.Strategy {
+	// TODO(khassanov): why we use this instead of the same from the `strategy` package?
+	// TODO(khassanov): remove code copy got from the same in the strategy package
+	logger, _ := zap.NewProduction() // TODO(khassanov): handle the error
+	loggerName := fmt.Sprintf("sm-%v", strategy.ID.Hex())
+	logger = logger.With(zap.String("logger", loggerName))
+	return &strategies.Strategy{
+		Model: strategy,
+		Datafeed: df,
+		Trading: tr,
+		StateMgmt: st,
+		Singleton: ss,
+		Statsd: statsd,
+		Log: logger,
+	}
 }
 
 // AddStrategy instantiates given strategy to store in the service instance and start it.
 func (ss *StrategyService) AddStrategy(strategy *models.MongoStrategy) {
 	if ss.strategies[strategy.ID.String()] == nil {
-		sig := GetStrategy(strategy, ss.dataFeed, ss.trading, ss.stateMgmt, ss.statsd, ss)
-		log.Print("start objid ", sig.Model.ID.String())
+		sig := GetStrategy(strategy, ss.dataFeed, ss.trading, ss.stateMgmt, &ss.statsd, ss)
+		ss.log.Info("start",
+			zap.String("objid", sig.Model.ID.String()),
+		)
 		ss.strategies[sig.Model.ID.String()] = sig
 		go sig.Start()
-		ss.statsd.Inc("strategy_service.created_strategy")
+		ss.statsd.Inc("strategy_service.add_strategy")
 		ss.statsd.Gauge("strategy_service.active_strategies", int64(len(ss.strategies)))
 	}
 }
 
 // CreateOrder instantiates smart trade strategy with requested parameters and adds it to the service runtime.
 func (ss *StrategyService) CreateOrder(request trading.CreateOrderRequest) trading.OrderResponse {
-	ss.statsd.Inc("strategy_service.create_request")
 	t1 := time.Now()
+	ss.statsd.Inc("strategy_service.create_request")
 	id := primitive.NewObjectID()
 	var reduceOnly bool
 	if request.KeyParams.ReduceOnly == nil {
@@ -303,13 +340,16 @@ func (ss *StrategyService) CreateOrder(request trading.CreateOrderRequest) tradi
 // CancelOrder tries to cancel an order notifying state manager to update a persistent storage.
 func (ss *StrategyService) CancelOrder(request trading.CancelOrderRequest) trading.OrderResponse {
 	t1 := time.Now()
+	ss.statsd.Inc("strategy_service.cancel_request")
 	id, _ := primitive.ObjectIDFromHex(request.KeyParams.OrderId)
 	strategy := ss.strategies[id.String()]
 	order := ss.stateMgmt.GetOrderById(&id)
 
-	log.Println("id ", id)
-	log.Println("order ", order)
-	log.Println("request.KeyParams.OrderId ", request.KeyParams.OrderId)
+	ss.log.Info("cancelling order",
+		zap.String("id", id.String()),
+		zap.String("order", fmt.Sprintf("%v", order)),
+		zap.String("request.KeyParams.OrderId", request.KeyParams.OrderId),
+	)
 
 	if order == nil {
 		return trading.OrderResponse{
@@ -328,7 +368,9 @@ func (ss *StrategyService) CancelOrder(request trading.CancelOrderRequest) tradi
 		}
 	}
 
-	log.Println("strategy ", strategy)
+	ss.log.Info("",
+		zap.String("strategy", fmt.Sprintf("%+v", strategy)),
+	)
 
 	if strategy != nil {
 		pointStrategy := *ss.strategies[id.String()]
@@ -376,7 +418,8 @@ func (ss *StrategyService) CancelOrder(request trading.CancelOrderRequest) tradi
 
 const CollName = "core_strategies"
 
-// WatchStrategies subscribes to strategies to add new strategies to runtime or update local data together with persistent storage updates.
+// WatchStrategies subscribes to strategies to add new strategies to runtime or update local data together with
+// persistent storage updates.
 func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) error {
 	//func (ss *StrategyService) WatchStrategies() error {
 	ctx := context.Background()
@@ -385,7 +428,7 @@ func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) 
 	cs, err := coll.Watch(ctx, mongo.Pipeline{}, options.ChangeStream().SetFullDocument(options.UpdateLookup))
 	//cs, err := coll.Watch(ctx, mongo.Pipeline{}, options.ChangeStream().SetFullDocument(options.UpdateLookup))
 	if err != nil {
-		log.Print("log.Fatal on watching strategies")
+		ss.log.Error("can't watch for strategies")
 		return err
 	}
 	//require.NoError(cs, err)
@@ -399,12 +442,16 @@ func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) 
 		// log.Print(data)
 		//		err := json.Unmarshal([]byte(data), &event)
 		if err != nil {
-			log.Print("event decode error on processing strategy", err.Error())
+			ss.log.Info("event decode error on processing strategy",
+				zap.String("err", err.Error()),
+			)
 			continue
 		}
 
 		if event.FullDocument.ID == nil {
-			log.Println("new SM ID nil ", event.FullDocument)
+			ss.log.Error("new smart order id is nil",
+				zap.String("event.FullDocument", fmt.Sprintf("%+v", event.FullDocument)),
+			)
 			continue
 		}
 
@@ -414,14 +461,17 @@ func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) 
 		}
 
 		if event.FullDocument.Type == 2 && event.FullDocument.State.ColdStart { // 2 means maker only
-			sig := GetStrategy(&event.FullDocument, ss.dataFeed, ss.trading, ss.stateMgmt, ss.statsd, ss)
+			sig := GetStrategy(&event.FullDocument, ss.dataFeed, ss.trading, ss.stateMgmt, &ss.statsd, ss)
 			ss.strategies[event.FullDocument.ID.String()] = sig
-			log.Println("continue in maker-only cold start")
+			ss.log.Info("continue in maker-only cold start")
 			continue
 		}
 
 		if isLocalBuild && (event.FullDocument.AccountId == nil || event.FullDocument.AccountId.Hex() != accountId) {
-			log.Println("continue watchStrategies in accountId incomparable")
+			ss.log.Warn("continue watchStrategies in accountId incomparable",
+				zap.String("event account id", event.FullDocument.AccountId.Hex()),
+				zap.String("account id in .env", accountId),
+			)
 			continue
 		}
 
@@ -433,12 +483,12 @@ func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) 
 			}
 		} else { // brand new smart trade
 			if event.FullDocument.Enabled == true {
-				ss.statsd.Inc("strategy_service.create_from_db")
 				ss.AddStrategy(&event.FullDocument)
+				ss.statsd.Inc("strategy_service.add_strategy_from_db")
 			}
 		}
 	}
-	log.Println("Finish WatchStrategies")
+	ss.log.Info("Finish WatchStrategies")
 	return nil
 }
 
@@ -452,7 +502,7 @@ func (ss *StrategyService) InitPositionsWatch() {
 
 	cs, err := collPositions.Watch(ctx, pipeline, options.ChangeStream().SetFullDocument(options.UpdateLookup))
 	if err != nil {
-		log.Print("panic error on watching positions")
+		ss.log.Info("panic error on watching positions")
 		panic(err.Error())
 	}
 	//require.NoError(cs, err)
@@ -464,7 +514,9 @@ func (ss *StrategyService) InitPositionsWatch() {
 		// log.Print(data)
 		//		err := json.Unmarshal([]byte(data), &event)
 		if err != nil {
-			log.Print("event decode in processing position", err.Error())
+			ss.log.Info("event decode in processing position",
+				zap.String("err", err.Error()),
+			)
 		}
 
 		go func(event models.MongoPositionUpdateEvent) {
@@ -477,8 +529,9 @@ func (ss *StrategyService) InitPositionsWatch() {
 			)
 
 			if err != nil {
-				log.Print("log.Fatal on finding enabled strategies by position")
-				log.Fatal(err)
+				ss.log.Fatal("on finding enabled strategies by position",
+					zap.String("err", err.Error()),
+				)
 			}
 
 			defer cur.Close(ctx)
@@ -488,7 +541,9 @@ func (ss *StrategyService) InitPositionsWatch() {
 				err := cur.Decode(&strategyEventDecoded)
 
 				if err != nil {
-					log.Print("event decode on processing strategy found by position close", err.Error())
+					ss.log.Error("event decode on processing strategy found by position close",
+						zap.String("err", err.Error()),
+					)
 				}
 
 				// if SM created before last position update
@@ -496,7 +551,7 @@ func (ss *StrategyService) InitPositionsWatch() {
 				if positionEventDecoded.FullDocument.PositionAmt == 0 {
 					strategy := ss.strategies[strategyEventDecoded.ID.String()]
 					if strategy != nil && strategy.GetModel().Conditions.PositionWasClosed {
-						log.Print("disabled by position close")
+						ss.log.Info("disabled by position close")
 						strategy.GetModel().Enabled = false
 						collStrategies.FindOneAndUpdate(ctx, bson.D{{"_id", strategyEventDecoded.ID}}, bson.M{"$set": bson.M{"enabled": false}})
 					}
@@ -504,7 +559,7 @@ func (ss *StrategyService) InitPositionsWatch() {
 			}
 		}(positionEventDecoded)
 	}
-	log.Println("InitPositionsWatch End")
+	ss.log.Info("InitPositionsWatchEnd")
 }
 
 func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
@@ -583,7 +638,9 @@ func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
 		}
 	}
 
-	log.Print("len(model.State.TrailingExitPrices) ", len(model.State.TrailingExitPrices))
+	ss.log.Info("",
+		zap.Int("len(model.State.TrailingExitPrices)", len(model.State.TrailingExitPrices)),
+	)
 
 	// TAP change
 	// split targets

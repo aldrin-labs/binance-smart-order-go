@@ -3,7 +3,7 @@ package smart_order
 import (
 	"context"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
-	"log"
+	"go.uber.org/zap"
 )
 
 func (sm *SmartOrder) waitForOrder(orderId string, orderStatus string) {
@@ -32,7 +32,7 @@ func (sm *SmartOrder) orderCallback(order *models.MongoOrder) {
 	}
 	sm.OrdersMux.Unlock()
 
-	log.Print("before firing CheckExistingOrders")
+	sm.Strategy.GetLogger().Info("before firing CheckExistingOrders")
 	err := sm.State.Fire(CheckExistingOrders, *order)
 	// when checkExisitingOrders wasn't called
 	//if (currentState == Stoploss || currentState == End || (currentState == InEntry && model.State.StopLossAt > 0)) && order.Status == "filled" {
@@ -44,11 +44,13 @@ func (sm *SmartOrder) orderCallback(order *models.MongoOrder) {
 	//	sm.StateMgmt.UpdateExecutedAmount(model.ID, model.State)
 	//}
 	if err != nil {
-		log.Print(err.Error())
+		sm.Strategy.GetLogger().Error("fire state error",
+			zap.String("err", err.Error()),
+		)
 	}
 }
 func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface{}) bool {
-	log.Print("in checkExisitingFunc")
+	sm.Strategy.GetLogger().Info("checking existing orders")
 	if args == nil {
 		return false
 	}
@@ -63,7 +65,10 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 	if !ok {
 		return false
 	}
-	log.Print("orderStatus, ", orderStatus, " step ", step.(string))
+	sm.Strategy.GetLogger().Info("",
+		zap.String("orderStatus", orderStatus),
+		zap.String("step", step.(string)),
+	)
 	model := sm.Strategy.GetModel()
 	isMultiEntry := len(model.Conditions.EntryLevels) > 0
 
@@ -93,20 +98,29 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			sm.StateMgmt.UpdateEntryPrice(model.ID, model.State)
 			return true
 		case WaitForEntry:
-			log.Print("model.State.EntryPrice in waitForEntry ", model.State.EntryPrice)
+			sm.Strategy.GetLogger().Info("model.State.EntryPrice in waitForEntry",
+				zap.Float64("model.State.EntryPrice", model.State.EntryPrice),
+			)
 			if model.State.EntryPrice > 0 && !isMultiEntry {
 				return false
 			}
-			log.Print("waitForEntry in waitOrder average ", order.Average)
+			sm.Strategy.GetLogger().Info("waitForEntry in waitOrder average",
+				zap.Float64("order.Average", order.Average),
+			)
 
 			if isMultiEntry {
 				model.State.State = InMultiEntry
 				// calc average weight
 				if model.State.EntryPrice > 0 {
-					log.Println("model.State.EntryPrice before: ", model.State.EntryPrice, " order.Filled: ", order.Filled)
+					sm.Strategy.GetLogger().Info("",
+						zap.Float64("model.State.EntryPrice before", model.State.EntryPrice),
+						zap.Float64("order.Filled", order.Filled),
+					)
 					total := model.State.EntryPrice*model.State.PositionAmount + order.Average*order.Filled
 					model.State.EntryPrice = total / (model.State.PositionAmount + order.Filled)
-					log.Println("model.State.EntryPrice after: ", model.State.EntryPrice)
+					sm.Strategy.GetLogger().Info("",
+						zap.Float64("model.State.EntryPrice after", model.State.EntryPrice),
+					)
 				} else {
 					model.State.EntryPrice = order.Average
 				}
@@ -130,7 +144,10 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			if model.Conditions.MarketType == 0 {
 				amount = amount * 0.99
 			}
-			log.Print("model.State.ExecutedAmount >= amount ", model.State.ExecutedAmount >= amount, "model.Conditions.PlaceEntryAfterTAP ", model.Conditions.PlaceEntryAfterTAP)
+			sm.Strategy.GetLogger().Info("",
+				zap.Bool("model.State.ExecutedAmount >= amount", model.State.ExecutedAmount >= amount),
+				zap.Bool("model.Conditions.PlaceEntryAfterTAP ", model.Conditions.PlaceEntryAfterTAP),
+			)
 			// here we gonna close SM if CloseStrategyAfterFirstTAP enabled or we executed all entry && TAP orders
 			if model.State.ExecutedAmount >= amount || model.Conditions.CloseStrategyAfterFirstTAP {
 				model.State.State = End
@@ -163,7 +180,10 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			}
 
 			sm.calculateAndSavePNL(model, step, order.Filled)
-			log.Print("model.State.ExecutedAmount >= amount in SL ", model.State.ExecutedAmount >= amount)
+			sm.Strategy.GetLogger().Info("",
+				zap.Bool("model.State.ExecutedAmount >= amount in SL", model.State.ExecutedAmount >= amount),
+			)
+
 			if model.State.ExecutedAmount >= amount {
 				return true
 			}
@@ -178,7 +198,9 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			}
 
 			sm.calculateAndSavePNL(model, step, order.Filled)
-			log.Print("model.State.ExecutedAmount >= amount in ForcedLoss ", model.State.ExecutedAmount >= amount)
+			sm.Strategy.GetLogger().Info("",
+				zap.Bool("model.State.ExecutedAmount>=amount in ForcedLoss", model.State.ExecutedAmount >= amount),
+			)
 			if model.State.ExecutedAmount >= amount {
 				return true
 			}
@@ -244,7 +266,10 @@ func (sm *SmartOrder) calculateAndSavePNL(model *models.MongoStrategy, step inte
 	sideCoefficient := 1.0
 	isMultiEntry := len(model.Conditions.EntryLevels) > 0
 
-	log.Println("PositionAmount ", model.State.PositionAmount, " filledAmount ", filledAmount)
+	sm.Strategy.GetLogger().Info("",
+		zap.Float64("PositionAmount", model.State.PositionAmount),
+		zap.Float64("filledAmount", filledAmount),
+	)
 	model.State.PositionAmount -= filledAmount
 
 	amount := filledAmount
@@ -255,7 +280,10 @@ func (sm *SmartOrder) calculateAndSavePNL(model *models.MongoStrategy, step inte
 	}
 
 	if entryPrice == 0 || model.State.ExitPrice == 0 {
-		log.Println("calculateAndSavePNL: entry or exit price 0, entry: ", entryPrice, " exit: ", model.State.ExitPrice)
+		sm.Strategy.GetLogger().Info("",
+			zap.Float64("calculateAndSavePNL: entry or exit price 0, entry", entryPrice),
+			zap.Float64("exit", model.State.ExitPrice),
+		)
 		return 0
 	}
 
@@ -264,13 +292,17 @@ func (sm *SmartOrder) calculateAndSavePNL(model *models.MongoStrategy, step inte
 		sideCoefficient = -1.0
 	}
 
-	log.Println("model.State.ExitPrice ", model.State.ExitPrice, " model.State.EntryPrice ", entryPrice, " leverage ", leverage)
 	profitPercentage := ((model.State.ExitPrice/entryPrice)*100 - 100) * leverage * sideCoefficient
-	log.Println("profitPercentage ", profitPercentage)
 	profitAmount := (amount / leverage) * entryPrice * (profitPercentage / 100)
-	log.Println("profitAmount ", profitAmount)
-
-	log.Println("before ", model.State.ReceivedProfitPercentage, " ", model.State.ReceivedProfitAmount)
+	sm.Strategy.GetLogger().Info("",
+		zap.Float64("model.State.ExitPrice", model.State.ExitPrice),
+		zap.Float64("model.State.EntryPrice", entryPrice),
+		zap.Float64("leverage", leverage),
+		zap.Float64("after profitPercentage", profitPercentage),
+		zap.Float64("after profitAmount", profitAmount),
+		zap.Float64("before profitPercentage", model.State.ReceivedProfitPercentage),
+		zap.Float64("before profitAmount", model.State.ReceivedProfitAmount),
+	)
 	model.State.ReceivedProfitPercentage += profitPercentage
 	model.State.ReceivedProfitAmount += profitAmount
 
