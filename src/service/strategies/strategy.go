@@ -17,16 +17,33 @@ import (
 func GetStrategy(cur *mongo.Cursor, df interfaces.IDataFeed, tr trading.ITrading, sm interfaces.IStateMgmt, createOrder interfaces.ICreateRequest, sd *statsd_client.StatsdClient) (*Strategy, error) {
 	var model models.MongoStrategy
 	err := cur.Decode(&model)
+	rs := redis.GetRedsync()
+	mutexName := fmt.Sprintf("strategy:%v:%v", model.Conditions.Pair, model.ID.Hex())
+	mutex := rs.NewMutex(mutexName,
+		redsync.WithTries(2),
+		redsync.WithRetryDelay(200 * time.Millisecond),
+		redsync.WithExpiry(5 * time.Second), // TODO(khassanov): use parameter to conform with extend call period
+	) // upsert
 	logger, _ := zap.NewProduction() // TODO(khassanov): handle the error here and above
 	loggerName := fmt.Sprintf("sm-%v", model.ID.Hex())
 	logger = logger.With(zap.String("logger", loggerName))
-	return &Strategy{Model: &model, Datafeed: df, Trading: tr, StateMgmt: sm, Statsd: sd, Singleton: createOrder, Log: logger}, err
+	return &Strategy{
+		Model: &model,
+		SettlementMutex: mutex,
+		Datafeed: df,
+		Trading: tr,
+		StateMgmt: sm,
+		Statsd: sd,
+		Singleton: createOrder,
+		Log: logger,
+	}, err
 }
 
 // A Strategy describes user defined rules to order trades and what are interfaces to execute these rules.
 type Strategy struct {
 	Model           *models.MongoStrategy
 	StrategyRuntime interfaces.IStrategyRuntime
+	SettlementMutex *redsync.Mutex
 	Datafeed        interfaces.IDataFeed
 	Trading         trading.ITrading
 	StateMgmt       interfaces.IStateMgmt
@@ -45,6 +62,10 @@ func (strategy *Strategy) GetSingleton() interfaces.ICreateRequest {
 
 func (strategy *Strategy) GetRuntime() interfaces.IStrategyRuntime {
 	return strategy.StrategyRuntime
+}
+
+func (strategy *Strategy) GetSettlementMutex() *redsync.Mutex {
+	return strategy.SettlementMutex
 }
 
 func (strategy *Strategy) GetDatafeed() interfaces.IDataFeed {
@@ -113,11 +134,9 @@ func (strategy *Strategy) HotReload(mongoStrategy models.MongoStrategy) {
 
 // Settle takes the strategy to work in the instance trying to set a distributed lock.
 func (strategy *Strategy) Settle() (error, bool) {
-	rs := redis.GetRedsync()
-	mutexName := fmt.Sprintf("strategy:%v:%v", strategy.Model.Conditions.Pair, strategy.ID())
-	mutex := rs.NewMutex(mutexName, redsync.WithTries(2), redsync.WithRetryDelay(200 * time.Millisecond)) // upsert
-	strategy.Log.Debug("trying to lock mutex", zap.String("mutexName", mutexName))
-	if err := mutex.Lock(); err != nil {
+	strategy.Log.Debug("trying to lock mutex")
+	// TODO(khassanov): add mutex / redis key name if merged https://github.com/go-redsync/redsync/pull/64
+	if err := strategy.SettlementMutex.Lock(); err != nil {
 		strategy.Log.Debug("mutex lock failed", zap.Error(err))
 		if err == redsync.ErrFailed {
 			return nil, false // already locked

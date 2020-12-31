@@ -694,12 +694,28 @@ func (sm *SmartOrder) Start() {
 	state, _ := sm.State.State(context.Background())
 	localState := sm.Strategy.GetModel().State.State
 	sm.Statsd.Inc("smart_order.start")
+	mutexExtendedAt := time.Now().Add(-1 * time.Second)
 	for state != End && localState != End && state != Canceled && state != Timeout {
 		cycle_started_at := time.Now()
 		if sm.Strategy.GetModel().Enabled == false {
 			state, _ = sm.State.State(ctx)
 			break
 		}
+
+		// Extend settlement mutex
+		// 2200 is here to fit twice in 5 seconds expiration period
+		if time.Since(mutexExtendedAt) > 2200 * time.Millisecond {
+			sm.Strategy.GetLogger().Debug("extending mutex", zap.Time("latest extension at", mutexExtendedAt))
+			ok, err := sm.Strategy.GetSettlementMutex().Extend()
+			if !ok || err != nil {
+				sm.Strategy.GetLogger().Error("can't extend settlement mutex",
+					zap.Bool("ok", ok),
+					zap.Error(err),
+				)
+				break
+			}
+		}
+
 		if !sm.Lock {
 			if sm.Strategy.GetModel().Conditions.EntrySpreadHunter && state != InEntry {
 				sm.processSpreadEventLoop()
@@ -711,6 +727,7 @@ func (sm *SmartOrder) Start() {
 		state, _ = sm.State.State(ctx)
 		localState = sm.Strategy.GetModel().State.State
 
+		// Measure cycle time
 		// 0.0625 means once in a second for ~60ms loop cycle
 		dt := time.Since(cycle_started_at)
 		sm.Statsd.TimingDurationRated("smart_order.cycle_time", dt, 0.0625)
