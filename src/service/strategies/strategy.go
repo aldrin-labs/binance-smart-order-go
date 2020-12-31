@@ -2,12 +2,15 @@ package strategies
 
 import (
 	"fmt"
+	"github.com/go-redsync/redsync/v4"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
 	statsd_client "gitlab.com/crypto_project/core/strategy_service/src/statsd"
 	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.uber.org/zap"
+	"gitlab.com/crypto_project/core/strategy_service/src/sources/redis"
+	"time"
 )
 
 // GetStrategy instantiates strategy with resources created and given.
@@ -108,13 +111,24 @@ func (strategy *Strategy) HotReload(mongoStrategy models.MongoStrategy) {
 	strategy.Statsd.Inc("strategy.hot_reload")
 }
 
-// TakeLiability takes the strategy to work in the instance trying to set a distributed lock.
-func (strategy *Strategy) TakeLiability() error {
-	// TODO(khassanov)
-	return nil
+// Settle takes the strategy to work in the instance trying to set a distributed lock.
+func (strategy *Strategy) Settle() (error, bool) {
+	rs := redis.GetRedsync()
+	mutexName := fmt.Sprintf("strategy:%v:%v", strategy.Model.Conditions.Pair, strategy.ID())
+	mutex := rs.NewMutex(mutexName, redsync.WithTries(2), redsync.WithRetryDelay(200 * time.Millisecond)) // upsert
+	strategy.Log.Debug("trying to lock mutex", zap.String("mutexName", mutexName))
+	if err := mutex.Lock(); err != nil {
+		strategy.Log.Debug("mutex lock failed", zap.Error(err))
+		if err == redsync.ErrFailed {
+			return nil, false // already locked
+		}
+		return err, false // unexpected error
+	}
+	strategy.Log.Debug("mutex locked")
+	return nil, true
 }
 
-func (strategy *Strategy) ReleaseLiability() error {
+func (strategy *Strategy) Relieve() error {
 	// TODO(khassanov)
 	return nil
 }
