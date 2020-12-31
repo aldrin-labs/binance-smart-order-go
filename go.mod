@@ -9,6 +9,8 @@ require (
 	github.com/deis/deis v1.13.4 // indirect
 	github.com/docopt/docopt-go v0.0.0-20180111231733-ee0de3bc6815 // indirect
 	github.com/go-kit/kit v0.10.0
+	github.com/go-redsync/redsync v1.4.2 // indirect
+	github.com/go-redsync/redsync/v4 v4.0.4
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/golang/snappy v0.0.1 // indirect
