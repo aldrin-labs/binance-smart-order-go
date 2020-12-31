@@ -138,6 +138,7 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 	go ss.InitPositionsWatch()                      // subscribe to position updates
 	go ss.stateMgmt.InitOrdersWatch()               // subscribe to order updates
 	_ = ss.WatchStrategies(isLocalBuild, accountId) // subscribe to new smart trades to add them into runtime
+	go ss.runReporting()
 
 	if err := cur.Err(); err != nil { // TODO(khassanov): can we retry here?
 		wg.Done()
@@ -734,4 +735,26 @@ func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
 
 	ss.statsd.Inc("strategy_service.edited_conditions`")
 	strategy.StateMgmt.SaveStrategyConditions(strategy.Model)
+}
+
+// runReporting sends how much strategies settled of each pair service instance has for the moment each minute.
+func (ss *StrategyService) runReporting() {
+	ticker := time.NewTicker(1 * time.Minute)
+	for {
+		select {
+		case <- ticker.C:
+			var numStrategiesByPair map[string]int64
+			for _, strategy := range ss.strategies {
+				if _, ok := numStrategiesByPair[strategy.Model.Conditions.Pair]; ok {
+					numStrategiesByPair[strategy.Model.Conditions.Pair]++
+				} else {
+					numStrategiesByPair[strategy.Model.Conditions.Pair] = 1
+				}
+			}
+			for pair, numStrategies := range numStrategiesByPair {
+				metricName := fmt.Sprintf("strategy_service.pairs.%v", pair)
+				ss.statsd.Gauge(metricName, numStrategies)
+			}
+		}
+	}
 }
