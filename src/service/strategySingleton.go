@@ -121,7 +121,7 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 			continue
 		}
 		if _, ok := ss.pairs[strategy.Model.Conditions.Pair]; !ok { continue } // skip a foreign pair
-		if err, ok := strategy.Settle(); err != nil || !ok {
+		if ok, err := strategy.Settle(); !ok || err != nil {
 			continue // TODO(khassanov): distinguish a state locked in dlm and network errors
 		}
 		// try to lock
@@ -169,7 +169,7 @@ func GetStrategy(strategy *models.MongoStrategy, df interfaces.IDataFeed, tr tra
 func (ss *StrategyService) AddStrategy(strategy *models.MongoStrategy) {
 	if ss.strategies[strategy.ID.String()] == nil {
 		sig := GetStrategy(strategy, ss.dataFeed, ss.trading, ss.stateMgmt, &ss.statsd, ss)
-		if err, ok := sig.Settle(); err != nil || !ok {
+		if ok, err := sig.Settle(); !ok || err != nil {
 			return // TODO(khassanov): distinguish a state locked in dlm and network errors
 		}
 		ss.log.Info("start",

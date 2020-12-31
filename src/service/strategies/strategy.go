@@ -133,18 +133,18 @@ func (strategy *Strategy) HotReload(mongoStrategy models.MongoStrategy) {
 }
 
 // Settle takes the strategy to work in the instance trying to set a distributed lock.
-func (strategy *Strategy) Settle() (error, bool) {
+func (strategy *Strategy) Settle() (bool, error) {
 	strategy.Log.Debug("trying to lock mutex")
 	// TODO(khassanov): add mutex / redis key name if merged https://github.com/go-redsync/redsync/pull/64
 	if err := strategy.SettlementMutex.Lock(); err != nil {
 		strategy.Log.Debug("mutex lock failed", zap.Error(err))
 		if err == redsync.ErrFailed {
-			return nil, false // already locked
+			return false, nil // already locked
 		}
-		return err, false // unexpected error
+		return false, err // unexpected error
 	}
 	strategy.Log.Debug("mutex locked")
-	return nil, true
+	return true, nil
 }
 
 func (strategy *Strategy) Relieve() error {
