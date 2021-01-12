@@ -25,7 +25,7 @@ import (
 
 // A StrategyService singleton, the root for smart trades runtimes.
 type StrategyService struct {
-	pairs	   map[string]map[string]struct{} // spot and futures pairs
+	pairs	   map[int8]map[string]struct{} // spot and futures pairs
 	strategies map[string]*strategies.Strategy
 	trading    trading.ITrading
 	dataFeed   interfaces.IDataFeed
@@ -126,7 +126,9 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 		if strategy.Model.AccountId != nil && strategy.Model.AccountId.Hex() == "5e4ce62b1318ef1b1e85b6f4" {
 			continue
 		}
-		if _, ok := ss.pairs[strategy.Model.Conditions.Pair]; !ok { continue } // skip a foreign pair
+		if _, ok := ss.pairs[int8(strategy.Model.Conditions.MarketType)][strategy.Model.Conditions.Pair]; !ok {
+			continue // skip a foreign pair
+		}
 		if ok, err := strategy.Settle(); !ok || err != nil {
 			continue // TODO(khassanov): distinguish a state locked in dlm and network errors
 		}
@@ -483,7 +485,9 @@ func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) 
 			continue
 		}
 
-		if _, ok := ss.pairs[event.FullDocument.Conditions.Pair]; !ok { continue } // skip a foreign pair
+		if _, ok := ss.pairs[int8(event.FullDocument.Conditions.MarketType)][event.FullDocument.Conditions.Pair]; !ok {
+			continue // skip a foreign pair
+		}
 
 		if event.FullDocument.Type == 2 && event.FullDocument.State.ColdStart { // 2 means maker only
 			sig := GetStrategy(&event.FullDocument, ss.dataFeed, ss.trading, ss.stateMgmt, &ss.statsd, ss)
@@ -786,19 +790,11 @@ func (ss *StrategyService) setPairs(ctx context.Context, collection *mongo.Colle
 			ss.log.Error("can't decode market", zap.Error(err))
 			continue
 		}
-		marketType, err := market.MarketTypeString()
-		if err != nil {
-			ss.log.Error("can't stringify market type",
-				zap.Error(err),
-				zap.String("market", fmt.Sprintf("%v", market)),
-			)
-			continue
-		}
-		ss.pairs[marketType][market.Name] = struct{}{}
+		ss.pairs[int8(market.MarketType)][market.Name] = struct{}{}
 	}
 	ss.log.Info("pairs to process set",
-		zap.Int("spot pairs", len(ss.pairs["spot"])),
-		zap.Int("futures pairs", len(ss.pairs["futures"])),
+		zap.Int("spot pairs", len(ss.pairs[0])),
+		zap.Int("futures pairs", len(ss.pairs[1])),
 		zap.String("pairs", fmt.Sprint("%v", ss.pairs)),
 	)
 }
