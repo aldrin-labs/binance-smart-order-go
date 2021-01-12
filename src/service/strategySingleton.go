@@ -25,7 +25,7 @@ import (
 
 // A StrategyService singleton, the root for smart trades runtimes.
 type StrategyService struct {
-	pairs	   map[string]bool
+	pairs	   map[string]map[string]struct{} // spot and futures pairs
 	strategies map[string]*strategies.Strategy
 	trading    trading.ITrading
 	dataFeed   interfaces.IDataFeed
@@ -40,21 +40,15 @@ var once sync.Once
 // GetStrategyService returns a pointer to instantiated service singleton.
 func GetStrategyService() *StrategyService {
 	once.Do(func() {
-		pairs := map[string]bool { // TODO(khassanov): get pairs
-			"BTCUSDT": true,
-			"BTCUSDC": true,
-			"ETHUSDT": true,
-		}
+		logger, _ := zap.NewProduction() // TODO(khassanov): handle the error
+		logger = logger.With(zap.String("logger", "ss"))
 		// df := redis.InitRedis()
 		df := binance.InitBinance()
 		tr := trading.InitTrading()
 		statsd := statsd_client.StatsdClient{}
 		statsd.Init()
 		sm := mongodb.StateMgmt{Statsd: &statsd}
-		logger, _ := zap.NewProduction() // TODO(khassanov): handle the error
-		logger = logger.With(zap.String("logger", "ss"))
 		singleton = &StrategyService{
-			pairs: pairs,
 			strategies: map[string]*strategies.Strategy{},
 			dataFeed:   df,
 			trading:    tr,
@@ -75,22 +69,37 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 		zap.Bool("isLocalBuild", isLocalBuild),
 	)
 	ctx := context.Background()
-	var coll = mongodb.GetCollection("core_strategies")
+
+	// Select pairs to process
+	mode := os.Getenv("MODE")
+	coll := mongodb.GetCollection("core_markets")
+	if mode == "Bitcoins" {
+		filter := primitive.Regex{Pattern: "^.*BTC.*$"} // contains BTC substring
+		ss.setPairs(ctx, coll, filter)
+	} else if mode == "Altcoins" {
+		filter := primitive.Regex{Pattern: "^((?!BTC).)*$"} // does not contain BTC substring
+		ss.setPairs(ctx, coll, filter)
+	} else {
+		ss.log.Fatal("Can't start in provided mode." +
+			"Please set 'MODE' environment variable to 'Bitcoin' or 'Altcoins'",
+			zap.String("mode", mode),
+		)
+	}
+
+	// Add strategies exists to runtime
+	coll = mongodb.GetCollection("core_strategies")
 	// testStrat, _ := primitive.ObjectIDFromHex("5deecc36ba8a424bfd363aaf")
 	// , {"_id", testStrat}
 	additionalCondition := bson.E{}
 	accountId := os.Getenv("ACCOUNT_ID")
-
 	if isLocalBuild {
 		additionalCondition.Key = "accountId"
 		additionalCondition.Value, _ = primitive.ObjectIDFromHex(accountId)
 	}
-
-	//cur, err := coll.Find(ctx, bson.D{{"enabled",true}})
 	cur, err := coll.Find(ctx, bson.D{{"enabled", true}, additionalCondition})
 	if err != nil {
 		ss.log.Error("can't read strategies",
-			zap.String("err", err.Error()),
+			zap.Error(err),
 		)
 		wg.Done() // TODO(khassanov): should we really fail here?
 		//log.Fatal(err)
@@ -100,11 +109,8 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 		wg.Done()
 	}
 	defer cur.Close(ctx)
-
-	// Add strategies exists to runtime
 	var strategiesAdded int64 = 0
 	for cur.Next(ctx) {
-
 		// create a value into which the single document can be decoded
 		strategy, err := strategies.GetStrategy(cur, ss.dataFeed, ss.trading, ss.stateMgmt, ss, &ss.statsd)
 		if err != nil {
@@ -757,4 +763,42 @@ func (ss *StrategyService) runReporting() {
 			}
 		}
 	}
+}
+
+func (ss *StrategyService) setPairs(ctx context.Context, collection *mongo.Collection, filter primitive.Regex) {
+	filterDocument:= bson.M{
+		"name": filter,
+	}
+	cur, err := collection.Find(ctx, filterDocument) // read all BTC markets
+	if err != nil {
+		ss.log.Fatal("can't read markets to get pairs", zap.Error(err))
+		// TODO(khassanov): should we really fail here? We had wg.Done() here before
+	}
+	if cur == nil {
+		ss.log.Fatal("core_markets mongodb read cur == nil")
+		// TODO(khassanov): should we really fail here? We had wg.Done() here before
+	}
+	defer cur.Close(ctx)
+	for cur.Next(ctx) {
+		var market models.MongoMarket
+		err = cur.Decode(&market)
+		if err != nil {
+			ss.log.Error("can't decode market", zap.Error(err))
+			continue
+		}
+		marketType, err := market.MarketTypeString()
+		if err != nil {
+			ss.log.Error("can't stringify market type",
+				zap.Error(err),
+				zap.String("market", fmt.Sprintf("%v", market)),
+			)
+			continue
+		}
+		ss.pairs[marketType][market.Name] = struct{}{}
+	}
+	ss.log.Info("pairs to process set",
+		zap.Int("spot pairs", len(ss.pairs["spot"])),
+		zap.Int("futures pairs", len(ss.pairs["futures"])),
+		zap.String("pairs", fmt.Sprint("%v", ss.pairs)),
+	)
 }
