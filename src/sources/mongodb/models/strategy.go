@@ -3,6 +3,7 @@ package models
 import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"time"
+	"fmt"
 )
 
 type MongoStrategyUpdateEvent struct {
@@ -50,10 +51,24 @@ type MongoMarketProperties struct {
 
 type MongoMarket struct {
 	ID         *primitive.ObjectID   `json:"_id" bson:"_id"`
+	Name	   string
+	MarketType int
 	Symbol     string                `json:"symbol" bson:"symbol"`
 	BaseId     *primitive.ObjectID   `json:"baseId" bson:"baseId"`
 	QuoteId    *primitive.ObjectID   `json:"quoteId" bson:"quoteId"`
 	Properties MongoMarketProperties `json:"properties" bson:"properties"`
+}
+
+// MarketTypeString returns market type string like "spot" or "futures".
+func (mm MongoMarket) MarketTypeString() (string, error) {
+	switch mm.MarketType {
+	case 0:
+		return "spot", nil
+	case 1:
+		return "futures", nil
+	default:
+		return "", fmt.Errorf("unknown market type %v", mm.MarketType)
+	}
 }
 
 type MongoOrder struct {
