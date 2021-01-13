@@ -1,9 +1,9 @@
 package models
 
 import (
+	"fmt"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"time"
-	"fmt"
 )
 
 type MongoStrategyUpdateEvent struct {
@@ -50,8 +50,8 @@ type MongoMarketProperties struct {
 }
 
 type MongoMarket struct {
-	ID         *primitive.ObjectID   `json:"_id" bson:"_id"`
-	Name	   string
+	ID         *primitive.ObjectID `json:"_id" bson:"_id"`
+	Name       string
 	MarketType int
 	Symbol     string                `json:"symbol" bson:"symbol"`
 	BaseId     *primitive.ObjectID   `json:"baseId" bson:"baseId"`
@@ -103,7 +103,7 @@ type MongoPosition struct {
 
 // A MongoStrategy is the root of a smart trade strategy description.
 type MongoStrategy struct {
-	ID              *primitive.ObjectID     `json:"_id" bson:"_id"` // strategy unique identity
+	ID              *primitive.ObjectID     `json:"_id" bson:"_id"`             // strategy unique identity
 	Type            int64                   `json:"type,omitempty" bson:"type"` // 1 - smart order, 2 - maker only
 	Enabled         bool                    `json:"enabled,omitempty" bson:"enabled"`
 	AccountId       *primitive.ObjectID     `json:"accountId,omitempty" bson:"accountId"`

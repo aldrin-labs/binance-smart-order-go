@@ -1,11 +1,11 @@
 package interfaces
 
 import (
+	"github.com/go-redsync/redsync/v4"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
 	statsd_client "gitlab.com/crypto_project/core/strategy_service/src/statsd"
 	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"go.uber.org/zap"
-	"github.com/go-redsync/redsync/v4"
 )
 
 // Strategy object

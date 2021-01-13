@@ -6,11 +6,11 @@ import (
 	"go.uber.org/zap"
 
 	// "go.uber.org/zap"
+	"fmt"
 	"math"
 	"reflect"
 	"sync"
 	"time"
-	"fmt"
 
 	"github.com/qmuntal/stateless"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
@@ -92,15 +92,15 @@ func (sm *SmartOrder) toFixed(num float64, precision int64) float64 {
 func NewSmartOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed, TradingAPI trading.ITrading, Statsd *statsd_client.StatsdClient, keyId *primitive.ObjectID, stateMgmt interfaces.IStateMgmt) *SmartOrder {
 
 	sm := &SmartOrder{
-		Strategy: strategy,
-		DataFeed: DataFeed,
-		ExchangeApi: TradingAPI,
-		Statsd: Statsd,
-		KeyId: keyId,
-		StateMgmt: stateMgmt,
-		Lock: false,
+		Strategy:           strategy,
+		DataFeed:           DataFeed,
+		ExchangeApi:        TradingAPI,
+		Statsd:             Statsd,
+		KeyId:              keyId,
+		StateMgmt:          stateMgmt,
+		Lock:               false,
 		SelectedExitTarget: 0,
-		OrdersMap: map[string]bool{},
+		OrdersMap:          map[string]bool{},
 	}
 
 	initState := WaitForEntry
@@ -704,7 +704,7 @@ func (sm *SmartOrder) Start() {
 
 		// Extend settlement mutex
 		// 2200 is here to fit twice in 5 seconds expiration period
-		if time.Since(mutexExtendedAt) > 2200 * time.Millisecond {
+		if time.Since(mutexExtendedAt) > 2200*time.Millisecond {
 			sm.Strategy.GetLogger().Debug("extending mutex", zap.Time("latest extension at", mutexExtendedAt))
 			ok, err := sm.Strategy.GetSettlementMutex().Extend()
 			if !ok || err != nil {
@@ -733,7 +733,7 @@ func (sm *SmartOrder) Start() {
 		lastCycleAt = time.Now()
 		sm.Strategy.GetSingleton().SaveCycleTime(dt)
 		sm.Statsd.TimingDurationRated("smart_order.cycle_time", dt, 0.0625)
-		if dt > 1 * time.Second { // TODO(khassanov): check it does not harm us
+		if dt > 1*time.Second { // TODO(khassanov): check it does not harm us
 			sm.Statsd.TimingDurationRated("smart_order.cycle_time", dt, 1.0)
 			sm.Strategy.GetLogger().Warn("sm loop cycle too long",
 				zap.Durationp("cycle time", &dt),

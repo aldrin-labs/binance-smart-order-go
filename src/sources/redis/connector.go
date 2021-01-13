@@ -2,14 +2,13 @@ package redis
 
 import (
 	"context"
-	"github.com/gomodule/redigo/redis"
-	"os"
-	"time"
-	"go.uber.org/zap"
 	"github.com/go-redsync/redsync/v4"
 	redsyncredis "github.com/go-redsync/redsync/v4/redis"
 	redsyncredigo "github.com/go-redsync/redsync/v4/redis/redigo"
-
+	"github.com/gomodule/redigo/redis"
+	"go.uber.org/zap"
+	"os"
+	"time"
 )
 
 var redisPool *redis.Pool

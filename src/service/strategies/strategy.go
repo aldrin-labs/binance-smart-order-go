@@ -5,11 +5,11 @@ import (
 	"github.com/go-redsync/redsync/v4"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
+	"gitlab.com/crypto_project/core/strategy_service/src/sources/redis"
 	statsd_client "gitlab.com/crypto_project/core/strategy_service/src/statsd"
 	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.uber.org/zap"
-	"gitlab.com/crypto_project/core/strategy_service/src/sources/redis"
 	"time"
 )
 
@@ -21,21 +21,21 @@ func GetStrategy(cur *mongo.Cursor, df interfaces.IDataFeed, tr trading.ITrading
 	mutexName := fmt.Sprintf("strategy:%v:%v", model.Conditions.Pair, model.ID.Hex())
 	mutex := rs.NewMutex(mutexName,
 		redsync.WithTries(2),
-		redsync.WithRetryDelay(200 * time.Millisecond),
-		redsync.WithExpiry(5 * time.Second), // TODO(khassanov): use parameter to conform with extend call period
+		redsync.WithRetryDelay(200*time.Millisecond),
+		redsync.WithExpiry(5*time.Second), // TODO(khassanov): use parameter to conform with extend call period
 	) // upsert
 	logger, _ := zap.NewProduction() // TODO(khassanov): handle the error here and above
 	loggerName := fmt.Sprintf("sm-%v", model.ID.Hex())
 	logger = logger.With(zap.String("logger", loggerName))
 	return &Strategy{
-		Model: &model,
+		Model:           &model,
 		SettlementMutex: mutex,
-		Datafeed: df,
-		Trading: tr,
-		StateMgmt: sm,
-		Statsd: sd,
-		Singleton: createOrder,
-		Log: logger,
+		Datafeed:        df,
+		Trading:         tr,
+		StateMgmt:       sm,
+		Statsd:          sd,
+		Singleton:       createOrder,
+		Log:             logger,
 	}, err
 }
 
@@ -49,7 +49,7 @@ type Strategy struct {
 	StateMgmt       interfaces.IStateMgmt
 	Statsd          *statsd_client.StatsdClient
 	Singleton       interfaces.ICreateRequest
-	Log				*zap.Logger
+	Log             *zap.Logger
 }
 
 func (strategy *Strategy) GetModel() *models.MongoStrategy {

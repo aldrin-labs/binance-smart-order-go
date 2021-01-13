@@ -2,13 +2,13 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies/makeronly_order"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies/smart_order"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
-	"fmt"
 	// "gitlab.com/crypto_project/core/strategy_service/src/sources/redis"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/binance"
 	statsd_client "gitlab.com/crypto_project/core/strategy_service/src/statsd"
@@ -20,22 +20,22 @@ import (
 	"go.uber.org/zap"
 	"os"
 	"sync"
-	"time"
 	"syscall"
+	"time"
 )
 
 // A StrategyService singleton, the root for smart trades runtimes.
 type StrategyService struct {
-	pairs	   map[int8]map[string]struct{} // spot and futures pairs
+	pairs      map[int8]map[string]struct{} // spot and futures pairs
 	strategies map[string]*strategies.Strategy
 	trading    trading.ITrading
 	dataFeed   interfaces.IDataFeed
 	stateMgmt  interfaces.IStateMgmt
 	statsd     statsd_client.StatsdClient
 	log        *zap.Logger
-	full       bool // indicates whether an instance full or can take more strategies
-	ramFull    bool // indicates close to RAM limit
-	cpuFull    bool // indicates out of CPU usage limit
+	full       bool            // indicates whether an instance full or can take more strategies
+	ramFull    bool            // indicates close to RAM limit
+	cpuFull    bool            // indicates out of CPU usage limit
 	ctBuff     []time.Duration // buffer for cycle time reports provided by strategy
 	ctBuffMut  sync.Mutex
 }
@@ -60,7 +60,7 @@ func GetStrategyService() *StrategyService {
 			trading:    tr,
 			stateMgmt:  &sm,
 			statsd:     statsd,
-			log: 		logger,
+			log:        logger,
 		}
 		logger.Info("strategy service instantiated")
 		statsd.Inc("strategy_service.instantiated")
@@ -86,7 +86,7 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 		filter := primitive.Regex{Pattern: "^((?!BTC).)*$"} // does not contain BTC substring
 		ss.setPairs(ctx, coll, filter)
 	} else {
-		ss.log.Fatal("Can't start in provided mode." +
+		ss.log.Fatal("Can't start in provided mode."+
 			"Please set 'MODE' environment variable to 'Bitcoin' or 'Altcoins'",
 			zap.String("mode", mode),
 		)
@@ -171,13 +171,13 @@ func GetStrategy(strategy *models.MongoStrategy, df interfaces.IDataFeed, tr tra
 	loggerName := fmt.Sprintf("sm-%v", strategy.ID.Hex())
 	logger = logger.With(zap.String("logger", loggerName))
 	return &strategies.Strategy{
-		Model: strategy,
-		Datafeed: df,
-		Trading: tr,
+		Model:     strategy,
+		Datafeed:  df,
+		Trading:   tr,
 		StateMgmt: st,
 		Singleton: ss,
-		Statsd: statsd,
-		Log: logger,
+		Statsd:    statsd,
+		Log:       logger,
 	}
 }
 
@@ -767,7 +767,7 @@ func (ss *StrategyService) runReporting() {
 	ticker := time.NewTicker(1 * time.Minute)
 	for {
 		select {
-		case <- ticker.C:
+		case <-ticker.C:
 			var numStrategiesByPair map[string]int64
 			for _, strategy := range ss.strategies {
 				if _, ok := numStrategiesByPair[strategy.Model.Conditions.Pair]; ok {
@@ -786,7 +786,7 @@ func (ss *StrategyService) runReporting() {
 
 // setPairs reads pairs from mongodb collection with the filter given and writes them to instance pairs field.
 func (ss *StrategyService) setPairs(ctx context.Context, collection *mongo.Collection, filter primitive.Regex) {
-	filterDocument:= bson.M{
+	filterDocument := bson.M{
 		"name": filter,
 	}
 	cur, err := collection.Find(ctx, filterDocument) // read all BTC markets
@@ -841,9 +841,9 @@ func (ss *StrategyService) runIsFullTracking() {
 				ctMax = t
 			}
 		}
-		if ctMax > 1000 * time.Second {
+		if ctMax > 1000*time.Second {
 			ss.cpuFull = true
-		} else if ctMax < 800 * time.Second {
+		} else if ctMax < 800*time.Second {
 			ss.cpuFull = false
 		}
 		// check for free RAM
@@ -853,9 +853,9 @@ func (ss *StrategyService) runIsFullTracking() {
 			time.Sleep(200 * time.Millisecond)
 			continue
 		}
-		if sysinfo.Freeram < 10 * 1024 * 1024 { // ten megabytes
+		if sysinfo.Freeram < 10*1024*1024 { // ten megabytes
 			ss.ramFull = true
-		} else if sysinfo.Freeram > 12 * 1024 * 1024 { // 12 megabytes
+		} else if sysinfo.Freeram > 12*1024*1024 { // 12 megabytes
 			ss.ramFull = false
 		}
 		// set we are full or not

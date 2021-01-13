@@ -2,13 +2,9 @@ package mongodb
 
 import (
 	"context"
-	"go.uber.org/zap"
 	"fmt"
-	"os"
-	"sync"
-	"time"
-	statsd_client "gitlab.com/crypto_project/core/strategy_service/src/statsd"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
+	statsd_client "gitlab.com/crypto_project/core/strategy_service/src/statsd"
 	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -16,6 +12,10 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
 	"go.mongodb.org/mongo-driver/mongo/writeconcern"
+	"go.uber.org/zap"
+	"os"
+	"sync"
+	"time"
 )
 
 var mongoClient *mongo.Client
