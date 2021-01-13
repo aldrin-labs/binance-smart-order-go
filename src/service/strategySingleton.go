@@ -518,6 +518,14 @@ func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) 
 				delete(ss.strategies, event.FullDocument.ID.String())
 			}
 		} else { // brand new smart trade
+			if ss.full {
+				ss.log.Debug("ignoring new strategy while the instance is full",
+					zap.Bool("full", ss.full),
+					zap.String("strategy", event.FullDocument.ID.Hex()),
+					zap.Bool("strategy enabled", event.FullDocument.Enabled),
+				)
+				continue
+			}
 			if event.FullDocument.Enabled == true {
 				ss.AddStrategy(&event.FullDocument)
 				ss.statsd.Inc("strategy_service.add_strategy_from_db")
