@@ -695,8 +695,8 @@ func (sm *SmartOrder) Start() {
 	localState := sm.Strategy.GetModel().State.State
 	sm.Statsd.Inc("smart_order.start")
 	mutexExtendedAt := time.Now().Add(-1 * time.Second)
+	lastCycleAt := time.Now()
 	for state != End && localState != End && state != Canceled && state != Timeout {
-		cycle_started_at := time.Now()
 		if sm.Strategy.GetModel().Enabled == false {
 			state, _ = sm.State.State(ctx)
 			break
@@ -729,7 +729,9 @@ func (sm *SmartOrder) Start() {
 
 		// Measure cycle time
 		// 0.0625 means once in a second for ~60ms loop cycle
-		dt := time.Since(cycle_started_at)
+		dt := time.Since(lastCycleAt)
+		lastCycleAt = time.Now()
+		sm.Strategy.GetSingleton().SaveCycleTime(dt)
 		sm.Statsd.TimingDurationRated("smart_order.cycle_time", dt, 0.0625)
 		if dt > 1 * time.Second { // TODO(khassanov): check it does not harm us
 			sm.Statsd.TimingDurationRated("smart_order.cycle_time", dt, 1.0)

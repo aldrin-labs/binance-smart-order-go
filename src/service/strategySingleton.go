@@ -21,6 +21,7 @@ import (
 	"os"
 	"sync"
 	"time"
+	"syscall"
 )
 
 // A StrategyService singleton, the root for smart trades runtimes.
@@ -32,6 +33,11 @@ type StrategyService struct {
 	stateMgmt  interfaces.IStateMgmt
 	statsd     statsd_client.StatsdClient
 	log        *zap.Logger
+	full       bool // indicates whether an instance full or can take more strategies
+	ramFull    bool // indicates close to RAM limit
+	cpuFull    bool // indicates out of CPU usage limit
+	ctBuff     []time.Duration // buffer for cycle time reports provided by strategy
+	ctBuffMut  sync.Mutex
 }
 
 var singleton *StrategyService
@@ -147,6 +153,7 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 	go ss.stateMgmt.InitOrdersWatch()               // subscribe to order updates
 	_ = ss.WatchStrategies(isLocalBuild, accountId) // subscribe to new smart trades to add them into runtime
 	go ss.runReporting()
+	go ss.runIsFullTracking()
 
 	if err := cur.Err(); err != nil { // TODO(khassanov): can we retry here?
 		wg.Done()
@@ -747,7 +754,7 @@ func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
 	strategy.StateMgmt.SaveStrategyConditions(strategy.Model)
 }
 
-// runReporting sends how much strategies settled of each pair service instance has for the moment each minute.
+// runReporting each minute sends how much strategies settled service has for the moment.
 func (ss *StrategyService) runReporting() {
 	ticker := time.NewTicker(1 * time.Minute)
 	for {
@@ -769,6 +776,7 @@ func (ss *StrategyService) runReporting() {
 	}
 }
 
+// setPairs reads pairs from mongodb collection with the filter given and writes them to instance pairs field.
 func (ss *StrategyService) setPairs(ctx context.Context, collection *mongo.Collection, filter primitive.Regex) {
 	filterDocument:= bson.M{
 		"name": filter,
@@ -797,4 +805,60 @@ func (ss *StrategyService) setPairs(ctx context.Context, collection *mongo.Colle
 		zap.Int("futures pairs", len(ss.pairs[1])),
 		zap.String("pairs", fmt.Sprint("%v", ss.pairs)),
 	)
+}
+
+// SaveCycleTime saves cycle time duration into cycles time buffer.
+func (ss *StrategyService) SaveCycleTime(t time.Duration) {
+	ss.ctBuffMut.Lock()
+	ss.ctBuff = append(ss.ctBuff, t)
+	ss.ctBuffMut.Unlock()
+}
+
+// trackIsFull monitors resources continuously and sets or resets 'full' flag when instance is close to memory limit
+// or CPU usage limit.
+func (ss *StrategyService) runIsFullTracking() {
+	var sysinfo syscall.Sysinfo_t
+	var ctBuffCopy []time.Duration
+	var ctMax time.Duration
+	var isFullPrev bool
+	for {
+		isFullPrev = ss.full
+		// check CPU usage by max cycle time
+		ss.ctBuffMut.Lock()
+		copy(ctBuffCopy, ss.ctBuff)
+		ss.ctBuff = ss.ctBuff[:0] // clear
+		ss.ctBuffMut.Unlock()
+		for _, t := range ctBuffCopy {
+			if t > ctMax {
+				ctMax = t
+			}
+		}
+		if ctMax > 1000 * time.Second {
+			ss.cpuFull = true
+		} else if ctMax < 800 * time.Second {
+			ss.cpuFull = false
+		}
+		// check for free RAM
+		err := syscall.Sysinfo(&sysinfo)
+		if err != nil {
+			ss.log.Error("can't read sysinfo to get free RAM", zap.Error(err))
+			time.Sleep(200 * time.Millisecond)
+			continue
+		}
+		if sysinfo.Freeram < 10 * 1024 * 1024 { // ten megabytes
+			ss.ramFull = true
+		} else if sysinfo.Freeram > 12 * 1024 * 1024 { // 12 megabytes
+			ss.ramFull = false
+		}
+		// set we are full or not
+		if ss.cpuFull || ss.ramFull {
+			ss.full = true
+		} else if !ss.cpuFull && !ss.ramFull {
+			ss.full = false
+		}
+		if isFullPrev != ss.full {
+			ss.log.Info("switching settlement state", zap.Bool("skip incoming strategies", ss.full))
+		}
+		time.Sleep(1 * time.Second)
+	}
 }
