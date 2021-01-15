@@ -72,7 +72,7 @@ type MongoOrder struct {
 	ReduceOnly             bool               `json:"reduceOnly,omitempty" bson:"reduceOnly"`
 	Price                  float64            `json:"price,omitempty" bson:"price"`
 	StopPrice              float64            `json:"stopPrice,omitempty" bson:"stopPrice"`
-	Timestamp              float64              `json:"timestamp,omitempty" bson:"timestamp"`
+	Timestamp              float64            `json:"timestamp,omitempty" bson:"timestamp"`
 }
 type MongoPosition struct {
 	ID          primitive.ObjectID `json:"_id" bson:"_id"`
@@ -121,7 +121,7 @@ type MongoStrategyState struct {
 	EntryPointSide       string             `json:"entryPointSide,omitempty" bson:"entryPointSide"`
 	EntryPointAmount     float64            `json:"entryPointAmount,omitempty" bson:"entryPointAmount"`
 	EntryPointDeviation  float64            `json:"entryPointDeviation,omitempty" bson:"entryPointDeviation"`
-	WaitForEntryIds      []string			`json:"waitForEntryIds,omitempty" bson:"waitForEntryIds"`
+	WaitForEntryIds      []string           `json:"waitForEntryIds,omitempty" bson:"waitForEntryIds"`
 	StopLoss             float64            `json:"stopLoss,omitempty" bson:"stopLoss"`
 	StopLossPrice        float64            `json:"stopLossPrice, omitempty" bson:"stopLossPrice"`
 	StopLossOrderIds     []string           `json:"stopLossOrderIds,omitempty" bson:"stopLossOrderIds"`
@@ -140,7 +140,7 @@ type MongoStrategyState struct {
 	TrailingExitPrice  float64   `json:"trailingExitPrice,omitempty" bson:"trailingExitPrice"`
 	TrailingExitPrices []float64 `json:"trailingExitPrices,omitempty" bson:"trailingExitPrices"`
 	EntryPrice         float64   `json:"entryPrice,omitempty" bson:"entryPrice"`
-	SavedEntryPrice         float64   `json:"savedEntryPrice,omitempty" bson:"savedEntryPrice"`
+	SavedEntryPrice    float64   `json:"savedEntryPrice,omitempty" bson:"savedEntryPrice"`
 	ExitPrice          float64   `json:"exitPrice,omitempty" bson:"exitPrice"`
 	Amount             float64   `json:"amount,omitempty" bson:"amount"`
 	Orders             []string  `json:"orders,omitempty" bson:"orders"`
@@ -148,12 +148,12 @@ type MongoStrategyState struct {
 	ExecutedAmount     float64   `json:"executedAmount,omitempty" bson:"executedAmount"`
 	ReachedTargetCount int       `json:"reachedTargetCount,omitempty" bson:"reachedTargetCount"`
 
-	TrailingCheckAt int64 `json:"trailingCheckAt,omitempty" bson:"trailingCheckAt"`
-	StopLossAt      int64 `json:"stopLossAt,omitempty" bson:"stopLossAt"`
-	LossableAt      int64 `json:"lossableAt,omitempty" bson:"lossableAt"`
-	ProfitableAt    int64 `json:"profitableAt,omitempty" bson:"profitableAt"`
-	ProfitAt        int64 `json:"profitAt,omitempty" bson:"profitAt"`
-	CloseStrategyAfterFirstTAP bool `json:"closeStrategyAfterFirstTAP,omitempty" bson:"closeStrategyAfterFirstTAP"`
+	TrailingCheckAt            int64 `json:"trailingCheckAt,omitempty" bson:"trailingCheckAt"`
+	StopLossAt                 int64 `json:"stopLossAt,omitempty" bson:"stopLossAt"`
+	LossableAt                 int64 `json:"lossableAt,omitempty" bson:"lossableAt"`
+	ProfitableAt               int64 `json:"profitableAt,omitempty" bson:"profitableAt"`
+	ProfitAt                   int64 `json:"profitAt,omitempty" bson:"profitAt"`
+	CloseStrategyAfterFirstTAP bool  `json:"closeStrategyAfterFirstTAP,omitempty" bson:"closeStrategyAfterFirstTAP"`
 
 	PositionAmount           float64 `json:"positionAmount,omitempty" bson:"positionAmount"`
 	ReceivedProfitAmount     float64 `json:"receivedProfitAmount,omitempty" bson:"receivedProfitAmount"`

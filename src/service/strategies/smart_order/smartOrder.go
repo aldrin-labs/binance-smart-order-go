@@ -2,6 +2,7 @@ package smart_order
 
 import (
 	"context"
+	loggly_client "gitlab.com/crypto_project/core/strategy_service/src/sources/loggy"
 	statsd_client "gitlab.com/crypto_project/core/strategy_service/src/statsd"
 	"log"
 	"math"
@@ -160,8 +161,8 @@ func NewSmartOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed,
 
 	sm.State = State
 	sm.ExchangeName = "binance"
-	// fmt.Printf(sm.State.ToGraph())
-	// fmt.Printf("DONE\n")
+	// loggly_client.GetInstance().Infof(sm.State.ToGraph())
+	// loggly_client.GetInstance().Infof("DONE\n")
 	_ = sm.onStart(nil)
 	return sm
 }
@@ -177,7 +178,7 @@ func (sm *SmartOrder) checkIfShouldCancelIfAnyActive() {
 }
 
 func (sm *SmartOrder) onStart(ctx context.Context, args ...interface{}) error {
-	log.Print("onStart executed")
+	loggly_client.GetInstance().Info("onStart executed")
 	sm.checkIfShouldCancelIfAnyActive()
 	sm.hedge()
 	sm.checkIfPlaceOrderInstantlyOnStart()
@@ -225,14 +226,14 @@ func (sm *SmartOrder) getLastTargetAmount() float64 {
 
 func (sm *SmartOrder) exitWaitEntry(ctx context.Context, args ...interface{}) (stateless.State, error) {
 	if sm.Strategy.GetModel().Conditions.EntryOrder.ActivatePrice != 0 {
-		log.Print("move to", TrailingEntry)
+		loggly_client.GetInstance().Info("move to", TrailingEntry)
 		return TrailingEntry, nil
 	}
 	if len(sm.Strategy.GetModel().Conditions.EntryLevels) > 0 {
-		log.Print("move to ", InMultiEntry)
+		loggly_client.GetInstance().Info("move to ", InMultiEntry)
 		return InMultiEntry, nil
 	}
-	log.Print("move to", InEntry)
+	loggly_client.GetInstance().Info("move to", InEntry)
 	return InEntry, nil
 }
 
@@ -247,7 +248,7 @@ func (sm *SmartOrder) checkWaitEntry(ctx context.Context, args ...interface{}) b
 	if len(sm.Strategy.GetModel().Conditions.EntryLevels) > 0 {
 		return false
 	}
-		currentOHLCV := args[0].(interfaces.OHLCV)
+	currentOHLCV := args[0].(interfaces.OHLCV)
 	model := sm.Strategy.GetModel()
 	conditionPrice := model.Conditions.EntryOrder.Price
 	isInstantMarketOrder := model.Conditions.EntryOrder.ActivatePrice == 0 && model.Conditions.EntryOrder.OrderType == "market"
@@ -280,7 +281,7 @@ func (sm *SmartOrder) enterEntry(ctx context.Context, args ...interface{}) error
 	if len(sm.Strategy.GetModel().Conditions.EntryLevels) > 0 {
 		return nil
 	}
-	//log.Print("enter entry")
+	//loggly_client.GetInstance().Info("enter entry")
 	isSpot := sm.Strategy.GetModel().Conditions.MarketType == 0
 	// if we returned to InEntry from Stoploss timeout
 	if sm.Strategy.GetModel().State.StopLossAt == -1 {
@@ -305,7 +306,7 @@ func (sm *SmartOrder) enterEntry(ctx context.Context, args ...interface{}) error
 	if isSpot {
 		sm.PlaceOrder(sm.Strategy.GetModel().State.EntryPrice, 0.0, InEntry)
 		if !sm.Strategy.GetModel().Conditions.TakeProfitExternal {
-			log.Print("place take-profit from enterEntry")
+			loggly_client.GetInstance().Info("place take-profit from enterEntry")
 			sm.PlaceOrder(0, 0.0, TakeProfit)
 		}
 	} else {
@@ -690,7 +691,7 @@ func (sm *SmartOrder) Start() {
 		localState = sm.Strategy.GetModel().State.State
 	}
 	sm.Stop()
-	log.Print("STOPPED smartorder ", state.(string))
+	loggly_client.GetInstance().Info("STOPPED smartorder ", state.(string))
 }
 
 func (sm *SmartOrder) Stop() {

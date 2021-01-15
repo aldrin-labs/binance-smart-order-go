@@ -2,10 +2,9 @@ package strategies
 
 import (
 	"context"
-	"log"
-
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies/makeronly_order"
+	loggly_client "gitlab.com/crypto_project/core/strategy_service/src/sources/loggy"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
 	"gitlab.com/crypto_project/core/strategy_service/src/trading"
@@ -27,12 +26,12 @@ func RunMakerOnlyOrder(strategy *Strategy, df interfaces.IDataFeed, td trading.I
 		request = bson.D{
 			{"_id", strategy.Model.Conditions.KeyAssetId},
 		}
-		log.Print(keyAssetId)
+		loggly_client.GetInstance().Info(keyAssetId)
 		ctx := context.Background()
 		var keyAsset KeyAsset
 		err := KeyAssets.FindOne(ctx, request).Decode(&keyAsset)
 		if err != nil {
-			log.Print("keyAssetsCursor", err.Error())
+			loggly_client.GetInstance().Info("keyAssetsCursor", err.Error())
 		}
 		keyId = &keyAsset.KeyId
 	}

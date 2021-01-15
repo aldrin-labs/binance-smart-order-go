@@ -2,7 +2,6 @@ package mysql
 
 import (
 	"database/sql"
-	"log"
 	"os"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -19,13 +18,13 @@ func (sc *SQLConn) Initialize() {
 		return
 	}
 
-	log.Println("Connecting to MySQL: ", os.Getenv("SQL_CONN_STRING"))
+	loggly_client.GetInstance().Info("Connecting to MySQL: ", os.Getenv("SQL_CONN_STRING"))
 	db, _ := sql.Open("mysql", os.Getenv("SQL_CONN_STRING"))
 
 	// Open doesn't open a connection. Validate connection:
 	err := db.Ping()
 	if err != nil {
-		log.Println("Error while connecting to MYSQL")
+		loggly_client.GetInstance().Info("Error while connecting to MYSQL")
 		panic(err.Error())
 	}
 

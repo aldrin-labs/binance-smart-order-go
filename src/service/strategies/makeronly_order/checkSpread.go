@@ -4,8 +4,8 @@ import (
 	"context"
 )
 
-func(po *MakerOnlyOrder) checkOrPlaceOrders(ctx context.Context, args ...interface{}) bool {
-    // if there is an order in state
+func (po *MakerOnlyOrder) checkOrPlaceOrders(ctx context.Context, args ...interface{}) bool {
+	// if there is an order in state
 	// if no go to place order
 	// wait N sec
 	// if not filled

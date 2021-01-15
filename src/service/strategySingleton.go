@@ -6,6 +6,7 @@ import (
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies/makeronly_order"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies/smart_order"
+	loggly_client "gitlab.com/crypto_project/core/strategy_service/src/sources/loggy"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
 	// "gitlab.com/crypto_project/core/strategy_service/src/sources/redis"
@@ -45,16 +46,16 @@ func GetStrategyService() *StrategyService {
 		statsd.Init()
 		singleton = &StrategyService{
 			strategies: map[string]*strategies.Strategy{},
-			dataFeed: df,
-			trading: tr,
-			stateMgmt: &sm,
-			statsd: statsd,
+			dataFeed:   df,
+			trading:    tr,
+			stateMgmt:  &sm,
+			statsd:     statsd,
 		}
 	})
 	return singleton
 }
 func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
-//func (ss *StrategyService) Init(wg *sync.WaitGroup) {
+	//func (ss *StrategyService) Init(wg *sync.WaitGroup) {
 	ctx := context.Background()
 	var coll = mongodb.GetCollection("core_strategies")
 	// testStrat, _ := primitive.ObjectIDFromHex("5deecc36ba8a424bfd363aaf")
@@ -64,15 +65,15 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 
 	if isLocalBuild {
 		additionalCondition.Key = "accountId"
-		additionalCondition.Value, _ =  primitive.ObjectIDFromHex(accountId)
+		additionalCondition.Value, _ = primitive.ObjectIDFromHex(accountId)
 	}
 
 	//cur, err := coll.Find(ctx, bson.D{{"enabled",true}})
 	cur, err := coll.Find(ctx, bson.D{{"enabled", true}, additionalCondition})
 	if err != nil {
-		log.Print("log.Fatal on finding enabled strategies ", err)
+		log.Print("loggly_client.GetInstance().Fatal on finding enabled strategies ", err)
 		wg.Done()
-		//log.Fatal(err)
+		//loggly_client.GetInstance().Fatal(err)
 	}
 	if cur == nil {
 		log.Print("finding strategies, cur == nil")
@@ -88,11 +89,11 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 			continue
 		}
 		if err != nil {
-			log.Print("log.Fatal on processing enabled strategy")
+			log.Print("loggly_client.GetInstance().Fatal on processing enabled strategy")
 			log.Print("err ", err)
 			log.Print("cur string ", cur.Current.String())
 			continue
-			log.Fatal(err)
+			loggly_client.GetInstance().Fatal(err)
 		}
 		log.Print("objid " + strategy.Model.ID.String())
 		GetStrategyService().strategies[strategy.Model.ID.String()] = strategy
@@ -105,17 +106,17 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 
 	//ss.WatchStrategies()
 	if err := cur.Err(); err != nil {
-		log.Print("log.Fatal at the end of init func")
+		log.Print("loggly_client.GetInstance().Fatal at the end of init func")
 		wg.Done()
-		log.Fatal(err)
+		loggly_client.GetInstance().Fatal(err)
 	}
 }
 
 func GetStrategy(strategy *models.MongoStrategy, df interfaces.IDataFeed, tr trading.ITrading, st interfaces.IStateMgmt, statsd statsd_client.StatsdClient, ss *StrategyService) *strategies.Strategy {
-	return &strategies.Strategy{Model:strategy, Datafeed: df, Trading: tr, StateMgmt: st, Singleton: ss, Statsd: statsd, }
+	return &strategies.Strategy{Model: strategy, Datafeed: df, Trading: tr, StateMgmt: st, Singleton: ss, Statsd: statsd}
 }
 
-func (ss *StrategyService) AddStrategy(strategy * models.MongoStrategy) {
+func (ss *StrategyService) AddStrategy(strategy *models.MongoStrategy) {
 	if ss.strategies[strategy.ID.String()] == nil {
 		sig := GetStrategy(strategy, ss.dataFeed, ss.trading, ss.stateMgmt, ss.statsd, ss)
 		log.Print("start objid ", sig.Model.ID.String())
@@ -137,55 +138,54 @@ func (ss *StrategyService) CreateOrder(request trading.CreateOrderRequest) tradi
 	hedgeMode := request.KeyParams.PositionSide != "BOTH"
 
 	order := models.MongoOrder{
-		ID:                     id,
-		Status:                 "open",
-		OrderId:                id.Hex(),
-		Filled:                 0,
-		Average:                0,
-		Amount:                 request.KeyParams.Amount,
-		Side:                   request.KeyParams.Side,
-		Type:                   "maker-only",
-		Symbol:                 request.KeyParams.Symbol,
-		PositionSide:           request.KeyParams.PositionSide,
-		ReduceOnly:             reduceOnly,
-		Timestamp:              float64(time.Now().UnixNano() / 1000000),
-
+		ID:           id,
+		Status:       "open",
+		OrderId:      id.Hex(),
+		Filled:       0,
+		Average:      0,
+		Amount:       request.KeyParams.Amount,
+		Side:         request.KeyParams.Side,
+		Type:         "maker-only",
+		Symbol:       request.KeyParams.Symbol,
+		PositionSide: request.KeyParams.PositionSide,
+		ReduceOnly:   reduceOnly,
+		Timestamp:    float64(time.Now().UnixNano() / 1000000),
 	}
 	go ss.stateMgmt.SaveOrder(order, request.KeyId, request.KeyParams.MarketType)
 	strategy := models.MongoStrategy{
-		ID:              &id,
-		Type:            2,
-		Enabled:         true,
-		AccountId:       request.KeyId,
-		Conditions:      &models.MongoStrategyCondition{
-			AccountId:                  request.KeyId,
-			Hedging:                    false,
-			HedgeMode:                  hedgeMode,
-			HedgeKeyId:                 nil,
-			HedgeStrategyId:            nil,
-			MakerOrderId:               &id,
-			TemplateToken:              "",
-			MandatoryForcedLoss:        false,
-			PositionWasClosed:          false,
-			SkipInitialSetup:           false,
-			CancelIfAnyActive:          false,
-			TrailingExitExternal:       false,
-			TrailingExitPrice:          0,
-			StopLossPrice:              0,
-			ForcedLossPrice:            0,
-			TakeProfitPrice:            0,
-			TakeProfitHedgePrice:       0,
-			StopLossExternal:           false,
-			TakeProfitExternal:         false,
-			WithoutLossAfterProfit:     0,
-			EntrySpreadHunter:          false,
-			EntryWaitingTime:           0,
-			TakeProfitSpreadHunter:     false,
-			TakeProfitWaitingTime:      0,
-			KeyAssetId:                 nil,
-			Pair:                       request.KeyParams.Symbol,
-			MarketType:                 request.KeyParams.MarketType,
-			EntryOrder:                 &models.MongoEntryPoint{
+		ID:        &id,
+		Type:      2,
+		Enabled:   true,
+		AccountId: request.KeyId,
+		Conditions: &models.MongoStrategyCondition{
+			AccountId:              request.KeyId,
+			Hedging:                false,
+			HedgeMode:              hedgeMode,
+			HedgeKeyId:             nil,
+			HedgeStrategyId:        nil,
+			MakerOrderId:           &id,
+			TemplateToken:          "",
+			MandatoryForcedLoss:    false,
+			PositionWasClosed:      false,
+			SkipInitialSetup:       false,
+			CancelIfAnyActive:      false,
+			TrailingExitExternal:   false,
+			TrailingExitPrice:      0,
+			StopLossPrice:          0,
+			ForcedLossPrice:        0,
+			TakeProfitPrice:        0,
+			TakeProfitHedgePrice:   0,
+			StopLossExternal:       false,
+			TakeProfitExternal:     false,
+			WithoutLossAfterProfit: 0,
+			EntrySpreadHunter:      false,
+			EntryWaitingTime:       0,
+			TakeProfitSpreadHunter: false,
+			TakeProfitWaitingTime:  0,
+			KeyAssetId:             nil,
+			Pair:                   request.KeyParams.Symbol,
+			MarketType:             request.KeyParams.MarketType,
+			EntryOrder: &models.MongoEntryPoint{
 				ActivatePrice:           0,
 				EntryDeviation:          0,
 				Price:                   0,
@@ -224,7 +224,7 @@ func (ss *StrategyService) CreateOrder(request trading.CreateOrderRequest) tradi
 			CloseStrategyAfterFirstTAP: false,
 			PlaceEntryAfterTAP:         false,
 		},
-		State:           &models.MongoStrategyState{
+		State: &models.MongoStrategyState{
 			ColdStart:              true,
 			State:                  "",
 			Msg:                    "",
@@ -277,16 +277,16 @@ func (ss *StrategyService) CreateOrder(request trading.CreateOrderRequest) tradi
 	hex := id.Hex()
 	response := trading.OrderResponse{
 		Status: "OK",
-		Data:   trading.OrderResponseData{
+		Data: trading.OrderResponseData{
 			OrderId: hex,
 			Status:  "open",
-			Amount:	 request.KeyParams.Amount,
-			Type: 	"maker-only",
+			Amount:  request.KeyParams.Amount,
+			Type:    "maker-only",
 			Price:   0,
 			Average: 0,
 			Filled:  0,
 			Code:    0,
-			Msg: "",
+			Msg:     "",
 		},
 	}
 	return response
@@ -297,9 +297,9 @@ func (ss *StrategyService) CancelOrder(request trading.CancelOrderRequest) tradi
 	strategy := ss.strategies[id.String()]
 	order := ss.stateMgmt.GetOrderById(&id)
 
-	log.Println("id ", id)
-	log.Println("order ", order)
-	log.Println("request.KeyParams.OrderId ", request.KeyParams.OrderId)
+	loggly_client.GetInstance().Info("id ", id)
+	loggly_client.GetInstance().Info("order ", order)
+	loggly_client.GetInstance().Info("request.KeyParams.OrderId ", request.KeyParams.OrderId)
 
 	if order == nil {
 		return trading.OrderResponse{
@@ -318,7 +318,7 @@ func (ss *StrategyService) CancelOrder(request trading.CancelOrderRequest) tradi
 		}
 	}
 
-	log.Println("strategy ", strategy)
+	loggly_client.GetInstance().Info("strategy ", strategy)
 
 	if strategy != nil {
 		pointStrategy := *ss.strategies[id.String()]
@@ -332,17 +332,17 @@ func (ss *StrategyService) CancelOrder(request trading.CancelOrderRequest) tradi
 	}
 
 	updatedOrder := models.MongoOrder{
-		ID:                     id,
-		Status:                 "canceled",
-		OrderId:                order.OrderId,
-		Filled:                 order.Filled,
-		Average:                order.Average,
-		Side:                   order.Side,
-		Type:                   order.Type,
-		Symbol:                 order.Symbol,
-		ReduceOnly:             order.ReduceOnly,
-		Timestamp:              order.Timestamp,
-		Amount:                 order.Amount,
+		ID:         id,
+		Status:     "canceled",
+		OrderId:    order.OrderId,
+		Filled:     order.Filled,
+		Average:    order.Average,
+		Side:       order.Side,
+		Type:       order.Type,
+		Symbol:     order.Symbol,
+		ReduceOnly: order.ReduceOnly,
+		Timestamp:  order.Timestamp,
+		Amount:     order.Amount,
 	}
 
 	go ss.stateMgmt.SaveOrder(updatedOrder, request.KeyId, request.KeyParams.MarketType)
@@ -364,15 +364,16 @@ func (ss *StrategyService) CancelOrder(request trading.CancelOrderRequest) tradi
 }
 
 const CollName = "core_strategies"
+
 func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) error {
-//func (ss *StrategyService) WatchStrategies() error {
+	//func (ss *StrategyService) WatchStrategies() error {
 	ctx := context.Background()
 	var coll = mongodb.GetCollection(CollName)
 
 	cs, err := coll.Watch(ctx, mongo.Pipeline{}, options.ChangeStream().SetFullDocument(options.UpdateLookup))
 	//cs, err := coll.Watch(ctx, mongo.Pipeline{}, options.ChangeStream().SetFullDocument(options.UpdateLookup))
 	if err != nil {
-		log.Print("log.Fatal on watching strategies")
+		log.Print("loggly_client.GetInstance().Fatal on watching strategies")
 		return err
 	}
 	//require.NoError(cs, err)
@@ -391,7 +392,7 @@ func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) 
 		}
 
 		if event.FullDocument.ID == nil {
-			log.Println("new SM ID nil ", event.FullDocument)
+			loggly_client.GetInstance().Info("new SM ID nil ", event.FullDocument)
 			continue
 		}
 
@@ -399,18 +400,18 @@ func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) 
 		if event.FullDocument.AccountId != nil && event.FullDocument.AccountId.Hex() == "5e4ce62b1318ef1b1e85b6f4" {
 			continue
 		}
-		if event.FullDocument.Type == 2 && event.FullDocument.State.ColdStart  {
+		if event.FullDocument.Type == 2 && event.FullDocument.State.ColdStart {
 			sig := GetStrategy(&event.FullDocument, ss.dataFeed, ss.trading, ss.stateMgmt, ss.statsd, ss)
 			ss.strategies[event.FullDocument.ID.String()] = sig
-			log.Println("continue in maker-only cold start")
+			loggly_client.GetInstance().Info("continue in maker-only cold start")
 			continue
 		}
 
 		if isLocalBuild && (event.FullDocument.AccountId == nil || event.FullDocument.AccountId.Hex() != accountId) {
-			log.Println("continue watchStrategies in accountId incomparable")
+			loggly_client.GetInstance().Info("continue watchStrategies in accountId incomparable")
 			continue
 		}
-		if ss.strategies[event.FullDocument.ID.String()] != nil  {
+		if ss.strategies[event.FullDocument.ID.String()] != nil {
 			ss.strategies[event.FullDocument.ID.String()].HotReload(event.FullDocument)
 			ss.EditConditions(ss.strategies[event.FullDocument.ID.String()])
 			if event.FullDocument.Enabled == false {
@@ -422,7 +423,7 @@ func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) 
 			}
 		}
 	}
-	log.Println("Finish WatchStrategies")
+	loggly_client.GetInstance().Info("Finish WatchStrategies")
 	return nil
 }
 
@@ -460,8 +461,8 @@ func (ss *StrategyService) InitPositionsWatch() {
 			)
 
 			if err != nil {
-				log.Print("log.Fatal on finding enabled strategies by position")
-				log.Fatal(err)
+				log.Print("loggly_client.GetInstance().Fatal on finding enabled strategies by position")
+				loggly_client.GetInstance().Fatal(err)
 			}
 
 			defer cur.Close(ctx)
@@ -487,7 +488,7 @@ func (ss *StrategyService) InitPositionsWatch() {
 			}
 		}(positionEventDecoded)
 	}
-	log.Println("InitPositionsWatch End")
+	loggly_client.GetInstance().Info("InitPositionsWatch End")
 }
 
 func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
@@ -497,8 +498,12 @@ func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
 	sm := strategy.StrategyRuntime
 	isInEntry := model.State != nil && model.State.State != smart_order.TrailingEntry && model.State.State != smart_order.WaitForEntry
 
-	if model.State == nil || sm == nil { return }
-	if !isInEntry { return }
+	if model.State == nil || sm == nil {
+		return
+	}
+	if !isInEntry {
+		return
+	}
 
 	entryOrder := model.Conditions.EntryOrder
 
@@ -554,7 +559,7 @@ func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
 			sideCoefficient = -1.0
 		}
 
-		currentProfitPercentage := ((model.Conditions.TakeProfitHedgePrice / model.State.EntryPrice) * 100 - 100) * model.Conditions.Leverage * sideCoefficient
+		currentProfitPercentage := ((model.Conditions.TakeProfitHedgePrice/model.State.EntryPrice)*100 - 100) * model.Conditions.Leverage * sideCoefficient
 
 		if currentProfitPercentage > feePercentage {
 			strategy.GetModel().State.TrailingHedgeExitPrice = model.Conditions.TakeProfitHedgePrice

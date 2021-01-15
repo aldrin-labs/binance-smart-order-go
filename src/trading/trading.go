@@ -3,9 +3,8 @@ package trading
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
+	loggly_client "gitlab.com/crypto_project/core/strategy_service/src/sources/loggy"
 	"io/ioutil"
-	"log"
 	"math"
 	"net/http"
 	"os"
@@ -68,7 +67,7 @@ func InitTrading() ITrading {
 
 func Request(method string, data interface{}) interface{} {
 	url := "http://" + os.Getenv("EXCHANGESERVICE") + "/" + method
-	fmt.Println("URL:>", url)
+	loggly_client.GetInstance().Info("URL:>", url)
 
 	var jsonStr, err = json.Marshal(data)
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
@@ -77,17 +76,17 @@ func Request(method string, data interface{}) interface{} {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Print(err.Error())
+		loggly_client.GetInstance().Info(err.Error())
 
 		return Request(method, data)
 	}
 	defer resp.Body.Close()
 
-	fmt.Println("response Status:", resp.Status)
-	fmt.Println("response Headers:", resp.Header)
+	loggly_client.GetInstance().Info("response Status:", resp.Status)
+	loggly_client.GetInstance().Info("response Headers:", resp.Header)
 	body, _ := ioutil.ReadAll(resp.Body)
-	fmt.Println("request Body:", string(jsonStr))
-	fmt.Println("response Body:", string(body))
+	loggly_client.GetInstance().Info("request Body:", string(jsonStr))
+	loggly_client.GetInstance().Info("response Body:", string(body))
 	var response interface{}
 	_ = json.Unmarshal(body, &response)
 	return response

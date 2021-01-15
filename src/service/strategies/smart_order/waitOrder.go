@@ -2,23 +2,23 @@ package smart_order
 
 import (
 	"context"
+	loggly_client "gitlab.com/crypto_project/core/strategy_service/src/sources/loggy"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
-	"log"
 )
 
 func (sm *SmartOrder) waitForOrder(orderId string, orderStatus string) {
-	//log.Print("in wait for order")
+	//loggly_client.GetInstance().Info("in wait for order")
 	sm.StatusByOrderId.Store(orderId, orderStatus)
 	_ = sm.StateMgmt.SubscribeToOrder(orderId, sm.orderCallback)
 }
 func (sm *SmartOrder) orderCallback(order *models.MongoOrder) {
-	//log.Print("order callback in")
+	//loggly_client.GetInstance().Info("order callback in")
 	if order == nil || (order.OrderId == "" && order.PostOnlyInitialOrderId == "") {
 		return
 	}
 	//currentState, _ := sm.State.State(context.Background())
 	//model := sm.Strategy.GetModel()
-	if !(order.Status == "filled" || order.Status == "canceled")  {
+	if !(order.Status == "filled" || order.Status == "canceled") {
 		return
 	}
 	sm.OrdersMux.Lock()
@@ -30,7 +30,7 @@ func (sm *SmartOrder) orderCallback(order *models.MongoOrder) {
 	}
 	sm.OrdersMux.Unlock()
 
-	log.Print("before firing CheckExistingOrders")
+	loggly_client.GetInstance().Info("before firing CheckExistingOrders")
 	err := sm.State.Fire(CheckExistingOrders, *order)
 	// when checkExisitingOrders wasn't called
 	//if (currentState == Stoploss || currentState == End || (currentState == InEntry && model.State.StopLossAt > 0)) && order.Status == "filled" {
@@ -42,11 +42,11 @@ func (sm *SmartOrder) orderCallback(order *models.MongoOrder) {
 	//	sm.StateMgmt.UpdateExecutedAmount(model.ID, model.State)
 	//}
 	if err != nil {
-		log.Print(err.Error())
+		loggly_client.GetInstance().Info(err.Error())
 	}
 }
 func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface{}) bool {
-	log.Print("in checkExisitingFunc")
+	loggly_client.GetInstance().Info("in checkExisitingFunc")
 	if args == nil {
 		return false
 	}
@@ -54,14 +54,14 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 	orderId := order.OrderId
 	step, ok := sm.StatusByOrderId.Load(orderId)
 	orderStatus := order.Status
-	//log.Print("step ok", step, ok, order.OrderId)
+	//loggly_client.GetInstance().Info("step ok", step, ok, order.OrderId)
 	if orderStatus == "filled" || orderStatus == "canceled" && (step == WaitForEntry || step == TrailingEntry) {
 		sm.StatusByOrderId.Delete(orderId)
 	}
 	if !ok {
 		return false
 	}
-	log.Print("orderStatus, ", orderStatus, " step ", step.(string))
+	loggly_client.GetInstance().Info("orderStatus, ", orderStatus, " step ", step.(string))
 	model := sm.Strategy.GetModel()
 	isMultiEntry := len(model.Conditions.EntryLevels) > 0
 
@@ -91,20 +91,20 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			sm.StateMgmt.UpdateEntryPrice(model.ID, model.State)
 			return true
 		case WaitForEntry:
-			log.Print("model.State.EntryPrice in waitForEntry ", model.State.EntryPrice)
+			loggly_client.GetInstance().Info("model.State.EntryPrice in waitForEntry ", model.State.EntryPrice)
 			if model.State.EntryPrice > 0 && !isMultiEntry {
 				return false
 			}
-			log.Print("waitForEntry in waitOrder average ", order.Average)
+			loggly_client.GetInstance().Info("waitForEntry in waitOrder average ", order.Average)
 
 			if isMultiEntry {
 				model.State.State = InMultiEntry
 				// calc average weight
 				if model.State.EntryPrice > 0 {
-					log.Println("model.State.EntryPrice before: ", model.State.EntryPrice, " order.Filled: ", order.Filled)
-					total := model.State.EntryPrice * model.State.PositionAmount + order.Average * order.Filled
+					loggly_client.GetInstance().Info("model.State.EntryPrice before: ", model.State.EntryPrice, " order.Filled: ", order.Filled)
+					total := model.State.EntryPrice*model.State.PositionAmount + order.Average*order.Filled
 					model.State.EntryPrice = total / (model.State.PositionAmount + order.Filled)
-					log.Println("model.State.EntryPrice after: ", model.State.EntryPrice)
+					loggly_client.GetInstance().Info("model.State.EntryPrice after: ", model.State.EntryPrice)
 				} else {
 					model.State.EntryPrice = order.Average
 				}
@@ -128,7 +128,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			if model.Conditions.MarketType == 0 {
 				amount = amount * 0.99
 			}
-			log.Print("model.State.ExecutedAmount >= amount ", model.State.ExecutedAmount >= amount, "model.Conditions.PlaceEntryAfterTAP ", model.Conditions.PlaceEntryAfterTAP)
+			loggly_client.GetInstance().Info("model.State.ExecutedAmount >= amount ", model.State.ExecutedAmount >= amount, "model.Conditions.PlaceEntryAfterTAP ", model.Conditions.PlaceEntryAfterTAP)
 			// here we gonna close SM if CloseStrategyAfterFirstTAP enabled or we executed all entry && TAP orders
 			if model.State.ExecutedAmount >= amount || model.Conditions.CloseStrategyAfterFirstTAP {
 				model.State.State = End
@@ -161,7 +161,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			}
 
 			sm.calculateAndSavePNL(model, step, order.Filled)
-			log.Print("model.State.ExecutedAmount >= amount in SL ", model.State.ExecutedAmount >= amount)
+			loggly_client.GetInstance().Info("model.State.ExecutedAmount >= amount in SL ", model.State.ExecutedAmount >= amount)
 			if model.State.ExecutedAmount >= amount {
 				return true
 			}
@@ -176,7 +176,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			}
 
 			sm.calculateAndSavePNL(model, step, order.Filled)
-			log.Print("model.State.ExecutedAmount >= amount in ForcedLoss ", model.State.ExecutedAmount >= amount)
+			loggly_client.GetInstance().Info("model.State.ExecutedAmount >= amount in ForcedLoss ", model.State.ExecutedAmount >= amount)
 			if model.State.ExecutedAmount >= amount {
 				return true
 			}
@@ -232,7 +232,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 	return false
 }
 
-func (sm *SmartOrder) calculateAndSavePNL(model *models.MongoStrategy,  step interface{}, filledAmount float64) float64 {
+func (sm *SmartOrder) calculateAndSavePNL(model *models.MongoStrategy, step interface{}, filledAmount float64) float64 {
 
 	leverage := model.Conditions.Leverage
 	if leverage == 0 {
@@ -242,7 +242,7 @@ func (sm *SmartOrder) calculateAndSavePNL(model *models.MongoStrategy,  step int
 	sideCoefficient := 1.0
 	isMultiEntry := len(model.Conditions.EntryLevels) > 0
 
-	log.Println("PositionAmount ", model.State.PositionAmount, " filledAmount ", filledAmount)
+	loggly_client.GetInstance().Info("PositionAmount ", model.State.PositionAmount, " filledAmount ", filledAmount)
 	model.State.PositionAmount -= filledAmount
 
 	amount := filledAmount
@@ -253,7 +253,7 @@ func (sm *SmartOrder) calculateAndSavePNL(model *models.MongoStrategy,  step int
 	}
 
 	if entryPrice == 0 || model.State.ExitPrice == 0 {
-		log.Println("calculateAndSavePNL: entry or exit price 0, entry: ", entryPrice, " exit: ", model.State.ExitPrice)
+		loggly_client.GetInstance().Info("calculateAndSavePNL: entry or exit price 0, entry: ", entryPrice, " exit: ", model.State.ExitPrice)
 		return 0
 	}
 
@@ -262,16 +262,15 @@ func (sm *SmartOrder) calculateAndSavePNL(model *models.MongoStrategy,  step int
 		sideCoefficient = -1.0
 	}
 
-	log.Println("model.State.ExitPrice ", model.State.ExitPrice, " model.State.EntryPrice ", entryPrice, " leverage ", leverage)
-	profitPercentage := ((model.State.ExitPrice / entryPrice) * 100 - 100) * leverage * sideCoefficient
-	log.Println("profitPercentage ", profitPercentage)
+	loggly_client.GetInstance().Info("model.State.ExitPrice ", model.State.ExitPrice, " model.State.EntryPrice ", entryPrice, " leverage ", leverage)
+	profitPercentage := ((model.State.ExitPrice/entryPrice)*100 - 100) * leverage * sideCoefficient
+	loggly_client.GetInstance().Info("profitPercentage ", profitPercentage)
 	profitAmount := (amount / leverage) * entryPrice * (profitPercentage / 100)
-	log.Println("profitAmount ", profitAmount)
+	loggly_client.GetInstance().Info("profitAmount ", profitAmount)
 
-	log.Println("before ", model.State.ReceivedProfitPercentage," ", model.State.ReceivedProfitAmount)
+	loggly_client.GetInstance().Info("before ", model.State.ReceivedProfitPercentage, " ", model.State.ReceivedProfitAmount)
 	model.State.ReceivedProfitPercentage += profitPercentage
 	model.State.ReceivedProfitAmount += profitAmount
-
 
 	if model.Conditions.CreatedByTemplate {
 		go sm.Strategy.GetStateMgmt().SavePNL(model.Conditions.TemplateStrategyId, profitAmount)
