@@ -2,20 +2,20 @@ package makeronly_order
 
 import (
 	"context"
+	loggly_client "gitlab.com/crypto_project/core/strategy_service/src/sources/loggy"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
-	"log"
 	"time"
 )
 
 func (mo *MakerOnlyOrder) waitForOrder(orderId string, orderStatus string) {
-	//println("in wait for order")
+	//loggly_client.GetInstance().Info("in wait for order")
 	mo.StatusByOrderId.Store(orderId, orderStatus)
 	_ = mo.StateMgmt.SubscribeToOrder(orderId, mo.orderCallback)
 }
 func (mo *MakerOnlyOrder) orderCallback(order *models.MongoOrder) {
 	ctx := context.TODO()
-	log.Println("order callback")
-	if order == nil || order.OrderId == ""  || !(order.Status == "filled" || order.Status == "canceled")  {
+	loggly_client.GetInstance().Info("order callback")
+	if order == nil || order.OrderId == "" || !(order.Status == "filled" || order.Status == "canceled") {
 		return
 	}
 	mo.OrdersMux.Lock()
@@ -27,7 +27,7 @@ func (mo *MakerOnlyOrder) orderCallback(order *models.MongoOrder) {
 	}
 	mo.OrdersMux.Unlock()
 	if order.Status == "filled" {
-		log.Println("in waitOrder")
+		loggly_client.GetInstance().Info("in waitOrder")
 		state := mo.Strategy.GetModel().State
 		state.EntryPrice = order.Average
 		state.ExecutedAmount = order.Filled
@@ -52,7 +52,7 @@ func (mo *MakerOnlyOrder) orderCallback(order *models.MongoOrder) {
 		err := mo.State.Fire(CheckExistingOrders)
 		mo.enterFilled(ctx)
 		if err != nil {
-			log.Println("waitOrder err ", err.Error())
+			loggly_client.GetInstance().Info("waitOrder err ", err.Error())
 		}
 	}
 }

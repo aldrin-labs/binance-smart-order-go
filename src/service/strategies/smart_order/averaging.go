@@ -2,14 +2,14 @@ package smart_order
 
 import (
 	"context"
+	loggly_client "gitlab.com/crypto_project/core/strategy_service/src/sources/loggy"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
-	"log"
 	"time"
 )
 
 func (sm *SmartOrder) placeMultiEntryOrders(stopLoss bool) {
 	// we execute this func again for 1 option
-	log.Println("WaitForEntryIds cancel in placeMultiEntryOrders", sm.Strategy.GetModel().State.WaitForEntryIds)
+	loggly_client.GetInstance().Info("WaitForEntryIds cancel in placeMultiEntryOrders", sm.Strategy.GetModel().State.WaitForEntryIds)
 	go sm.TryCancelAllOrders(sm.Strategy.GetModel().State.WaitForEntryIds)
 
 	model := sm.Strategy.GetModel()
@@ -51,18 +51,17 @@ func (sm *SmartOrder) placeMultiEntryOrders(stopLoss bool) {
 	// we should replace stop loss if it's simple avg without placeEntryAfterTAP
 	// coz it may affect on existing position by amount > left from entry targets
 
-
 }
 
 func (sm *SmartOrder) entryMultiEntry(ctx context.Context, args ...interface{}) error {
 	sm.StopMux.Lock()
-	log.Print("entryMultiEntry")
+	loggly_client.GetInstance().Info("entryMultiEntry")
 	model := sm.Strategy.GetModel()
 
 	isWaitingForcedLoss, forcedLossOk := sm.IsWaitingForOrder.Load("ForcedLoss")
 	if model.Conditions.ForcedLoss > 0 && (!forcedLossOk || !isWaitingForcedLoss.(bool)) && len(model.State.ForcedLossOrderIds) == 0 {
 		sm.IsWaitingForOrder.Store("ForcedLoss", true)
-		time.AfterFunc(3 * time.Second, func() {sm.PlaceOrder(model.State.EntryPrice, 0.0, "ForcedLoss")})
+		time.AfterFunc(3*time.Second, func() { sm.PlaceOrder(model.State.EntryPrice, 0.0, "ForcedLoss") })
 	}
 
 	// place BEP

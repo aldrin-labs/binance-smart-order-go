@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
-	"log"
+	loggly_client "gitlab.com/crypto_project/core/strategy_service/src/sources/loggy"
 	"strconv"
 	"strings"
 	"sync"
@@ -99,7 +99,7 @@ func (rl *RedisLoop) FillPair(pair, exchange string) *interfaces.OHLCV {
 
 	responseArr := ohlcvResultArr.([]interface{})
 	for _, value := range responseArr {
-		log.Print(value)
+		loggly_client.GetInstance().Info(value)
 	}
 	return nil
 }
@@ -126,7 +126,7 @@ func (rl *RedisLoop) UpdateSpread(channel string, data []byte) {
 	var spread Spread
 	tryparse := json.Unmarshal(data, &spread)
 	if tryparse != nil {
-		log.Print(tryparse)
+		loggly_client.GetInstance().Info(tryparse)
 	}
 	spreadData := interfaces.SpreadData{
 		Close:   spread.BestBidPrice,
@@ -135,8 +135,8 @@ func (rl *RedisLoop) UpdateSpread(channel string, data []byte) {
 	}
 
 	//if spread.Symbol == "BTC_USDT" && spread.MarketType == 1 {
-	//	log.Println("save spread ", spread)
-	//	log.Println("string ", spread.Exchange+spread.Symbol+strconv.FormatInt(spread.MarketType, 10))
+	//	loggly_client.GetInstance().Info("save spread ", spread)
+	//	loggly_client.GetInstance().Info("string ", spread.Exchange+spread.Symbol+strconv.FormatInt(spread.MarketType, 10))
 	//}
 
 	rl.SpreadMap.Store(spread.Exchange+spread.Symbol+strconv.FormatInt(spread.MarketType, 10), spreadData)
@@ -144,7 +144,7 @@ func (rl *RedisLoop) UpdateSpread(channel string, data []byte) {
 
 func (rl *RedisLoop) GetSpread(pair, exchange string, marketType int64) *interfaces.SpreadData {
 	spreadRaw, ok := rl.SpreadMap.Load(exchange + pair + strconv.FormatInt(marketType, 10))
-	//log.Println("spreadRaw ", spreadRaw)
+	//loggly_client.GetInstance().Info("spreadRaw ", spreadRaw)
 	if ok == true {
 		spread := spreadRaw.(interfaces.SpreadData)
 		return &spread

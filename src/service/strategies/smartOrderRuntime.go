@@ -4,13 +4,13 @@ import (
 	"context"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies/smart_order"
+	loggly_client "gitlab.com/crypto_project/core/strategy_service/src/sources/loggy"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
 	statsd_client "gitlab.com/crypto_project/core/strategy_service/src/statsd"
 	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"log"
 	"time"
 )
 
@@ -33,12 +33,12 @@ func RunSmartOrder(strategy *Strategy, df interfaces.IDataFeed, td trading.ITrad
 		request = bson.D{
 			{"_id", strategy.Model.Conditions.KeyAssetId},
 		}
-		log.Print(keyAssetId)
+		loggly_client.GetInstance().Info(keyAssetId)
 		ctx := context.Background()
 		var keyAsset KeyAsset
 		err := KeyAssets.FindOne(ctx, request).Decode(&keyAsset)
 		if err != nil {
-			log.Print("keyAssetsCursor ", err.Error())
+			loggly_client.GetInstance().Info("keyAssetsCursor ", err.Error())
 		}
 		keyId = &keyAsset.KeyId
 
@@ -51,15 +51,15 @@ func RunSmartOrder(strategy *Strategy, df interfaces.IDataFeed, td trading.ITrad
 		if res.Status != "OK" {
 			strategy.Model.State = &models.MongoStrategyState{
 				State: smart_order.Error,
-				Msg: res.ErrorMessage,
+				Msg:   res.ErrorMessage,
 			}
 		}
 	}
 	if strategy.Model.State == nil {
 		strategy.Model.State = &models.MongoStrategyState{
-			ReceivedProfitAmount: 0,
+			ReceivedProfitAmount:     0,
 			ReceivedProfitPercentage: 0,
-			State: "",
+			State:                    "",
 		}
 	}
 
@@ -80,7 +80,7 @@ func DetermineRelativeEntryAmount(strategy *Strategy, keyAsset KeyAsset, df inte
 			if attempts > 10 {
 				strategy.Model.State = &models.MongoStrategyState{
 					State: smart_order.Error,
-					Msg: "currentOHLCVp is nil. Please contact us in telegram",
+					Msg:   "currentOHLCVp is nil. Please contact us in telegram",
 				}
 				break
 			}

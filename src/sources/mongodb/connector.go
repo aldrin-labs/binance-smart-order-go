@@ -2,6 +2,7 @@ package mongodb
 
 import (
 	"context"
+	loggly_client "gitlab.com/crypto_project/core/strategy_service/src/sources/loggy"
 	"log"
 	"os"
 	"sync"
@@ -57,7 +58,7 @@ func Connect(url string, connectTimeout time.Duration) (*mongo.Client, error) {
 }
 
 type StateMgmt struct {
-	OrderCallbacks         *sync.Map
+	OrderCallbacks *sync.Map
 }
 
 func (sm *StateMgmt) InitOrdersWatch() {
@@ -103,7 +104,7 @@ func (sm *StateMgmt) InitOrdersWatch() {
 			}
 		}(eventDecoded)
 	}
-	log.Println("InitOrdersWatch End")
+	loggly_client.GetInstance().Info("InitOrdersWatch End")
 }
 
 func (sm *StateMgmt) EnableStrategy(strategyId *primitive.ObjectID) {
@@ -116,10 +117,10 @@ func (sm *StateMgmt) EnableStrategy(strategyId *primitive.ObjectID) {
 	update = bson.D{
 		{
 			"$set", bson.D{
-			{
-				"enabled", true,
+				{
+					"enabled", true,
+				},
 			},
-		},
 		},
 	}
 	_, err := col.UpdateOne(context.TODO(), request, update)
@@ -130,7 +131,7 @@ func (sm *StateMgmt) EnableStrategy(strategyId *primitive.ObjectID) {
 
 func (sm *StateMgmt) DisableStrategy(strategyId *primitive.ObjectID) {
 	col := GetCollection("core_strategies")
-	log.Println("strategyId ", strategyId.String())
+	loggly_client.GetInstance().Info("strategyId ", strategyId.String())
 	var request bson.D
 	request = bson.D{
 		{"_id", strategyId},
@@ -149,7 +150,7 @@ func (sm *StateMgmt) DisableStrategy(strategyId *primitive.ObjectID) {
 	if err != nil {
 		log.Print("error in arg", err.Error())
 	}
-	
+
 	sm.CheckDisabledStrategy(strategyId, 2, 30)
 }
 
@@ -163,7 +164,7 @@ func (sm *StateMgmt) CheckDisabledStrategy(strategyId *primitive.ObjectID, times
 		if strategy.Enabled {
 			sm.DisableStrategy(strategyId)
 		}
-		sm.CheckDisabledStrategy(strategyId, times - 1, timeout)
+		sm.CheckDisabledStrategy(strategyId, times-1, timeout)
 	}
 }
 
@@ -213,7 +214,7 @@ func GetKeyIdAndExchangeId(keyId *primitive.ObjectID) (*primitive.ObjectID, *pri
 }
 
 func (sm *StateMgmt) SaveOrder(order models.MongoOrder, keyId *primitive.ObjectID, marketType int64) {
-	log.Println("saveOrder", order, time.Now().Unix())
+	loggly_client.GetInstance().Info("saveOrder", order, time.Now().Unix())
 	baseId, quoteId, marketId := GetAssets(order.Symbol, marketType)
 	_, exchangeId := GetKeyIdAndExchangeId(keyId)
 	opts := options.Update().SetUpsert(true)
@@ -231,17 +232,17 @@ func (sm *StateMgmt) SaveOrder(order models.MongoOrder, keyId *primitive.ObjectI
 		{"status", order.Status},
 		{"symbol", order.Symbol},
 		{"side", order.Side},
-		{"type",order.Type},
-		{"reduceOnly",order.ReduceOnly},
+		{"type", order.Type},
+		{"reduceOnly", order.ReduceOnly},
 		{"positionSide", order.PositionSide},
-		{"timestamp",float64(time.Now().UnixNano() / 1000000)},
+		{"timestamp", float64(time.Now().UnixNano() / 1000000)},
 	}}}
 	CollName := "core_orders"
 	ctx := context.Background()
 	var coll = GetCollection(CollName)
 	_, err := coll.UpdateOne(ctx, filter, update, opts)
 	if err != nil {
-		println(err.Error())
+		loggly_client.GetInstance().Info(err.Error())
 	}
 }
 
@@ -354,9 +355,8 @@ func (sm *StateMgmt) GetOrderById(orderId *primitive.ObjectID) *models.MongoOrde
 	return order
 }
 
-
 func (sm *StateMgmt) SaveStrategy(strategy *models.MongoStrategy) *models.MongoStrategy {
-	log.Println("saveStrategy")
+	loggly_client.GetInstance().Info("saveStrategy")
 	opts := options.Update().SetUpsert(true)
 	filter := bson.D{{"_id", strategy.ID}}
 	update := strategy
@@ -365,19 +365,19 @@ func (sm *StateMgmt) SaveStrategy(strategy *models.MongoStrategy) *models.MongoS
 	var coll = GetCollection(CollName)
 	_, err := coll.UpdateOne(ctx, filter, update, opts)
 	if err != nil {
-		println(err)
+		loggly_client.GetInstance().Info(err)
 	}
 	return strategy
 }
 
 func (sm *StateMgmt) CreateStrategy(strategy *models.MongoStrategy) *models.MongoStrategy {
-	log.Println("saveStrategy")
+	loggly_client.GetInstance().Info("saveStrategy")
 	CollName := "core_strategies"
 	ctx := context.Background()
 	var coll = GetCollection(CollName)
 	_, err := coll.InsertOne(ctx, strategy)
 	if err != nil {
-		println(err)
+		loggly_client.GetInstance().Info(err)
 	}
 	return strategy
 }
@@ -656,7 +656,7 @@ func (sm *StateMgmt) SavePNL(templateStrategyId *primitive.ObjectID, profitAmoun
 		return
 	}
 
-	log.Printf("Updated template strategy with id %v , pnl changed %f", templateStrategyId, profitAmount)
+	loggly_client.GetInstance().Infof("Updated template strategy with id %v , pnl changed %f", templateStrategyId, profitAmount)
 }
 
 func (sm *StateMgmt) EnableHedgeLossStrategy(strategyId *primitive.ObjectID) {
@@ -669,10 +669,10 @@ func (sm *StateMgmt) EnableHedgeLossStrategy(strategyId *primitive.ObjectID) {
 	update = bson.D{
 		{
 			"$set", bson.D{
-			{
-				"conditions.takeProfitExternal", false,
+				{
+					"conditions.takeProfitExternal", false,
+				},
 			},
-		},
 		},
 	}
 	_, err := col.UpdateOne(context.TODO(), request, update)
@@ -709,13 +709,13 @@ func (sm *StateMgmt) UpdateStateAndConditions(strategyId *primitive.ObjectID, mo
 	update = bson.D{
 		{
 			"$set", bson.D{
-			{
-				"conditions", model.Conditions,
+				{
+					"conditions", model.Conditions,
+				},
+				{
+					"state", model.State,
+				},
 			},
-			{
-				"state", model.State,
-			},
-		},
 		},
 	}
 	_, err := col.UpdateOne(context.TODO(), request, update)

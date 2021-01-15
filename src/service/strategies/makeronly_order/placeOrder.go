@@ -1,14 +1,14 @@
 package makeronly_order
 
 import (
+	loggly_client "gitlab.com/crypto_project/core/strategy_service/src/sources/loggy"
 	"gitlab.com/crypto_project/core/strategy_service/src/trading"
-	"log"
 	"strings"
 	"time"
 )
 
-func (mo *MakerOnlyOrder) PlaceOrder(anything, amount float64, step string){
-	log.Println("place order")
+func (mo *MakerOnlyOrder) PlaceOrder(anything, amount float64, step string) {
+	loggly_client.GetInstance().Info("place order")
 	model := mo.Strategy.GetModel()
 	attemptsToPlaceOrder := 0
 	mo.CancelEntryOrder()
@@ -19,7 +19,7 @@ func (mo *MakerOnlyOrder) PlaceOrder(anything, amount float64, step string){
 			return
 		}
 		positionSide := ""
-		if model.Conditions.MarketType == 1  {
+		if model.Conditions.MarketType == 1 {
 			if model.Conditions.HedgeMode {
 				if model.Conditions.EntryOrder.Side == "sell" && model.Conditions.EntryOrder.ReduceOnly == false || model.Conditions.EntryOrder.Side == "buy" && model.Conditions.EntryOrder.ReduceOnly == true {
 					positionSide = "SHORT"
@@ -32,15 +32,15 @@ func (mo *MakerOnlyOrder) PlaceOrder(anything, amount float64, step string){
 		}
 		postOnly := true
 		order := trading.Order{
-			Side: model.Conditions.EntryOrder.Side,
-			Price: price,
-			Amount: model.Conditions.EntryOrder.Amount,
-			PostOnly: &postOnly,
-			Symbol: model.Conditions.Pair,
-			MarketType: model.Conditions.MarketType,
-			ReduceOnly: &model.Conditions.EntryOrder.ReduceOnly,
+			Side:         model.Conditions.EntryOrder.Side,
+			Price:        price,
+			Amount:       model.Conditions.EntryOrder.Amount,
+			PostOnly:     &postOnly,
+			Symbol:       model.Conditions.Pair,
+			MarketType:   model.Conditions.MarketType,
+			ReduceOnly:   &model.Conditions.EntryOrder.ReduceOnly,
 			PositionSide: positionSide,
-			Type: "limit",
+			Type:         "limit",
 		}
 		if model.Conditions.MarketType == 1 {
 			order.TimeInForce = "GTX"

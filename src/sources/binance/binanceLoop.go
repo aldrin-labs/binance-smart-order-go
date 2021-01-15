@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"github.com/Cryptocurrencies-AI/go-binance"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
-	"log"
+	loggly_client "gitlab.com/crypto_project/core/strategy_service/src/sources/loggy"
 	"strconv"
 	"strings"
 	"sync"
@@ -59,9 +59,9 @@ type RawOrderbookOHLCV []struct {
 type RawSpread struct {
 	BestBidPrice float64 `json:"b,string"`
 	BestAskPrice float64 `json:"a,string"`
-	BestBidQty float64 `json:"B,string"`
-	BestAskQty float64 `json:"A,string"`
-	Symbol       string `json:"s"`
+	BestBidQty   float64 `json:"B,string"`
+	BestAskQty   float64 `json:"A,string"`
+	Symbol       string  `json:"s"`
 }
 
 func (rl *BinanceLoop) SubscribeToPairs() {
@@ -113,7 +113,7 @@ func (rl *BinanceLoop) UpdateSpread(data []byte) {
 	var spread RawSpread
 	tryparse := json.Unmarshal(data, &spread)
 	if tryparse != nil {
-		log.Print(tryparse)
+		loggly_client.GetInstance().Info(tryparse)
 	}
 
 	exchange := "binance"
@@ -130,7 +130,7 @@ func (rl *BinanceLoop) UpdateSpread(data []byte) {
 
 func (rl *BinanceLoop) GetSpread(pair, exchange string, marketType int64) *interfaces.SpreadData {
 	spreadRaw, ok := rl.SpreadMap.Load(exchange + strings.Replace(pair, "_", "", -1) + strconv.FormatInt(marketType, 10))
-	//log.Println("spreadRaw ", spreadRaw)
+	//loggly_client.GetInstance().Info("spreadRaw ", spreadRaw)
 	if ok == true {
 		spread := spreadRaw.(interfaces.SpreadData)
 		return &spread
