@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/mitchellh/mapstructure"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
@@ -77,7 +78,7 @@ func Request(method string, data interface{}) interface{} {
 	resp, err := client.Do(req)
 	if err != nil {
 		loggly_client.GetInstance().Info(err.Error())
-
+		time.Sleep(1 * time.Second)
 		return Request(method, data)
 	}
 	defer resp.Body.Close()
