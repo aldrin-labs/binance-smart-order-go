@@ -2,12 +2,11 @@ package binance
 
 import (
 	"context"
-	"fmt"
 	"github.com/Cryptocurrencies-AI/go-binance"
 	"github.com/go-kit/kit/log"
+	loggly_client "gitlab.com/crypto_project/core/strategy_service/src/sources/loggy"
 	"os"
 	"os/signal"
-
 )
 
 func GetBinanceClientInstance() (binance.Binance, context.CancelFunc) {
@@ -36,7 +35,7 @@ func ListenBinanceMarkPrice(onMessage func(data *binance.MarkPriceAllStrEvent) e
 	binance, cancelCtx := GetBinanceClientInstance()
 	kech, done, err := binance.MarkPriceAllStrWebsocket()
 
-	fmt.Println("here ", done, err)
+	loggly_client.GetInstance().Info("here ", done, err)
 
 	if err != nil {
 		panic(err)
@@ -52,13 +51,13 @@ func ListenBinanceMarkPrice(onMessage func(data *binance.MarkPriceAllStrEvent) e
 		}
 	}()
 
-	fmt.Println("waiting for interrupt")
+	loggly_client.GetInstance().Info("waiting for interrupt")
 	<-interrupt
-	fmt.Println("canceling context")
+	loggly_client.GetInstance().Info("canceling context")
 	cancelCtx()
-	fmt.Println("waiting for signal")
+	loggly_client.GetInstance().Info("waiting for signal")
 	<-done
-	fmt.Println("exit")
+	loggly_client.GetInstance().Info("exit")
 	return nil
 }
 
@@ -69,7 +68,7 @@ func ListenBinanceSpread(onMessage func(data *binance.SpreadAllEvent) error) err
 	binanceInstance, cancelCtx := GetBinanceClientInstance()
 	kech, done, err := binanceInstance.SpreadAllWebsocket()
 
-	fmt.Println("here ", done, err)
+	loggly_client.GetInstance().Info("here ", done, err)
 
 	if err != nil {
 		panic(err)
@@ -78,7 +77,7 @@ func ListenBinanceSpread(onMessage func(data *binance.SpreadAllEvent) error) err
 		for {
 			select {
 			case ke := <-kech:
-				//fmt.Printf("%#v\n", ke)
+				//loggly_client.GetInstance().Infof("%#v\n", ke)
 				_ = onMessage(ke)
 			case <-done:
 				break
@@ -86,12 +85,12 @@ func ListenBinanceSpread(onMessage func(data *binance.SpreadAllEvent) error) err
 		}
 	}()
 
-	fmt.Println("waiting for interrupt")
+	loggly_client.GetInstance().Info("waiting for interrupt")
 	<-interrupt
-	fmt.Println("canceling context")
+	loggly_client.GetInstance().Info("canceling context")
 	cancelCtx()
-	fmt.Println("waiting for signal")
+	loggly_client.GetInstance().Info("waiting for signal")
 	<-done
-	fmt.Println("exit")
+	loggly_client.GetInstance().Info("exit")
 	return nil
 }

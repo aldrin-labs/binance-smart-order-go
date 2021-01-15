@@ -3,7 +3,7 @@ package smart_order
 import (
 	"context"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
-	"log"
+	loggly_client "gitlab.com/crypto_project/core/strategy_service/src/sources/loggy"
 	"time"
 )
 
@@ -22,21 +22,21 @@ func (sm *SmartOrder) checkTrailingEntry(ctx context.Context, args ...interface{
 	edgePrice := sm.Strategy.GetModel().State.TrailingEntryPrice
 	activateTrailing := false
 	if edgePrice == 0 {
-		log.Print("edgePrice=0, set TrailingEntryPrice ", currentOHLCV.Close)
+		loggly_client.GetInstance().Info("edgePrice=0, set TrailingEntryPrice ", currentOHLCV.Close)
 		sm.Strategy.GetModel().State.TrailingEntryPrice = currentOHLCV.Close
 		activateTrailing = true
 	}
-	// log.Print(currentOHLCV.Close, edgePrice, currentOHLCV.Close/edgePrice-1)
+	// loggly_client.GetInstance().Info(currentOHLCV.Close, edgePrice, currentOHLCV.Close/edgePrice-1)
 	deviation := sm.Strategy.GetModel().Conditions.EntryOrder.EntryDeviation / sm.Strategy.GetModel().Conditions.Leverage
 	side := sm.Strategy.GetModel().Conditions.EntryOrder.Side
 	isSpotMarketEntry := sm.Strategy.GetModel().Conditions.MarketType == 0 && sm.Strategy.GetModel().Conditions.EntryOrder.OrderType == "market"
 	switch side {
 	case "buy":
-		if  !isSpotMarketEntry && (activateTrailing || currentOHLCV.Close < edgePrice) {
+		if !isSpotMarketEntry && (activateTrailing || currentOHLCV.Close < edgePrice) {
 			edgePrice = sm.Strategy.GetModel().State.TrailingEntryPrice
 			go sm.placeTrailingOrder(currentOHLCV.Close, time.Now().UnixNano(), 0, side, true, TrailingEntry)
 		}
-		if isSpotMarketEntry && ( activateTrailing || (currentOHLCV.Close/edgePrice-1)*100 >= deviation ) {
+		if isSpotMarketEntry && (activateTrailing || (currentOHLCV.Close/edgePrice-1)*100 >= deviation) {
 			return true
 		}
 		break

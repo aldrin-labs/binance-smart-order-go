@@ -1,6 +1,5 @@
 package makeronly_order
 
-
-func(po *MakerOnlyOrder) createNewMakerOnlyOrder() {
+func (po *MakerOnlyOrder) createNewMakerOnlyOrder() {
 
 }

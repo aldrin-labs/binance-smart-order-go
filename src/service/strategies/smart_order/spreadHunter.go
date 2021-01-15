@@ -3,12 +3,12 @@ package smart_order
 import (
 	"context"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
-	"log"
+	loggly_client "gitlab.com/crypto_project/core/strategy_service/src/sources/loggy"
 )
 
 func (sm *SmartOrder) checkSpreadCondition(spread interfaces.SpreadData) bool {
 	fee := 0.0012
-	if (spread.BestAsk / spread.BestBid - 1) > fee {
+	if (spread.BestAsk/spread.BestBid - 1) > fee {
 		return true
 	}
 
@@ -26,7 +26,7 @@ func (sm *SmartOrder) checkSpreadEntry(ctx context.Context, args ...interface{})
 	currentSpread := args[0].(interfaces.SpreadData)
 
 	if sm.checkSpreadCondition(currentSpread) {
-		log.Print("place waitForEntry bestBid", currentSpread.BestBid, ", close ", currentSpread.Close, ", amount ", sm.Strategy.GetModel().Conditions.EntryOrder.Amount)
+		loggly_client.GetInstance().Info("place waitForEntry bestBid", currentSpread.BestBid, ", close ", currentSpread.Close, ", amount ", sm.Strategy.GetModel().Conditions.EntryOrder.Amount)
 		sm.PlaceOrder(currentSpread.BestBid, 0.0, WaitForEntry)
 	}
 

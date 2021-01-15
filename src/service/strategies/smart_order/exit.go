@@ -3,8 +3,8 @@ package smart_order
 import (
 	"context"
 	"github.com/qmuntal/stateless"
+	loggly_client "gitlab.com/crypto_project/core/strategy_service/src/sources/loggy"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
-	"log"
 )
 
 func (sm *SmartOrder) exit(ctx context.Context, args ...interface{}) (stateless.State, error) {
@@ -15,9 +15,9 @@ func (sm *SmartOrder) exit(ctx context.Context, args ...interface{}) (stateless.
 	if model.Conditions.MarketType == 0 {
 		amount = amount * 0.99
 	}
-	log.Print("state in exit ", state.(string), " model.State.State ", model.State.State)
-	log.Print("model.State.ExecutedAmount >= amount in exit ", model.State.ExecutedAmount >= amount)
-	if model.State.State != WaitLossHedge && model.State.ExecutedAmount >= amount  { // all trades executed, nothing more to trade
+	loggly_client.GetInstance().Info("state in exit ", state.(string), " model.State.State ", model.State.State)
+	loggly_client.GetInstance().Info("model.State.ExecutedAmount >= amount in exit ", model.State.ExecutedAmount >= amount)
+	if model.State.State != WaitLossHedge && model.State.ExecutedAmount >= amount { // all trades executed, nothing more to trade
 		if model.Conditions.ContinueIfEnded {
 			isParentHedge := model.Conditions.Hedging == true
 			isTrailingHedgeOrder := model.Conditions.HedgeStrategyId != nil || isParentHedge
@@ -36,21 +36,21 @@ func (sm *SmartOrder) exit(ctx context.Context, args ...interface{}) (stateless.
 				model.Conditions.EntryOrder.ActivatePrice = model.State.ExitPrice
 			}
 			go sm.StateMgmt.UpdateConditions(model.ID, model.Conditions)
-			log.Print("cancel all orders in exit")
+			loggly_client.GetInstance().Info("cancel all orders in exit")
 			go sm.TryCancelAllOrders(sm.Strategy.GetModel().State.Orders)
 
 			newState := models.MongoStrategyState{
-				State: "",
+				State:          "",
 				ExecutedAmount: 0,
-				Amount: 0,
-				Iteration: sm.Strategy.GetModel().State.Iteration + 1,
+				Amount:         0,
+				Iteration:      sm.Strategy.GetModel().State.Iteration + 1,
 			}
 			model.State = &newState
 			sm.IsEntryOrderPlaced = false
 			sm.StateMgmt.UpdateExecutedAmount(model.ID, model.State)
 			sm.StateMgmt.UpdateState(model.ID, &newState)
 			sm.StateMgmt.SaveStrategyConditions(sm.Strategy.GetModel())
-			log.Print("go into WaitForEntry")
+			loggly_client.GetInstance().Info("go into WaitForEntry")
 			return WaitForEntry, nil
 		}
 		return End, nil
@@ -121,7 +121,7 @@ func (sm *SmartOrder) exit(ctx context.Context, args ...interface{}) (stateless.
 		}
 		break
 	}
-	log.Print("next state in end ", nextState)
+	loggly_client.GetInstance().Info("next state in end ", nextState)
 	if nextState == End && model.Conditions.ContinueIfEnded {
 		newState := models.MongoStrategyState{
 			State:              WaitForEntry,

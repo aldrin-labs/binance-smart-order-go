@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/valyala/fasthttp"
 	"github.com/buaazp/fasthttprouter"
+	"github.com/valyala/fasthttp"
 	"gitlab.com/crypto_project/core/strategy_service/src/service"
+	loggly_client "gitlab.com/crypto_project/core/strategy_service/src/sources/loggy"
 	"gitlab.com/crypto_project/core/strategy_service/src/trading"
-	"log"
 	"sync"
 )
 
@@ -23,10 +23,10 @@ func RunServer(wg *sync.WaitGroup) {
 	router.GET("/healthz", Healthz)
 	router.POST("/createOrder", CreateOrder)
 	router.POST("/cancelOrder", CancelOrder)
-	println("Listening on port :8080")
+	loggly_client.GetInstance().Info("Listening on port :8080")
 	if err := fasthttp.ListenAndServe(*addr, router.Handler); err != nil {
 		wg.Done()
-		log.Fatalf("Error in ListenAndServe: %s", err)
+		loggly_client.GetInstance().Fatal("Error in ListenAndServe: %s", err)
 	}
 }
 
@@ -40,19 +40,19 @@ func CreateOrder(ctx *fasthttp.RequestCtx) {
 	response := service.GetStrategyService().CreateOrder(createOrder)
 	jsonStr, err := json.Marshal(response)
 	if err != nil {
-		println(err.Error())
+		loggly_client.GetInstance().Info(err.Error())
 	}
- 	_, _ = fmt.Fprint(ctx, string(jsonStr))
+	_, _ = fmt.Fprint(ctx, string(jsonStr))
 }
 
 func CancelOrder(ctx *fasthttp.RequestCtx) {
-	log.Println("cancelOrder in ss")
+	loggly_client.GetInstance().Info("cancelOrder in ss")
 	var cancelOrder trading.CancelOrderRequest
 	_ = json.Unmarshal(ctx.PostBody(), &cancelOrder)
 	response := service.GetStrategyService().CancelOrder(cancelOrder)
 	jsonStr, err := json.Marshal(response)
 	if err != nil {
-		println(err.Error())
+		loggly_client.GetInstance().Info(err.Error())
 	}
 	_, _ = fmt.Fprint(ctx, string(jsonStr))
 }

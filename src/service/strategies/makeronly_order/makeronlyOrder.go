@@ -4,10 +4,10 @@ import (
 	"context"
 	"github.com/qmuntal/stateless"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
+	loggly_client "gitlab.com/crypto_project/core/strategy_service/src/sources/loggy"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
 	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"log"
 	"reflect"
 	"sync"
 	"time"
@@ -46,26 +46,24 @@ type MakerOnlyOrder struct {
 	SelectedExitTarget      int
 	TemplateOrderId         string
 	OrdersMux               sync.Mutex
-	MakerOnlyOrder			*models.MongoOrder
+	MakerOnlyOrder          *models.MongoOrder
 
 	OrderParams trading.Order
 }
-
 
 func (sm *MakerOnlyOrder) IsOrderExistsInMap(orderId string) bool {
 	return false
 }
 
-func (sm *MakerOnlyOrder) SetSelectedExitTarget(selectedExitTarget int){}
+func (sm *MakerOnlyOrder) SetSelectedExitTarget(selectedExitTarget int) {}
 
-
-func (sm *MakerOnlyOrder) Stop(){
+func (sm *MakerOnlyOrder) Stop() {
 	attempts := 0
 	ctx := context.TODO()
 	state, _ := sm.State.State(ctx)
 
 	go sm.CancelEntryOrder()
-	log.Println("stop func state ", state, " enabled ", sm.Strategy.GetModel().Enabled)
+	loggly_client.GetInstance().Info("stop func state ", state, " enabled ", sm.Strategy.GetModel().Enabled)
 	// user canceled order
 	if state != Filled && !sm.Strategy.GetModel().Enabled {
 		sm.Strategy.GetModel().State.State = Canceled
@@ -75,7 +73,7 @@ func (sm *MakerOnlyOrder) Stop(){
 			sm.MakerOnlyOrder.Status = "canceled"
 			go sm.StateMgmt.SaveOrder(*sm.MakerOnlyOrder, sm.KeyId, sm.Strategy.GetModel().Conditions.MarketType)
 		} else {
-			go func(){
+			go func() {
 				for {
 					if sm.MakerOnlyOrder != nil || attempts >= 50 {
 						sm.MakerOnlyOrder.Status = "canceled"
@@ -125,13 +123,13 @@ func (sm *MakerOnlyOrder) CancelEntryOrder() {
 		// we canceled prev order now time to place new one
 	}
 }
-func (sm *MakerOnlyOrder) TryCancelAllOrders(orderIds []string){}
-func (sm *MakerOnlyOrder) TryCancelAllOrdersConsistently(orderIds []string){}
+func (sm *MakerOnlyOrder) TryCancelAllOrders(orderIds []string)             {}
+func (sm *MakerOnlyOrder) TryCancelAllOrdersConsistently(orderIds []string) {}
 func NewMakerOnlyOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed, TradingAPI trading.ITrading, keyId *primitive.ObjectID, stateMgmt interfaces.IStateMgmt) *MakerOnlyOrder {
 	PO := &MakerOnlyOrder{Strategy: strategy, DataFeed: DataFeed, ExchangeApi: TradingAPI, KeyId: keyId, StateMgmt: stateMgmt, Lock: false, SelectedExitTarget: 0, OrdersMap: map[string]bool{}}
 	initState := PlaceOrder
 	model := strategy.GetModel()
-	go func(){
+	go func() {
 		var mongoOrder *models.MongoOrder
 		for {
 			mongoOrder = stateMgmt.GetOrder(strategy.GetModel().Conditions.MakerOrderId.Hex())
@@ -163,8 +161,8 @@ func NewMakerOnlyOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataF
 
 	PO.State = State
 	PO.ExchangeName = "binance"
-	// fmt.Printf(PO.State.ToGraph())
-	// fmt.Printf("DONE\n")
+	// loggly_client.GetInstance().Infof(PO.State.ToGraph())
+	// loggly_client.GetInstance().Infof("DONE\n")
 	if model.State.ColdStart {
 		go strategy.GetStateMgmt().CreateStrategy(model)
 	}
@@ -177,7 +175,7 @@ func (sm *MakerOnlyOrder) Start() {
 	localState := sm.Strategy.GetModel().State.State
 
 	for state != Filled && state != Canceled && (sm.MakerOnlyOrder == nil || sm.MakerOnlyOrder.Status == "open") &&
-		localState != Filled && localState != Canceled  {
+		localState != Filled && localState != Canceled {
 		if sm.Strategy.GetModel().Enabled == false {
 			break
 		}
@@ -187,17 +185,16 @@ func (sm *MakerOnlyOrder) Start() {
 		time.Sleep(3 * time.Second)
 		state, _ = sm.State.State(ctx)
 		localState = sm.Strategy.GetModel().State.State
-		log.Println("localState ", localState)
-		log.Println("sm.Strategy.GetModel().Enabled", sm.Strategy.GetModel().Enabled)
-		log.Println("lastUpdate", sm.Strategy.GetModel().LastUpdate)
+		loggly_client.GetInstance().Info("localState ", localState)
+		loggly_client.GetInstance().Info("sm.Strategy.GetModel().Enabled", sm.Strategy.GetModel().Enabled)
+		loggly_client.GetInstance().Info("lastUpdate", sm.Strategy.GetModel().LastUpdate)
 	}
 	sm.Stop()
-	println("STOPPED postonly")
+	loggly_client.GetInstance().Info("STOPPED postonly")
 }
 
-
 func (sm *MakerOnlyOrder) processEventLoop() {
-	log.Println("loop")
+	loggly_client.GetInstance().Info("loop")
 	currentSpread := sm.DataFeed.GetSpreadForPairAtExchange(sm.Strategy.GetModel().Conditions.Pair, sm.ExchangeName, sm.Strategy.GetModel().Conditions.MarketType)
 	if currentSpread != nil {
 		if sm.Strategy.GetModel().State.EntryOrderId == "" {
