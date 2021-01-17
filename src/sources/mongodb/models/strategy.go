@@ -50,9 +50,9 @@ type MongoMarketProperties struct {
 }
 
 type MongoMarket struct {
-	ID         *primitive.ObjectID `json:"_id" bson:"_id"`
-	Name       string
-	MarketType int
+	ID         *primitive.ObjectID   `json:"_id" bson:"_id"`
+	Name       string                `json:"name" bson:"name"`
+	MarketType int                   `json:"marketType" bson:"marketType"`
 	Symbol     string                `json:"symbol" bson:"symbol"`
 	BaseId     *primitive.ObjectID   `json:"baseId" bson:"baseId"`
 	QuoteId    *primitive.ObjectID   `json:"quoteId" bson:"quoteId"`

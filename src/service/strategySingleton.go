@@ -55,6 +55,7 @@ func GetStrategyService() *StrategyService {
 		statsd.Init()
 		sm := mongodb.StateMgmt{Statsd: &statsd}
 		singleton = &StrategyService{
+			pairs:      map[int8]map[string]struct{}{0: map[string]struct{}{}, 1: map[string]struct{}{}},
 			strategies: map[string]*strategies.Strategy{},
 			dataFeed:   df,
 			trading:    tr,
@@ -79,15 +80,20 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 	// Select pairs to process
 	mode := os.Getenv("MODE")
 	coll := mongodb.GetCollection("core_markets")
-	if mode == "Bitcoins" {
+	ss.log.Info("mode read", zap.String("mode", mode))
+	switch mode {
+	case "Bitcoin":
 		filter := primitive.Regex{Pattern: "^.*BTC.*$"} // contains BTC substring
 		ss.setPairs(ctx, coll, filter)
-	} else if mode == "Altcoins" {
+	case "Altcoins":
 		filter := primitive.Regex{Pattern: "^((?!BTC).)*$"} // does not contain BTC substring
 		ss.setPairs(ctx, coll, filter)
-	} else {
-		ss.log.Fatal("Can't start in provided mode."+
-			"Please set 'MODE' environment variable to 'Bitcoin' or 'Altcoins'",
+	case "All":
+		filter := primitive.Regex{Pattern: ".*"} // match all
+		ss.setPairs(ctx, coll, filter)
+	default:
+		ss.log.Fatal("Can't start in provided mode. "+
+			"Please set 'MODE' environment variable to 'Bitcoin', 'Altcoins' or 'All'",
 			zap.String("mode", mode),
 		)
 	}
@@ -787,7 +793,8 @@ func (ss *StrategyService) runReporting() {
 // setPairs reads pairs from mongodb collection with the filter given and writes them to instance pairs field.
 func (ss *StrategyService) setPairs(ctx context.Context, collection *mongo.Collection, filter primitive.Regex) {
 	filterDocument := bson.M{
-		"name": filter,
+		"name":       filter,
+		"marketType": bson.M{"$ne": nil},
 	}
 	cur, err := collection.Find(ctx, filterDocument) // read all BTC markets
 	if err != nil {
@@ -811,7 +818,7 @@ func (ss *StrategyService) setPairs(ctx context.Context, collection *mongo.Colle
 	ss.log.Info("pairs to process set",
 		zap.Int("spot pairs", len(ss.pairs[0])),
 		zap.Int("futures pairs", len(ss.pairs[1])),
-		zap.String("pairs", fmt.Sprint("%v", ss.pairs)),
+		zap.String("pairs", fmt.Sprintf("%v", ss.pairs)),
 	)
 }
 
