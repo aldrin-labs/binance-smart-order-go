@@ -83,16 +83,16 @@ func Request(method string, data interface{}) interface{} {
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{}
+	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		retryDelay := time.Duration(200)
+		retryDelay := time.Duration(1 * time.Second)
 		log.Error("request not successful",
 			zap.String("url", url),
-			// zap.Error(err),
-			zap.String("retry in ms", retryDelay.String()),
+			zap.Error(err),
+			zap.Duration("retry in, seconds", retryDelay),
 		)
-		time.Sleep(retryDelay * time.Millisecond)
+		time.Sleep(retryDelay)
 		return Request(method, data)
 	}
 	defer resp.Body.Close()

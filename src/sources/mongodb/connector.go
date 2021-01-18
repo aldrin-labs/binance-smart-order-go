@@ -70,6 +70,7 @@ type StateMgmt struct {
 
 // InitOrdersWatch subscribes to orders updates and invokes StateMgnt callback on `filled` and `canceled` orders update event received.
 func (sm *StateMgmt) InitOrdersWatch() {
+	log.Info("watching for new orders in the storage")
 	sm.OrderCallbacks = &sync.Map{}
 	CollName := "core_orders"
 	ctx := context.Background()
@@ -115,7 +116,7 @@ func (sm *StateMgmt) InitOrdersWatch() {
 			}
 		}(eventDecoded)
 	}
-	log.Info("InitOrdersWatch End")
+	log.Warn("watching for new orders stopped")
 }
 
 func (sm *StateMgmt) EnableStrategy(strategyId *primitive.ObjectID) {

@@ -107,17 +107,17 @@ func GetRedisClientInstance(pubsub bool, master bool, newClient bool) redis.Conn
 func GetRedsync() *redsync.Redsync {
 	if redisDLMPool == nil {
 		log.Info("connecting to redis DLM pool")
-		redisDLMPool := &redis.Pool{
+		redisDLMPool = &redis.Pool{
 			MaxActive:   300000,
 			MaxIdle:     300000,
 			IdleTimeout: 20 * time.Second,
 			Dial: func() (redis.Conn, error) {
-				c, err := redis.Dial("tcp", os.Getenv("REDIS_DLM_HOST")+":"+os.Getenv("REDIS_DLM_PORT"))
+				c, err := redis.Dial("tcp", os.Getenv("REDIS_HOST")+":"+os.Getenv("REDIS_PORT"))
 				if err != nil {
 					log.Error("redis DLM dial 1/3 error", zap.Error(err))
 					return nil, err
 				}
-				if _, err := c.Do("AUTH", os.Getenv("REDIS_DLM_PASSWORD")); err != nil {
+				if _, err := c.Do("AUTH", os.Getenv("REDIS_PASSWORD")); err != nil {
 					log.Error("redis DLM dial 2/3 error", zap.Error(err))
 					c.Close()
 					return nil, err

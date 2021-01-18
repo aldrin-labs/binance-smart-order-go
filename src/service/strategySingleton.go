@@ -3,12 +3,15 @@ package service
 import (
 	"context"
 	"fmt"
+	"github.com/go-redsync/redsync/v4"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies/makeronly_order"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies/smart_order"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
+	"gitlab.com/crypto_project/core/strategy_service/src/sources/redis"
+
 	// "gitlab.com/crypto_project/core/strategy_service/src/sources/redis"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/binance"
 	statsd_client "gitlab.com/crypto_project/core/strategy_service/src/statsd"
@@ -80,7 +83,7 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 	// Select pairs to process
 	mode := os.Getenv("MODE")
 	coll := mongodb.GetCollection("core_markets")
-	ss.log.Info("mode read", zap.String("mode", mode))
+	ss.log.Info("reading pairs for mode given", zap.String("mode", mode))
 	switch mode {
 	case "Bitcoin":
 		filter := primitive.Regex{Pattern: "^.*BTC.*$"} // contains BTC substring
@@ -97,9 +100,6 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 			zap.String("mode", mode),
 		)
 	}
-
-	// Add strategies exists to runtime
-	coll = mongodb.GetCollection("core_strategies")
 	// testStrat, _ := primitive.ObjectIDFromHex("5deecc36ba8a424bfd363aaf")
 	// , {"_id", testStrat}
 	additionalCondition := bson.E{}
@@ -108,6 +108,9 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 		additionalCondition.Key = "accountId"
 		additionalCondition.Value, _ = primitive.ObjectIDFromHex(accountId)
 	}
+	// Add strategies exists to runtime
+	ss.log.Info("reading storage for strategies to add on init")
+	coll = mongodb.GetCollection("core_strategies")
 	cur, err := coll.Find(ctx, bson.D{{"enabled", true}, additionalCondition})
 	if err != nil {
 		ss.log.Error("can't read strategies",
@@ -154,6 +157,7 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 	}
 	ss.statsd.Gauge("strategy_service.strategies_added_on_init", strategiesAdded)
 	ss.statsd.Gauge("strategy_service.active_strategies", int64(len(ss.strategies)))
+	ss.log.Info("strategies settled on init", zap.Int64("count", strategiesAdded))
 
 	go ss.InitPositionsWatch()                      // subscribe to position updates
 	go ss.stateMgmt.InitOrdersWatch()               // subscribe to order updates
@@ -166,7 +170,9 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 		ss.log.Fatal("log.Fatal at the end of init func")
 	}
 	ss.statsd.Inc("strategy_service.instantiated")
-	ss.statsd.TimingDuration("strategy_service.init", time.Since(t1))
+	dt := time.Since(t1)
+	ss.statsd.TimingDuration("strategy_service.init", dt)
+	ss.log.Info("init complete, ready to settle strategies", zap.Duration("elapsed while init", dt))
 }
 
 // GetStrategy creates strategy instance with given arguments.
@@ -176,8 +182,16 @@ func GetStrategy(strategy *models.MongoStrategy, df interfaces.IDataFeed, tr tra
 	logger, _ := zap.NewProduction() // TODO(khassanov): handle the error
 	loggerName := fmt.Sprintf("sm-%v", strategy.ID.Hex())
 	logger = logger.With(zap.String("logger", loggerName))
+	rs := redis.GetRedsync()
+	mutexName := fmt.Sprintf("strategy:%v:%v", strategy.Conditions.Pair, strategy.ID.Hex())
+	mutex := rs.NewMutex(mutexName,
+		redsync.WithTries(2),
+		redsync.WithRetryDelay(200*time.Millisecond),
+		redsync.WithExpiry(5*time.Second), // TODO(khassanov): use parameter to conform with extend call period
+	) // upsert
 	return &strategies.Strategy{
 		Model:     strategy,
+		SettlementMutex: mutex,
 		Datafeed:  df,
 		Trading:   tr,
 		StateMgmt: st,
@@ -194,8 +208,8 @@ func (ss *StrategyService) AddStrategy(strategy *models.MongoStrategy) {
 		if ok, err := sig.Settle(); !ok || err != nil {
 			return // TODO(khassanov): distinguish a state locked in dlm and network errors
 		}
-		ss.log.Info("start",
-			zap.String("objid", sig.Model.ID.String()),
+		ss.log.Info("adding strategy",
+			zap.String("ObjectID", sig.Model.ID.Hex()),
 		)
 		ss.strategies[sig.Model.ID.String()] = sig
 		go sig.Start()
@@ -453,20 +467,17 @@ func (ss *StrategyService) CancelOrder(request trading.CancelOrderRequest) tradi
 	}
 }
 
-const CollName = "core_strategies"
-
 // WatchStrategies subscribes to strategies to add new strategies to runtime or update local data together with
 // persistent storage updates.
 // TODO(khassanov) can we remove `isLocalBuild` parameter in favor of environment variable?
 func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) error {
-	//func (ss *StrategyService) WatchStrategies() error {
+	ss.log.Info("watching for new strategies in the storage")
 	ctx := context.Background()
-	var coll = mongodb.GetCollection(CollName)
-
+	var coll = mongodb.GetCollection("core_strategies")
 	cs, err := coll.Watch(ctx, mongo.Pipeline{}, options.ChangeStream().SetFullDocument(options.UpdateLookup))
 	//cs, err := coll.Watch(ctx, mongo.Pipeline{}, options.ChangeStream().SetFullDocument(options.UpdateLookup))
 	if err != nil {
-		ss.log.Error("can't watch for strategies")
+		ss.log.Error("can't watch for strategies", zap.Error(err))
 		return err
 	}
 	//require.NoError(cs, err)
@@ -511,8 +522,9 @@ func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) 
 
 		if isLocalBuild && (event.FullDocument.AccountId == nil || event.FullDocument.AccountId.Hex() != accountId) {
 			ss.log.Warn("continue watchStrategies in accountId incomparable",
-				zap.String("event account id", event.FullDocument.AccountId.Hex()),
-				zap.String("account id in .env", accountId),
+				zap.String("ObjectID", event.FullDocument.ID.Hex()),
+				zap.String("event AccountID", event.FullDocument.AccountId.Hex()),
+				zap.String("AccountID in .env", accountId),
 			)
 			continue
 		}
@@ -538,16 +550,15 @@ func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) 
 			}
 		}
 	}
-	ss.log.Info("Finish WatchStrategies")
+	ss.log.Warn("watching for new strategies stopped")
 	return nil
 }
 
 // InitPositionsWatch subscribes to smart trade updates for each position update received to disable smart trade if position closed externally.
 func (ss *StrategyService) InitPositionsWatch() {
-	CollPositionsName := "core_positions"
-	CollStrategiesName := "core_strategies"
+	ss.log.Info("watching for new positions in the storage")
 	ctx := context.Background()
-	var collPositions = mongodb.GetCollection(CollPositionsName)
+	var collPositions = mongodb.GetCollection("core_positions")
 	pipeline := mongo.Pipeline{}
 
 	cs, err := collPositions.Watch(ctx, pipeline, options.ChangeStream().SetFullDocument(options.UpdateLookup))
@@ -570,7 +581,7 @@ func (ss *StrategyService) InitPositionsWatch() {
 		}
 
 		go func(event models.MongoPositionUpdateEvent) {
-			var collStrategies = mongodb.GetCollection(CollStrategiesName)
+			var collStrategies = mongodb.GetCollection("core_strategies")
 			cur, err := collStrategies.Find(ctx, bson.D{
 				{"conditions.marketType", 1},
 				{"enabled", true},
@@ -609,7 +620,7 @@ func (ss *StrategyService) InitPositionsWatch() {
 			}
 		}(positionEventDecoded)
 	}
-	ss.log.Info("InitPositionsWatchEnd")
+	ss.log.Warn("watching for new positions stopped")
 }
 
 func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
@@ -774,7 +785,7 @@ func (ss *StrategyService) runReporting() {
 	for {
 		select {
 		case <-ticker.C:
-			var numStrategiesByPair map[string]int64
+			numStrategiesByPair := make(map[string]int64)
 			for _, strategy := range ss.strategies {
 				if _, ok := numStrategiesByPair[strategy.Model.Conditions.Pair]; ok {
 					numStrategiesByPair[strategy.Model.Conditions.Pair]++

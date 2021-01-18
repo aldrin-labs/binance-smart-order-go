@@ -28,7 +28,6 @@ func InitBinance() interfaces.IDataFeed {
 		binanceLoop = &BinanceLoop{}
 		binanceLoop.SubscribeToPairs()
 	}
-
 	return binanceLoop
 }
 
