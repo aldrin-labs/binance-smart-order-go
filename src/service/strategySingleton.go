@@ -187,7 +187,7 @@ func GetStrategy(strategy *models.MongoStrategy, df interfaces.IDataFeed, tr tra
 	mutex := rs.NewMutex(mutexName,
 		redsync.WithTries(2),
 		redsync.WithRetryDelay(200*time.Millisecond),
-		redsync.WithExpiry(5*time.Second), // TODO(khassanov): use parameter to conform with extend call period
+		redsync.WithExpiry(10*time.Second), // TODO(khassanov): use parameter to conform with extend call period
 	) // upsert
 	return &strategies.Strategy{
 		Model:     strategy,

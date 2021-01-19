@@ -22,7 +22,7 @@ func GetStrategy(cur *mongo.Cursor, df interfaces.IDataFeed, tr trading.ITrading
 	mutex := rs.NewMutex(mutexName,
 		redsync.WithTries(2),
 		redsync.WithRetryDelay(200*time.Millisecond),
-		redsync.WithExpiry(5*time.Second), // TODO(khassanov): use parameter to conform with extend call period
+		redsync.WithExpiry(10*time.Second), // TODO(khassanov): use parameter to conform with extend call period
 	) // upsert
 	logger, _ := zap.NewProduction() // TODO(khassanov): handle the error here and above
 	loggerName := fmt.Sprintf("sm-%v", model.ID.Hex())
@@ -143,7 +143,7 @@ func (strategy *Strategy) Settle() (bool, error) {
 		}
 		return false, err // unexpected error
 	}
-	strategy.Log.Debug("mutex locked")
+	strategy.Log.Info("mutex locked")
 	return true, nil
 }
 
