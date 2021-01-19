@@ -85,14 +85,20 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 	coll := mongodb.GetCollection("core_markets")
 	ss.log.Info("reading pairs for mode given", zap.String("mode", mode))
 	switch mode {
+	case "":
+		ss.log.Warn("Mode not set, starting with 'All' mode. "+
+			"Please set 'MODE' environment variable to 'Bitcoin', 'Altcoins' or 'All'",
+			zap.String("mode", mode),
+		)
+		fallthrough
+	case "All":
+		filter := primitive.Regex{Pattern: ".*"} // match all
+		ss.setPairs(ctx, coll, filter)
 	case "Bitcoin":
 		filter := primitive.Regex{Pattern: "^.*BTC.*$"} // contains BTC substring
 		ss.setPairs(ctx, coll, filter)
 	case "Altcoins":
 		filter := primitive.Regex{Pattern: "^((?!BTC).)*$"} // does not contain BTC substring
-		ss.setPairs(ctx, coll, filter)
-	case "All":
-		filter := primitive.Regex{Pattern: ".*"} // match all
 		ss.setPairs(ctx, coll, filter)
 	default:
 		ss.log.Fatal("Can't start in provided mode. "+
