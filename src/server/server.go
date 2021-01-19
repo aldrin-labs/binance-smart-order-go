@@ -8,8 +8,8 @@ import (
 	"github.com/valyala/fasthttp"
 	"gitlab.com/crypto_project/core/strategy_service/src/service"
 	"gitlab.com/crypto_project/core/strategy_service/src/trading"
-	"sync"
 	"go.uber.org/zap"
+	"sync"
 )
 
 var log *zap.Logger

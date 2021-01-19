@@ -3,9 +3,9 @@ package redis
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"go.uber.org/zap"
-	"fmt"
 	"strconv"
 	"strings"
 	"sync"

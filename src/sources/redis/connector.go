@@ -2,14 +2,20 @@ package redis
 
 import (
 	"context"
+	"github.com/go-redsync/redsync/v4"
+	redsyncredis "github.com/go-redsync/redsync/v4/redis"
+	redsyncredigo "github.com/go-redsync/redsync/v4/redis/redigo"
 	"github.com/gomodule/redigo/redis"
+	"go.uber.org/zap"
 	"os"
 	"time"
-	"go.uber.org/zap"
 )
 
 var redisPool *redis.Pool
 var pubsubredisPool *redis.Pool
+var redisDLMPool *redis.Pool
+var redsyncDLMPool redsyncredis.Pool
+var redsyncToDLM *redsync.Redsync
 var log *zap.Logger
 
 func init() {
@@ -96,6 +102,45 @@ func GetRedisClientInstance(pubsub bool, master bool, newClient bool) redis.Conn
 		return GetRedisClientInstance(pubsub, master, newClient)
 	}
 	return con
+}
+
+func GetRedsync() *redsync.Redsync {
+	if redisDLMPool == nil {
+		log.Info("connecting to redis DLM pool")
+		redisDLMPool = &redis.Pool{
+			MaxActive:   300000,
+			MaxIdle:     300000,
+			IdleTimeout: 20 * time.Second,
+			Dial: func() (redis.Conn, error) {
+				c, err := redis.Dial("tcp", os.Getenv("REDIS_HOST")+":"+os.Getenv("REDIS_PORT"))
+				if err != nil {
+					log.Error("redis DLM dial 1/3 error", zap.Error(err))
+					return nil, err
+				}
+				if _, err := c.Do("AUTH", os.Getenv("REDIS_PASSWORD")); err != nil {
+					log.Error("redis DLM dial 2/3 error", zap.Error(err))
+					c.Close()
+					return nil, err
+				}
+				if _, err := c.Do("SELECT", 0); err != nil {
+					log.Error("redis DLM dial 3/3 error", zap.Error(err))
+					c.Close()
+					return nil, err
+				}
+				return c, nil
+			},
+		}
+		redsyncDLMPool = redsyncredigo.NewPool(redisDLMPool)
+		redsyncToDLM = redsync.New(redsyncDLMPool)
+	}
+	con := redisDLMPool.Get()
+	_, err := con.Do("PING")
+	if err != nil {
+		log.Error("can't connect to redis DLM pool, retry", zap.Error(err))
+		time.Sleep(500 * time.Millisecond)
+		return GetRedsync()
+	}
+	return redsyncToDLM
 }
 
 func ListenPubSubChannels(ctx context.Context,

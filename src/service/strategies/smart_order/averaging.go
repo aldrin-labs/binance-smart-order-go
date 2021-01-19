@@ -2,10 +2,10 @@ package smart_order
 
 import (
 	"context"
+	"fmt"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
 	"go.uber.org/zap"
 	"time"
-	"fmt"
 )
 
 func (sm *SmartOrder) placeMultiEntryOrders(stopLoss bool) {
