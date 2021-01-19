@@ -1,6 +1,7 @@
 package models
 
 import (
+	"fmt"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"time"
 )
@@ -50,10 +51,24 @@ type MongoMarketProperties struct {
 
 type MongoMarket struct {
 	ID         *primitive.ObjectID   `json:"_id" bson:"_id"`
+	Name       string                `json:"name" bson:"name"`
+	MarketType int                   `json:"marketType" bson:"marketType"`
 	Symbol     string                `json:"symbol" bson:"symbol"`
 	BaseId     *primitive.ObjectID   `json:"baseId" bson:"baseId"`
 	QuoteId    *primitive.ObjectID   `json:"quoteId" bson:"quoteId"`
 	Properties MongoMarketProperties `json:"properties" bson:"properties"`
+}
+
+// MarketTypeString returns market type string like "spot" or "futures".
+func (mm MongoMarket) MarketTypeString() (string, error) {
+	switch mm.MarketType {
+	case 0:
+		return "spot", nil
+	case 1:
+		return "futures", nil
+	default:
+		return "", fmt.Errorf("unknown market type %v", mm.MarketType)
+	}
 }
 
 type MongoOrder struct {
@@ -88,7 +103,7 @@ type MongoPosition struct {
 
 // A MongoStrategy is the root of a smart trade strategy description.
 type MongoStrategy struct {
-	ID              *primitive.ObjectID     `json:"_id" bson:"_id"` // strategy unique identity
+	ID              *primitive.ObjectID     `json:"_id" bson:"_id"`             // strategy unique identity
 	Type            int64                   `json:"type,omitempty" bson:"type"` // 1 - smart order, 2 - maker only
 	Enabled         bool                    `json:"enabled,omitempty" bson:"enabled"`
 	AccountId       *primitive.ObjectID     `json:"accountId,omitempty" bson:"accountId"`

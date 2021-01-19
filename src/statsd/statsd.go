@@ -5,8 +5,8 @@ import (
 	"github.com/cactus/go-statsd-client/statsd"
 	"go.uber.org/zap"
 	"os"
-	"time"
 	"sync"
+	"time"
 )
 
 type StatsdClient struct {
