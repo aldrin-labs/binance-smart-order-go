@@ -161,7 +161,7 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 
 	go ss.InitPositionsWatch()                      // subscribe to position updates
 	go ss.stateMgmt.InitOrdersWatch()               // subscribe to order updates
-	_ = ss.WatchStrategies(isLocalBuild, accountId) // subscribe to new smart trades to add them into runtime
+	go ss.WatchStrategies(isLocalBuild, accountId) // subscribe to new smart trades to add them into runtime
 	go ss.runReporting()
 	go ss.runIsFullTracking()
 
@@ -781,6 +781,7 @@ func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
 
 // runReporting each minute sends how much strategies settled service has for the moment.
 func (ss *StrategyService) runReporting() {
+	ss.log.Info("starting statistics reporting")
 	ticker := time.NewTicker(1 * time.Minute)
 	for {
 		select {
@@ -843,6 +844,7 @@ func (ss *StrategyService) SaveCycleTime(t time.Duration) {
 // trackIsFull monitors resources continuously and sets or resets 'full' flag when instance is close to memory limit
 // or CPU usage limit.
 func (ss *StrategyService) runIsFullTracking() {
+	ss.log.Info("starting resources tracking")
 	var sysinfo syscall.Sysinfo_t
 	var ctBuffCopy []time.Duration
 	var ctMax time.Duration
@@ -885,6 +887,10 @@ func (ss *StrategyService) runIsFullTracking() {
 		if isFullPrev != ss.full {
 			ss.log.Info("switching settlement state", zap.Bool("skip incoming strategies", ss.full))
 		}
+		ss.log.Debug("resources check",
+			zap.Uint64("free RAM, bytes", sysinfo.Freeram),
+			zap.Duration("max cycle time", ctMax),
+		)
 		time.Sleep(1 * time.Second)
 	}
 }
