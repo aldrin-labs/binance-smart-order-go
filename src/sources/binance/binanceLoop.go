@@ -52,13 +52,27 @@ type RawOrderbookOHLCV []struct {
 	//High       float64 `json:"high_price,float"`
 	//Low        float64 `json:"low_price,float"`
 	//MarketType int64   `json:"market_type,float"`
-	//Close      float64 `json:"close_price,float"`
+	Close        string `json:"c"` // Close price
 	//Volume     float64 `json:"volume,float"`
 	//Base       string  `json:"tsym"`
 	//Quote      string  `json:"fsym"`
 	//Exchange   string  `json:"exchange"`
 	Symbol string `json:"s"`
-	Close  string `json:"p"`
+	Mark   string `json:"p"` // Mark pirce
+}
+
+type MiniTicker struct {
+	// EventType string `json:"e,string"` // "24hrMiniTicker"
+	// EventTime time.Time `json:"E,number"` // 123456789
+	// Symbol string `json:"s,string"` // "BNBBTC"
+	// Close float64 `json:"c,string"` // "0.0025"
+	Symbol string `json:"s"` // "BNBBTC"
+	Close string `json:"c"` // "0.0025"
+	// Open float64 `json:"o,string"` // "0.0010"
+	// High float64 `json:"h,string"` // "0.0025"
+	// Low float64 `json:"l,string"` // "0.0010"
+	// Volume float64 `json:"v,string"` // "10000"
+	// Quote float64 `json:"q,string"` // "18"
 }
 
 type RawSpread struct {
@@ -70,7 +84,7 @@ type RawSpread struct {
 }
 
 func (rl *BinanceLoop) SubscribeToPairs() {
-	go ListenBinanceMarkPrice(func(data *binance.MarkPriceAllStrEvent) error {
+	go ListenBinanceMarkPrice(func(data *binance.RawEvent) error {
 		go rl.UpdateOHLCV(data.Data)
 		return nil
 	})
@@ -81,12 +95,18 @@ func (rl *BinanceLoop) UpdateOHLCV(data []byte) {
 	var ohlcvOB RawOrderbookOHLCV
 	_ = json.Unmarshal(data, &ohlcvOB)
 
-	exchange := "binance"
-	marketType := 1
-
+	var priceStr *string
+	var marketType int64
 	for _, ohlcv := range ohlcvOB {
 		pair := ohlcv.Symbol
-		price, _ := strconv.ParseFloat(ohlcv.Close, 10)
+		if ohlcv.Mark == "" { // Spot
+			marketType = 0
+			priceStr = &ohlcv.Close
+		} else { // Futures
+			marketType = 1
+			priceStr = &ohlcv.Mark
+		}
+		price, _ := strconv.ParseFloat(*priceStr, 10)
 		ohlcvToSave := interfaces.OHLCV{
 			Open:   price,
 			High:   price,
@@ -94,7 +114,7 @@ func (rl *BinanceLoop) UpdateOHLCV(data []byte) {
 			Close:  price,
 			Volume: price,
 		}
-		rl.OhlcvMap.Store(exchange+pair+strconv.FormatInt(int64(marketType), 10), ohlcvToSave)
+		rl.OhlcvMap.Store("binance"+pair+strconv.FormatInt(int64(marketType), 10), ohlcvToSave)
 	}
 }
 
