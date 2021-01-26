@@ -2,13 +2,16 @@ package service
 
 import (
 	"context"
+	"fmt"
+	"github.com/go-redsync/redsync/v4"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies/makeronly_order"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies/smart_order"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
-	"fmt"
+	"gitlab.com/crypto_project/core/strategy_service/src/sources/redis"
+
 	// "gitlab.com/crypto_project/core/strategy_service/src/sources/redis"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/binance"
 	statsd_client "gitlab.com/crypto_project/core/strategy_service/src/statsd"
@@ -20,17 +23,24 @@ import (
 	"go.uber.org/zap"
 	"os"
 	"sync"
+	"syscall"
 	"time"
 )
 
 // A StrategyService singleton, the root for smart trades runtimes.
 type StrategyService struct {
+	pairs      map[int8]map[string]struct{} // spot and futures pairs
 	strategies map[string]*strategies.Strategy
 	trading    trading.ITrading
 	dataFeed   interfaces.IDataFeed
 	stateMgmt  interfaces.IStateMgmt
 	statsd     statsd_client.StatsdClient
 	log        *zap.Logger
+	full       bool            // indicates whether an instance full or can take more strategies
+	ramFull    bool            // indicates close to RAM limit
+	cpuFull    bool            // indicates out of CPU usage limit
+	ctBuff     []time.Duration // buffer for cycle time reports provided by strategy
+	ctBuffMut  sync.Mutex
 }
 
 var singleton *StrategyService
@@ -48,12 +58,13 @@ func GetStrategyService() *StrategyService {
 		statsd.Init()
 		sm := mongodb.StateMgmt{Statsd: &statsd}
 		singleton = &StrategyService{
+			pairs:      map[int8]map[string]struct{}{0: map[string]struct{}{}, 1: map[string]struct{}{}},
 			strategies: map[string]*strategies.Strategy{},
 			dataFeed:   df,
 			trading:    tr,
 			stateMgmt:  &sm,
 			statsd:     statsd,
-			log: 		logger,
+			log:        logger,
 		}
 		logger.Info("strategy service instantiated")
 		statsd.Inc("strategy_service.instantiated")
@@ -68,22 +79,48 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 		zap.Bool("isLocalBuild", isLocalBuild),
 	)
 	ctx := context.Background()
-	var coll = mongodb.GetCollection("core_strategies")
+
+	// Select pairs to process
+	mode := os.Getenv("MODE")
+	coll := mongodb.GetCollection("core_markets")
+	ss.log.Info("reading pairs for mode given", zap.String("mode", mode))
+	switch mode {
+	case "":
+		ss.log.Warn("Mode not set, starting with 'All' mode. "+
+			"Please set 'MODE' environment variable to 'Bitcoin', 'Altcoins' or 'All'",
+			zap.String("mode", mode),
+		)
+		fallthrough
+	case "All":
+		filter := primitive.Regex{Pattern: ".*"} // match all
+		ss.setPairs(ctx, coll, filter)
+	case "Bitcoin":
+		filter := primitive.Regex{Pattern: "^.*BTC.*$"} // contains BTC substring
+		ss.setPairs(ctx, coll, filter)
+	case "Altcoins":
+		filter := primitive.Regex{Pattern: "^((?!BTC).)*$"} // does not contain BTC substring
+		ss.setPairs(ctx, coll, filter)
+	default:
+		ss.log.Fatal("Can't start in provided mode. "+
+			"Please set 'MODE' environment variable to 'Bitcoin', 'Altcoins' or 'All'",
+			zap.String("mode", mode),
+		)
+	}
 	// testStrat, _ := primitive.ObjectIDFromHex("5deecc36ba8a424bfd363aaf")
 	// , {"_id", testStrat}
 	additionalCondition := bson.E{}
 	accountId := os.Getenv("ACCOUNT_ID")
-
 	if isLocalBuild {
 		additionalCondition.Key = "accountId"
 		additionalCondition.Value, _ = primitive.ObjectIDFromHex(accountId)
 	}
-
-	//cur, err := coll.Find(ctx, bson.D{{"enabled",true}})
+	// Add strategies exists to runtime
+	ss.log.Info("reading storage for strategies to add on init")
+	coll = mongodb.GetCollection("core_strategies")
 	cur, err := coll.Find(ctx, bson.D{{"enabled", true}, additionalCondition})
 	if err != nil {
 		ss.log.Error("can't read strategies",
-			zap.String("err", err.Error()),
+			zap.Error(err),
 		)
 		wg.Done() // TODO(khassanov): should we really fail here?
 		//log.Fatal(err)
@@ -93,11 +130,8 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 		wg.Done()
 	}
 	defer cur.Close(ctx)
-
-	// Add strategies exists to runtime
 	var strategiesAdded int64 = 0
 	for cur.Next(ctx) {
-
 		// create a value into which the single document can be decoded
 		strategy, err := strategies.GetStrategy(cur, ss.dataFeed, ss.trading, ss.stateMgmt, ss, &ss.statsd)
 		if err != nil {
@@ -113,6 +147,13 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 		if strategy.Model.AccountId != nil && strategy.Model.AccountId.Hex() == "5e4ce62b1318ef1b1e85b6f4" {
 			continue
 		}
+		if _, ok := ss.pairs[int8(strategy.Model.Conditions.MarketType)][strategy.Model.Conditions.Pair]; !ok {
+			continue // skip a foreign pair
+		}
+		if ok, err := strategy.Settle(); !ok || err != nil {
+			continue // TODO(khassanov): distinguish a state locked in dlm and network errors
+		}
+		// try to lock
 		ss.log.Info("adding existing strategy",
 			zap.String("ObjectID", strategy.Model.ID.String()),
 		)
@@ -122,17 +163,22 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 	}
 	ss.statsd.Gauge("strategy_service.strategies_added_on_init", strategiesAdded)
 	ss.statsd.Gauge("strategy_service.active_strategies", int64(len(ss.strategies)))
+	ss.log.Info("strategies settled on init", zap.Int64("count", strategiesAdded))
 
 	go ss.InitPositionsWatch()                      // subscribe to position updates
 	go ss.stateMgmt.InitOrdersWatch()               // subscribe to order updates
-	_ = ss.WatchStrategies(isLocalBuild, accountId) // subscribe to new smart trades to add them into runtime
+	go ss.WatchStrategies(isLocalBuild, accountId) // subscribe to new smart trades to add them into runtime
+	go ss.runReporting()
+	go ss.runIsFullTracking()
 
 	if err := cur.Err(); err != nil { // TODO(khassanov): can we retry here?
 		wg.Done()
 		ss.log.Fatal("log.Fatal at the end of init func")
 	}
 	ss.statsd.Inc("strategy_service.instantiated")
-	ss.statsd.TimingDuration("strategy_service.init", time.Since(t1))
+	dt := time.Since(t1)
+	ss.statsd.TimingDuration("strategy_service.init", dt)
+	ss.log.Info("init complete, ready to settle strategies", zap.Duration("elapsed while init", dt))
 }
 
 // GetStrategy creates strategy instance with given arguments.
@@ -142,14 +188,22 @@ func GetStrategy(strategy *models.MongoStrategy, df interfaces.IDataFeed, tr tra
 	logger, _ := zap.NewProduction() // TODO(khassanov): handle the error
 	loggerName := fmt.Sprintf("sm-%v", strategy.ID.Hex())
 	logger = logger.With(zap.String("logger", loggerName))
+	rs := redis.GetRedsync()
+	mutexName := fmt.Sprintf("strategy:%v:%v", strategy.Conditions.Pair, strategy.ID.Hex())
+	mutex := rs.NewMutex(mutexName,
+		redsync.WithTries(2),
+		redsync.WithRetryDelay(200*time.Millisecond),
+		redsync.WithExpiry(10*time.Second), // TODO(khassanov): use parameter to conform with extend call period
+	) // upsert
 	return &strategies.Strategy{
-		Model: strategy,
-		Datafeed: df,
-		Trading: tr,
+		Model:     strategy,
+		SettlementMutex: mutex,
+		Datafeed:  df,
+		Trading:   tr,
 		StateMgmt: st,
 		Singleton: ss,
-		Statsd: statsd,
-		Log: logger,
+		Statsd:    statsd,
+		Log:       logger,
 	}
 }
 
@@ -157,8 +211,11 @@ func GetStrategy(strategy *models.MongoStrategy, df interfaces.IDataFeed, tr tra
 func (ss *StrategyService) AddStrategy(strategy *models.MongoStrategy) {
 	if ss.strategies[strategy.ID.String()] == nil {
 		sig := GetStrategy(strategy, ss.dataFeed, ss.trading, ss.stateMgmt, &ss.statsd, ss)
-		ss.log.Info("start",
-			zap.String("objid", sig.Model.ID.String()),
+		if ok, err := sig.Settle(); !ok || err != nil {
+			return // TODO(khassanov): distinguish a state locked in dlm and network errors
+		}
+		ss.log.Info("adding strategy",
+			zap.String("ObjectID", sig.Model.ID.Hex()),
 		)
 		ss.strategies[sig.Model.ID.String()] = sig
 		go sig.Start()
@@ -416,19 +473,17 @@ func (ss *StrategyService) CancelOrder(request trading.CancelOrderRequest) tradi
 	}
 }
 
-const CollName = "core_strategies"
-
 // WatchStrategies subscribes to strategies to add new strategies to runtime or update local data together with
 // persistent storage updates.
+// TODO(khassanov) can we remove `isLocalBuild` parameter in favor of environment variable?
 func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) error {
-	//func (ss *StrategyService) WatchStrategies() error {
+	ss.log.Info("watching for new strategies in the storage")
 	ctx := context.Background()
-	var coll = mongodb.GetCollection(CollName)
-
+	var coll = mongodb.GetCollection("core_strategies")
 	cs, err := coll.Watch(ctx, mongo.Pipeline{}, options.ChangeStream().SetFullDocument(options.UpdateLookup))
 	//cs, err := coll.Watch(ctx, mongo.Pipeline{}, options.ChangeStream().SetFullDocument(options.UpdateLookup))
 	if err != nil {
-		ss.log.Error("can't watch for strategies")
+		ss.log.Error("can't watch for strategies", zap.Error(err))
 		return err
 	}
 	//require.NoError(cs, err)
@@ -460,6 +515,10 @@ func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) 
 			continue
 		}
 
+		if _, ok := ss.pairs[int8(event.FullDocument.Conditions.MarketType)][event.FullDocument.Conditions.Pair]; !ok {
+			continue // skip a foreign pair
+		}
+
 		if event.FullDocument.Type == 2 && event.FullDocument.State.ColdStart { // 2 means maker only
 			sig := GetStrategy(&event.FullDocument, ss.dataFeed, ss.trading, ss.stateMgmt, &ss.statsd, ss)
 			ss.strategies[event.FullDocument.ID.String()] = sig
@@ -469,8 +528,9 @@ func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) 
 
 		if isLocalBuild && (event.FullDocument.AccountId == nil || event.FullDocument.AccountId.Hex() != accountId) {
 			ss.log.Warn("continue watchStrategies in accountId incomparable",
-				zap.String("event account id", event.FullDocument.AccountId.Hex()),
-				zap.String("account id in .env", accountId),
+				zap.String("ObjectID", event.FullDocument.ID.Hex()),
+				zap.String("event AccountID", event.FullDocument.AccountId.Hex()),
+				zap.String("AccountID in .env", accountId),
 			)
 			continue
 		}
@@ -482,22 +542,29 @@ func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) 
 				delete(ss.strategies, event.FullDocument.ID.String())
 			}
 		} else { // brand new smart trade
+			if ss.full {
+				ss.log.Debug("ignoring new strategy while the instance is full",
+					zap.Bool("full", ss.full),
+					zap.String("strategy", event.FullDocument.ID.Hex()),
+					zap.Bool("strategy enabled", event.FullDocument.Enabled),
+				)
+				continue
+			}
 			if event.FullDocument.Enabled == true {
 				ss.AddStrategy(&event.FullDocument)
 				ss.statsd.Inc("strategy_service.add_strategy_from_db")
 			}
 		}
 	}
-	ss.log.Info("Finish WatchStrategies")
+	ss.log.Warn("watching for new strategies stopped")
 	return nil
 }
 
 // InitPositionsWatch subscribes to smart trade updates for each position update received to disable smart trade if position closed externally.
 func (ss *StrategyService) InitPositionsWatch() {
-	CollPositionsName := "core_positions"
-	CollStrategiesName := "core_strategies"
+	ss.log.Info("watching for new positions in the storage")
 	ctx := context.Background()
-	var collPositions = mongodb.GetCollection(CollPositionsName)
+	var collPositions = mongodb.GetCollection("core_positions")
 	pipeline := mongo.Pipeline{}
 
 	cs, err := collPositions.Watch(ctx, pipeline, options.ChangeStream().SetFullDocument(options.UpdateLookup))
@@ -520,7 +587,7 @@ func (ss *StrategyService) InitPositionsWatch() {
 		}
 
 		go func(event models.MongoPositionUpdateEvent) {
-			var collStrategies = mongodb.GetCollection(CollStrategiesName)
+			var collStrategies = mongodb.GetCollection("core_strategies")
 			cur, err := collStrategies.Find(ctx, bson.D{
 				{"conditions.marketType", 1},
 				{"enabled", true},
@@ -559,7 +626,7 @@ func (ss *StrategyService) InitPositionsWatch() {
 			}
 		}(positionEventDecoded)
 	}
-	ss.log.Info("InitPositionsWatchEnd")
+	ss.log.Warn("watching for new positions stopped")
 }
 
 func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
@@ -716,4 +783,120 @@ func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
 
 	ss.statsd.Inc("strategy_service.edited_conditions`")
 	strategy.StateMgmt.SaveStrategyConditions(strategy.Model)
+}
+
+// runReporting each minute sends how much strategies settled service has for the moment.
+func (ss *StrategyService) runReporting() {
+	ss.log.Info("starting statistics reporting")
+	ticker := time.NewTicker(1 * time.Minute)
+	for {
+		select {
+		case <-ticker.C:
+			numStrategiesByPair := make(map[string]int64)
+			for _, strategy := range ss.strategies {
+				if _, ok := numStrategiesByPair[strategy.Model.Conditions.Pair]; ok {
+					numStrategiesByPair[strategy.Model.Conditions.Pair]++
+				} else {
+					numStrategiesByPair[strategy.Model.Conditions.Pair] = 1
+				}
+			}
+			for pair, numStrategies := range numStrategiesByPair {
+				metricName := fmt.Sprintf("strategy_service.pairs.%v", pair)
+				ss.statsd.Gauge(metricName, numStrategies)
+			}
+		}
+	}
+}
+
+// setPairs reads pairs from mongodb collection with the filter given and writes them to instance pairs field.
+func (ss *StrategyService) setPairs(ctx context.Context, collection *mongo.Collection, filter primitive.Regex) {
+	filterDocument := bson.M{
+		"name":       filter,
+		"marketType": bson.M{"$ne": nil},
+	}
+	cur, err := collection.Find(ctx, filterDocument) // read all BTC markets
+	if err != nil {
+		ss.log.Fatal("can't read markets to get pairs", zap.Error(err))
+		// TODO(khassanov): should we really fail here? We had wg.Done() here before
+	}
+	if cur == nil {
+		ss.log.Fatal("core_markets mongodb read cur == nil")
+		// TODO(khassanov): should we really fail here? We had wg.Done() here before
+	}
+	defer cur.Close(ctx)
+	for cur.Next(ctx) {
+		var market models.MongoMarket
+		err = cur.Decode(&market)
+		if err != nil {
+			ss.log.Error("can't decode market", zap.Error(err))
+			continue
+		}
+		ss.pairs[int8(market.MarketType)][market.Name] = struct{}{}
+	}
+	ss.log.Info("pairs to process set",
+		zap.Int("spot pairs", len(ss.pairs[0])),
+		zap.Int("futures pairs", len(ss.pairs[1])),
+		zap.String("pairs", fmt.Sprintf("%v", ss.pairs)),
+	)
+}
+
+// SaveCycleTime saves cycle time duration into cycles time buffer.
+func (ss *StrategyService) SaveCycleTime(t time.Duration) {
+	ss.ctBuffMut.Lock()
+	ss.ctBuff = append(ss.ctBuff, t)
+	ss.ctBuffMut.Unlock()
+}
+
+// trackIsFull monitors resources continuously and sets or resets 'full' flag when instance is close to memory limit
+// or CPU usage limit.
+func (ss *StrategyService) runIsFullTracking() {
+	ss.log.Info("starting resources tracking")
+	var sysinfo syscall.Sysinfo_t
+	var ctBuffCopy []time.Duration
+	var ctMax time.Duration
+	var isFullPrev bool
+	for {
+		isFullPrev = ss.full
+		// check CPU usage by max cycle time
+		ss.ctBuffMut.Lock()
+		copy(ctBuffCopy, ss.ctBuff)
+		ss.ctBuff = ss.ctBuff[:0] // clear
+		ss.ctBuffMut.Unlock()
+		for _, t := range ctBuffCopy {
+			if t > ctMax {
+				ctMax = t
+			}
+		}
+		if ctMax > 1000*time.Second {
+			ss.cpuFull = true
+		} else if ctMax < 800*time.Second {
+			ss.cpuFull = false
+		}
+		// check for free RAM
+		err := syscall.Sysinfo(&sysinfo)
+		if err != nil {
+			ss.log.Error("can't read sysinfo to get free RAM", zap.Error(err))
+			time.Sleep(200 * time.Millisecond)
+			continue
+		}
+		if sysinfo.Freeram < 10*1024*1024 { // ten megabytes
+			ss.ramFull = true
+		} else if sysinfo.Freeram > 12*1024*1024 { // 12 megabytes
+			ss.ramFull = false
+		}
+		// set we are full or not
+		if ss.cpuFull || ss.ramFull {
+			ss.full = true
+		} else if !ss.cpuFull && !ss.ramFull {
+			ss.full = false
+		}
+		if isFullPrev != ss.full {
+			ss.log.Info("switching settlement state", zap.Bool("skip incoming strategies", ss.full))
+		}
+		ss.log.Debug("resources check",
+			zap.Uint64("free RAM, bytes", sysinfo.Freeram),
+			zap.Duration("max cycle time", ctMax),
+		)
+		time.Sleep(1 * time.Second)
+	}
 }
