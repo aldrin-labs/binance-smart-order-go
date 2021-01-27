@@ -47,20 +47,6 @@ func (rl *BinanceLoop) GetSpreadForPairAtExchange(pair string, exchange string, 
 	return binanceLoop.GetSpread(pair, exchange, marketType)
 }
 
-type RawOrderbookOHLCV []struct {
-	//Open       float64 `json:"open_price,float"`
-	//High       float64 `json:"high_price,float"`
-	//Low        float64 `json:"low_price,float"`
-	//MarketType int64   `json:"market_type,float"`
-	Close        string `json:"c"` // Close price
-	//Volume     float64 `json:"volume,float"`
-	//Base       string  `json:"tsym"`
-	//Quote      string  `json:"fsym"`
-	//Exchange   string  `json:"exchange"`
-	Symbol string `json:"s"`
-	Mark   string `json:"p"` // Mark pirce
-}
-
 type MiniTicker struct {
 	// EventType string `json:"e,string"` // "24hrMiniTicker"
 	// EventTime time.Time `json:"E,number"` // 123456789
@@ -84,29 +70,32 @@ type RawSpread struct {
 }
 
 func (rl *BinanceLoop) SubscribeToPairs() {
-	go ListenBinanceMarkPrice(func(data *binance.RawEvent) error {
-		go rl.UpdateOHLCV(data.Data)
+	go ListenBinancePrice(func(data *binance.RawEvent, marketType int8) error {
+		go rl.UpdateOHLCV(data.Data, marketType)
 		return nil
 	})
 	rl.SubscribeToSpread()
 }
 
-func (rl *BinanceLoop) UpdateOHLCV(data []byte) {
-	var ohlcvOB RawOrderbookOHLCV
-	_ = json.Unmarshal(data, &ohlcvOB)
-
-	var priceStr *string
-	var marketType int64
-	for _, ohlcv := range ohlcvOB {
+// UpdateOHLCV decodes raw OHLCV data and writes them to OHLCVMap for future use.
+func (rl *BinanceLoop) UpdateOHLCV(data []byte, marketType int8) {
+	var allMarketOHLCV []MiniTicker
+	err := json.Unmarshal(data, &allMarketOHLCV)
+	if err != nil {
+		log.Debug("decode all market mini ticker while OHLCV update",
+			zap.Error(err),
+		)
+		return
+	}
+	for _, ohlcv := range allMarketOHLCV {
 		pair := ohlcv.Symbol
-		if ohlcv.Mark == "" { // Spot
-			marketType = 0
-			priceStr = &ohlcv.Close
-		} else { // Futures
-			marketType = 1
-			priceStr = &ohlcv.Mark
+		price, err := strconv.ParseFloat(ohlcv.Close, 10)
+		if err != nil {
+			log.Debug("parse close price while OHLCV update",
+				zap.Error(err),
+			)
+			continue
 		}
-		price, _ := strconv.ParseFloat(*priceStr, 10)
 		ohlcvToSave := interfaces.OHLCV{
 			Open:   price,
 			High:   price,
