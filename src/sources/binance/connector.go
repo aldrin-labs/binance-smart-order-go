@@ -24,7 +24,7 @@ func GetBinanceClientInstance() (binance.Binance, context.CancelFunc) {
 	return b, cancelCtx
 }
 
-func ListenBinanceMarkPrice(onMessage func(data *binance.RawEvent) error) error {
+func ListenBinancePrice(onMessage func(data *binance.RawEvent, marketType int8) error) error {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 	binance, cancelCtx := GetBinanceClientInstance()
@@ -32,7 +32,7 @@ func ListenBinanceMarkPrice(onMessage func(data *binance.RawEvent) error) error 
 	if err != nil {
 		return fmt.Errorf("listen spot: %v", err)
 	}
-	kechFutures, doneFutures, err := binance.MarkPriceStreamAllMarketWebsocket()
+	kechFutures, doneFutures, err := binance.FuturesAllMarketMiniTickersStreamWebsocket()
 	if err != nil {
 		return fmt.Errorf("listen futures: %v", err)
 	}
@@ -41,9 +41,9 @@ func ListenBinanceMarkPrice(onMessage func(data *binance.RawEvent) error) error 
 		for {
 			select {
 			case e := <-kechFutures:
-				onMessage(e)
+				onMessage(e, 1)
 			case e := <-kechSpot:
-				onMessage(e)
+				onMessage(e, 0)
 			case <-doneSpot:
 				break
 			case <-doneFutures:
