@@ -4,6 +4,7 @@ import (
 	"context"
 	statsd_client "gitlab.com/crypto_project/core/strategy_service/src/statsd"
 	"go.uber.org/zap"
+	"log"
 
 	// "go.uber.org/zap"
 	"fmt"
@@ -468,7 +469,7 @@ func (sm *SmartOrder) checkLoss(ctx context.Context, args ...interface{}) bool {
 	isSpot := model.Conditions.MarketType == 0
 	forcedSLWithAlert := model.Conditions.StopLossExternal && model.Conditions.MandatoryForcedLoss
 
-	if ok && isWaitingForOrder.(bool) && !existTimeout && !model.Conditions.MandatoryForcedLoss {
+	if ok && isWaitingForOrder.(bool) && !existTimeout {
 		return false
 	}
 	if model.Conditions.StopLossExternal && !model.Conditions.MandatoryForcedLoss {
@@ -530,6 +531,7 @@ func (sm *SmartOrder) checkLoss(ctx context.Context, args ...interface{}) bool {
 			return false
 		}
 
+		log.Println("currentOHLCV.Close model.State.EntryPrice ", currentOHLCV.Close, " ", model.State.EntryPrice, " stopLoss ", stopLoss )
 		if (1-currentOHLCV.Close/model.State.EntryPrice)*100 >= stopLoss {
 			if model.State.ExecutedAmount < model.Conditions.EntryOrder.Amount {
 				model.State.Amount = model.Conditions.EntryOrder.Amount - model.State.ExecutedAmount
@@ -694,7 +696,7 @@ func (sm *SmartOrder) Start() {
 	state, _ := sm.State.State(context.Background())
 	localState := sm.Strategy.GetModel().State.State
 	sm.Statsd.Inc("smart_order.start")
-	mutexExtendedAt := time.Now().Add(-1 * time.Second)
+	//mutexExtendedAt := time.Now().Add(-1 * time.Second)
 	lastCycleAt := time.Now()
 	for state != End && localState != End && state != Canceled && state != Timeout {
 		if sm.Strategy.GetModel().Enabled == false {
@@ -703,21 +705,21 @@ func (sm *SmartOrder) Start() {
 		}
 
 		// Extend settlement mutex
-		if time.Since(mutexExtendedAt) > 1000 * time.Millisecond {
-			sm.Strategy.GetLogger().Debug("extending mutex",
-				zap.Time("latest extension at", mutexExtendedAt),
-				zap.Duration("since latest extension", time.Since(mutexExtendedAt)),
-			)
-			ok, err := sm.Strategy.GetSettlementMutex().Extend()
-			if !ok || err != nil {
-				sm.Strategy.GetLogger().Error("can't extend settlement mutex, revealing strategy",
-					zap.Bool("ok", ok),
-					zap.Error(err),
-				)
-				break
-			}
-			mutexExtendedAt = time.Now()
-		}
+		//if time.Since(mutexExtendedAt) > 1000 * time.Millisecond {
+		//	sm.Strategy.GetLogger().Debug("extending mutex",
+		//		zap.Time("latest extension at", mutexExtendedAt),
+		//		zap.Duration("since latest extension", time.Since(mutexExtendedAt)),
+		//	)
+		//	ok, err := sm.Strategy.GetSettlementMutex().Extend()
+		//	if !ok || err != nil {
+		//		sm.Strategy.GetLogger().Error("can't extend settlement mutex, revealing strategy",
+		//			zap.Bool("ok", ok),
+		//			zap.Error(err),
+		//		)
+		//		break
+		//	}
+		//	mutexExtendedAt = time.Now()
+		//}
 
 		if !sm.Lock {
 			if sm.Strategy.GetModel().Conditions.EntrySpreadHunter && state != InEntry {
