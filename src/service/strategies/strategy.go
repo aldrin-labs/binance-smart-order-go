@@ -10,6 +10,7 @@ import (
 	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.uber.org/zap"
+	"os"
 	"time"
 )
 
@@ -24,7 +25,12 @@ func GetStrategy(cur *mongo.Cursor, df interfaces.IDataFeed, tr trading.ITrading
 		redsync.WithRetryDelay(200*time.Millisecond),
 		redsync.WithExpiry(10*time.Second), // TODO(khassanov): use parameter to conform with extend call period
 	) // upsert
-	logger, _ := zap.NewProduction() // TODO(khassanov): handle the error here and above
+	var logger *zap.Logger
+	if os.Getenv("LOCAL") == "true"{
+		logger, _ = zap.NewDevelopment()
+	} else {
+		logger, _ = zap.NewProduction() // TODO(khassanov): handle the error here and above
+	}
 	loggerName := fmt.Sprintf("sm-%v", model.ID.Hex())
 	logger = logger.With(zap.String("logger", loggerName))
 	return &Strategy{

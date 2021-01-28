@@ -49,7 +49,12 @@ var once sync.Once
 // GetStrategyService returns a pointer to instantiated service singleton.
 func GetStrategyService() *StrategyService {
 	once.Do(func() {
-		logger, _ := zap.NewProduction() // TODO(khassanov): handle the error
+		var logger *zap.Logger
+		if os.Getenv("LOCAL") == "true"{
+			logger, _ = zap.NewDevelopment()
+		} else {
+			logger, _ = zap.NewProduction() // TODO(khassanov): handle the error
+		}
 		logger = logger.With(zap.String("logger", "ss"))
 		// df := redis.InitRedis()
 		df := binance.InitBinance()
@@ -185,7 +190,12 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 func GetStrategy(strategy *models.MongoStrategy, df interfaces.IDataFeed, tr trading.ITrading, st interfaces.IStateMgmt, statsd *statsd_client.StatsdClient, ss *StrategyService) *strategies.Strategy {
 	// TODO(khassanov): why we use this instead of the same from the `strategy` package?
 	// TODO(khassanov): remove code copy got from the same in the strategy package
-	logger, _ := zap.NewProduction() // TODO(khassanov): handle the error
+	var logger *zap.Logger
+	if os.Getenv("LOCAL") == "true"{
+		logger, _ = zap.NewDevelopment()
+	} else {
+		logger, _ = zap.NewProduction() // TODO(khassanov): handle the error
+	}
 	loggerName := fmt.Sprintf("sm-%v", strategy.ID.Hex())
 	logger = logger.With(zap.String("logger", loggerName))
 	rs := redis.GetRedsync()

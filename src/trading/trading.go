@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/joho/godotenv"
 	"go.uber.org/zap"
 	"io/ioutil"
 	"math"
@@ -64,7 +65,12 @@ type Trading struct {
 var log *zap.Logger
 
 func init() {
-	log, _ = zap.NewProduction()
+	_ = godotenv.Load()
+	if os.Getenv("LOCAL") == "true" {
+		log, _ = zap.NewDevelopment()
+	} else {
+		log, _ = zap.NewProduction()
+	}
 	log = log.With(zap.String("logger", "trading"))
 }
 
