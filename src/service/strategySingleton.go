@@ -798,7 +798,7 @@ func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
 // runReporting each minute sends how much strategies settled service has for the moment.
 func (ss *StrategyService) runReporting() {
 	ss.log.Info("starting statistics reporting")
-	ticker := time.NewTicker(1 * time.Second)
+	ticker := time.NewTicker(1 * time.Minute)
 	for {
 		select {
 		case <-ticker.C:
