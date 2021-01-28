@@ -39,8 +39,6 @@ type StrategyService struct {
 	full       bool            // indicates whether an instance full or can take more strategies
 	ramFull    bool            // indicates close to RAM limit
 	cpuFull    bool            // indicates out of CPU usage limit
-	ctBuff     []time.Duration // buffer for cycle time reports provided by strategy
-	ctBuffMut  sync.Mutex
 }
 
 var singleton *StrategyService
@@ -840,38 +838,16 @@ func (ss *StrategyService) setPairs(ctx context.Context, collection *mongo.Colle
 	)
 }
 
-// SaveCycleTime saves cycle time duration into cycles time buffer.
-func (ss *StrategyService) SaveCycleTime(t time.Duration) {
-	ss.ctBuffMut.Lock()
-	ss.ctBuff = append(ss.ctBuff, t)
-	ss.ctBuffMut.Unlock()
-}
-
 // trackIsFull monitors resources continuously and sets or resets 'full' flag when instance is close to memory limit
 // or CPU usage limit.
 func (ss *StrategyService) runIsFullTracking() {
 	ss.log.Info("starting resources tracking")
 	var sysinfo syscall.Sysinfo_t
-	var ctBuffCopy []time.Duration
-	var ctMax time.Duration
 	var isFullPrev bool
 	for {
 		isFullPrev = ss.full
 		// check CPU usage by max cycle time
-		ss.ctBuffMut.Lock()
-		copy(ctBuffCopy, ss.ctBuff)
-		ss.ctBuff = ss.ctBuff[:0] // clear
-		ss.ctBuffMut.Unlock()
-		for _, t := range ctBuffCopy {
-			if t > ctMax {
-				ctMax = t
-			}
-		}
-		if ctMax > 1000*time.Second {
-			ss.cpuFull = true
-		} else if ctMax < 800*time.Second {
-			ss.cpuFull = false
-		}
+		// TODO(khassanov)
 		// check for free RAM
 		err := syscall.Sysinfo(&sysinfo)
 		if err != nil {
@@ -895,7 +871,6 @@ func (ss *StrategyService) runIsFullTracking() {
 		}
 		ss.log.Debug("resources check",
 			zap.Uint64("free RAM, bytes", sysinfo.Freeram),
-			zap.Duration("max cycle time", ctMax),
 		)
 		time.Sleep(1 * time.Second)
 	}
