@@ -6,6 +6,7 @@ import (
 	redsyncredis "github.com/go-redsync/redsync/v4/redis"
 	redsyncredigo "github.com/go-redsync/redsync/v4/redis/redigo"
 	"github.com/gomodule/redigo/redis"
+	"github.com/joho/godotenv"
 	"go.uber.org/zap"
 	"os"
 	"time"
@@ -19,7 +20,12 @@ var redsyncToDLM *redsync.Redsync
 var log *zap.Logger
 
 func init() {
-	log, _ = zap.NewProduction()
+	_ = godotenv.Load()
+	if os.Getenv("LOCAL") == "true"{
+		log, _ = zap.NewDevelopment()
+	} else {
+		log, _ = zap.NewProduction() // TODO: handle the error
+	}
 	log = log.With(zap.String("logger", "srcRedis"))
 }
 
@@ -140,6 +146,7 @@ func GetRedsync() *redsync.Redsync {
 		time.Sleep(500 * time.Millisecond)
 		return GetRedsync()
 	}
+	log.Info("connected to redis DLM pool")
 	return redsyncToDLM
 }
 
