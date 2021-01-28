@@ -25,7 +25,7 @@ func (sd *StatsdClient) Init() {
 	sd.Log = sd.Log.With(zap.String("logger", "statsd"))
 	host := os.Getenv("STATSD_HOST")
 	if host == "" {
-		// host = "statsd.infra"
+		host = "statsd.infra"
 	}
 	host = "10-0-3-11.infra.pod.cluster.local"
 	// port := os.Getenv("STATSD_PORT")
