@@ -694,7 +694,18 @@ func (sm *SmartOrder) Start() {
 	state, _ := sm.State.State(context.Background())
 	localState := sm.Strategy.GetModel().State.State
 	sm.Statsd.Inc("smart_order.start")
+	var lastValidityCheckAt = time.Now().Add(-1 * time.Second)
 	for state != End && localState != End && state != Canceled && state != Timeout {
+		if time.Since(lastValidityCheckAt) > 2 * time.Second { // TODO: remove magic number
+			sm.Strategy.GetLogger().Debug("settlement mutex validity check")
+			if valid, err := sm.Strategy.GetSettlementMutex().Valid(); !valid || err != nil {
+				sm.Strategy.GetLogger().Error("invalid settlement mutex, breaking event loop",
+					zap.Bool("mutex valid", valid),
+					zap.Error(err),
+				)
+				break
+			}
+		}
 		if sm.Strategy.GetModel().Enabled == false {
 			state, _ = sm.State.State(ctx)
 			break

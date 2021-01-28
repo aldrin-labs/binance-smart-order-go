@@ -798,10 +798,11 @@ func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
 // runReporting each minute sends how much strategies settled service has for the moment.
 func (ss *StrategyService) runReporting() {
 	ss.log.Info("starting statistics reporting")
-	ticker := time.NewTicker(1 * time.Minute)
+	ticker := time.NewTicker(1 * time.Second)
 	for {
 		select {
 		case <-ticker.C:
+			ss.log.Info("reporting", zap.Int("strategies count", len(ss.strategies)))
 			numStrategiesByPair := make(map[string]int64)
 			for _, strategy := range ss.strategies {
 				if _, ok := numStrategiesByPair[strategy.Model.Conditions.Pair]; ok {
@@ -872,7 +873,7 @@ func (ss *StrategyService) runIsFullTracking() {
 			ss.log.Error("cpu count", zap.Error(err))
 		}
 		loadAvgScaled = loadAvg.Load5 / float64(cpuCoresCount)
-		if loadAvgScaled > 1.2 { // TODO(khassanov): remove magic number
+		if loadAvgScaled > 12.0 { // TODO(khassanov): remove magic number
 			ss.cpuFull = true
 		} else {
 			ss.cpuFull = false

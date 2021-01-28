@@ -146,6 +146,7 @@ func GetRedsync() *redsync.Redsync {
 		time.Sleep(500 * time.Millisecond)
 		return GetRedsync()
 	}
+	log.Info("connected to redis DLM pool")
 	return redsyncToDLM
 }
 
