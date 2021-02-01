@@ -88,6 +88,18 @@ spec:
             secretKeyRef:
               name: strategy-secrets
               key: db-table-name
+        - name: STATSD_HOST
+          valueFrom:
+            secretKeyRef:
+              name: strategy-secrets
+              key: statsd-host
+              optional: true
+        - name: ENVIRONMENT
+          valueFrom:
+            secretKeyRef:
+              name: strategy-secrets
+              key: environment
+              optional: true
         ports:
         - name: "{{ .Values.service.name }}"
           containerPort: {{ .Values.service.internalPort }}
