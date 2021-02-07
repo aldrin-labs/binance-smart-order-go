@@ -5,11 +5,13 @@ import (
 	"flag"
 	"fmt"
 	"github.com/buaazp/fasthttprouter"
+	"github.com/joho/godotenv"
 	"github.com/valyala/fasthttp"
 	"gitlab.com/crypto_project/core/strategy_service/src/service"
 	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"go.uber.org/zap"
 	"sync"
+	"os"
 )
 
 var log *zap.Logger
@@ -20,7 +22,12 @@ var (
 )
 
 func init() {
-	log, _ = zap.NewProduction()
+	_ = godotenv.Load()
+	if os.Getenv("LOCAL") == "true" {
+		log, _ = zap.NewDevelopment()
+	} else {
+		log, _ = zap.NewProduction() // TODO: handle the error
+	}
 	log = log.With(zap.String("logger", "srv"))
 }
 

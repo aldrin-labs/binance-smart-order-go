@@ -696,9 +696,23 @@ func (sm *SmartOrder) Start() {
 	state, _ := sm.State.State(context.Background())
 	localState := sm.Strategy.GetModel().State.State
 	sm.Statsd.Inc("smart_order.start")
+
 	//mutexExtendedAt := time.Now().Add(-1 * time.Second)
-	lastCycleAt := time.Now()
+
+	var lastValidityCheckAt = time.Now().Add(-1 * time.Second)
+
 	for state != End && localState != End && state != Canceled && state != Timeout {
+		if time.Since(lastValidityCheckAt) > 2 * time.Second { // TODO: remove magic number
+			sm.Strategy.GetLogger().Debug("settlement mutex validity check")
+			if valid, err := sm.Strategy.GetSettlementMutex().Valid(); !valid || err != nil {
+				sm.Strategy.GetLogger().Error("invalid settlement mutex, breaking event loop",
+					zap.Bool("mutex valid", valid),
+					zap.Error(err),
+				)
+				break
+			}
+		}
+
 		if sm.Strategy.GetModel().Enabled == false {
 			state, _ = sm.State.State(ctx)
 			break
@@ -728,23 +742,12 @@ func (sm *SmartOrder) Start() {
 				sm.processEventLoop()
 			}
 		}
+
 		time.Sleep(60 * time.Millisecond)
 		state, _ = sm.State.State(ctx)
 		localState = sm.Strategy.GetModel().State.State
-
-		// Measure cycle time
-		// 0.0625 means once in a second for ~60ms loop cycle
-		dt := time.Since(lastCycleAt)
-		lastCycleAt = time.Now()
-		sm.Strategy.GetSingleton().SaveCycleTime(dt)
-		sm.Statsd.TimingDurationRated("smart_order.cycle_time", dt, 0.0625)
-		if dt > 1*time.Second { // TODO(khassanov): check it does not harm us
-			sm.Statsd.TimingDurationRated("smart_order.cycle_time", dt, 1.0)
-			sm.Strategy.GetLogger().Warn("sm loop cycle too long",
-				zap.Durationp("cycle time", &dt),
-			)
-		}
 	}
+
 	sm.Stop()
 	sm.Strategy.GetLogger().Info("stopped smart order",
 		zap.String("state", state.(string)),

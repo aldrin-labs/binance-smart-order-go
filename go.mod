@@ -20,6 +20,7 @@ require (
 	github.com/mitchellh/mapstructure v1.1.2
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/qmuntal/stateless v1.1.0
+	github.com/shirou/gopsutil v3.20.12+incompatible
 	github.com/tidwall/pretty v0.0.0-20190325153808-1166b9ac2b65 // indirect
 	github.com/valyala/fasthttp v1.3.0
 	github.com/xdg/scram v0.0.0-20180814205039-7eeb5667e42c // indirect

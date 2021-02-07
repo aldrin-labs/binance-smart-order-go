@@ -13,6 +13,8 @@ import (
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/redis"
 
 	// "gitlab.com/crypto_project/core/strategy_service/src/sources/redis"
+	cpu_info "github.com/shirou/gopsutil/cpu"
+	cpu_load "github.com/shirou/gopsutil/load"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/binance"
 	statsd_client "gitlab.com/crypto_project/core/strategy_service/src/statsd"
 	"gitlab.com/crypto_project/core/strategy_service/src/trading"
@@ -36,11 +38,9 @@ type StrategyService struct {
 	stateMgmt  interfaces.IStateMgmt
 	statsd     statsd_client.StatsdClient
 	log        *zap.Logger
-	full       bool            // indicates whether an instance full or can take more strategies
-	ramFull    bool            // indicates close to RAM limit
-	cpuFull    bool            // indicates out of CPU usage limit
-	ctBuff     []time.Duration // buffer for cycle time reports provided by strategy
-	ctBuffMut  sync.Mutex
+	full       bool // indicates whether an instance full or can take more strategies
+	ramFull    bool // indicates close to RAM limit
+	cpuFull    bool // indicates out of CPU usage limit
 }
 
 var singleton *StrategyService
@@ -49,7 +49,12 @@ var once sync.Once
 // GetStrategyService returns a pointer to instantiated service singleton.
 func GetStrategyService() *StrategyService {
 	once.Do(func() {
-		logger, _ := zap.NewProduction() // TODO(khassanov): handle the error
+		var logger *zap.Logger
+		if os.Getenv("LOCAL") == "true"{
+			logger, _ = zap.NewDevelopment()
+		} else {
+			logger, _ = zap.NewProduction() // TODO(khassanov): handle the error
+		}
 		logger = logger.With(zap.String("logger", "ss"))
 		// df := redis.InitRedis()
 		df := binance.InitBinance()
@@ -165,8 +170,8 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 	ss.statsd.Gauge("strategy_service.active_strategies", int64(len(ss.strategies)))
 	ss.log.Info("strategies settled on init", zap.Int64("count", strategiesAdded))
 
-	go ss.InitPositionsWatch()                      // subscribe to position updates
-	go ss.stateMgmt.InitOrdersWatch()               // subscribe to order updates
+	go ss.InitPositionsWatch()                     // subscribe to position updates
+	go ss.stateMgmt.InitOrdersWatch()              // subscribe to order updates
 	go ss.WatchStrategies(isLocalBuild, accountId) // subscribe to new smart trades to add them into runtime
 	go ss.runReporting()
 	go ss.runIsFullTracking()
@@ -185,7 +190,12 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 func GetStrategy(strategy *models.MongoStrategy, df interfaces.IDataFeed, tr trading.ITrading, st interfaces.IStateMgmt, statsd *statsd_client.StatsdClient, ss *StrategyService) *strategies.Strategy {
 	// TODO(khassanov): why we use this instead of the same from the `strategy` package?
 	// TODO(khassanov): remove code copy got from the same in the strategy package
-	logger, _ := zap.NewProduction() // TODO(khassanov): handle the error
+	var logger *zap.Logger
+	if os.Getenv("LOCAL") == "true"{
+		logger, _ = zap.NewDevelopment()
+	} else {
+		logger, _ = zap.NewProduction() // TODO(khassanov): handle the error
+	}
 	loggerName := fmt.Sprintf("sm-%v", strategy.ID.Hex())
 	logger = logger.With(zap.String("logger", loggerName))
 	rs := redis.GetRedsync()
@@ -196,14 +206,14 @@ func GetStrategy(strategy *models.MongoStrategy, df interfaces.IDataFeed, tr tra
 		redsync.WithExpiry(10*time.Second), // TODO(khassanov): use parameter to conform with extend call period
 	) // upsert
 	return &strategies.Strategy{
-		Model:     strategy,
+		Model:           strategy,
 		SettlementMutex: mutex,
-		Datafeed:  df,
-		Trading:   tr,
-		StateMgmt: st,
-		Singleton: ss,
-		Statsd:    statsd,
-		Log:       logger,
+		Datafeed:        df,
+		Trading:         tr,
+		StateMgmt:       st,
+		Singleton:       ss,
+		Statsd:          statsd,
+		Log:             logger,
 	}
 }
 
@@ -792,6 +802,7 @@ func (ss *StrategyService) runReporting() {
 	for {
 		select {
 		case <-ticker.C:
+			ss.log.Info("reporting", zap.Int("strategies count", len(ss.strategies)))
 			numStrategiesByPair := make(map[string]int64)
 			for _, strategy := range ss.strategies {
 				if _, ok := numStrategiesByPair[strategy.Model.Conditions.Pair]; ok {
@@ -840,42 +851,37 @@ func (ss *StrategyService) setPairs(ctx context.Context, collection *mongo.Colle
 	)
 }
 
-// SaveCycleTime saves cycle time duration into cycles time buffer.
-func (ss *StrategyService) SaveCycleTime(t time.Duration) {
-	ss.ctBuffMut.Lock()
-	ss.ctBuff = append(ss.ctBuff, t)
-	ss.ctBuffMut.Unlock()
-}
-
 // trackIsFull monitors resources continuously and sets or resets 'full' flag when instance is close to memory limit
 // or CPU usage limit.
 func (ss *StrategyService) runIsFullTracking() {
 	ss.log.Info("starting resources tracking")
-	var sysinfo syscall.Sysinfo_t
-	var ctBuffCopy []time.Duration
-	var ctMax time.Duration
+	var err error
+	var loadAvg *cpu_load.AvgStat
+	var loadAvgScaled float64     // load average scaled by number of cores
+	var cpuCoresCount int         // number of CPU cores
+	var sysinfo syscall.Sysinfo_t // contains memory usage
 	var isFullPrev bool
 	for {
 		isFullPrev = ss.full
-		// check CPU usage by max cycle time
-		ss.ctBuffMut.Lock()
-		copy(ctBuffCopy, ss.ctBuff)
-		ss.ctBuff = ss.ctBuff[:0] // clear
-		ss.ctBuffMut.Unlock()
-		for _, t := range ctBuffCopy {
-			if t > ctMax {
-				ctMax = t
-			}
+		// check CPU usage
+		loadAvg, err = cpu_load.Avg()
+		if err != nil {
+			ss.log.Error("load avg read", zap.Error(err))
 		}
-		if ctMax > 1000*time.Second {
+		cpuCoresCount, err = cpu_info.Counts(true)
+		if err != nil {
+			ss.log.Error("cpu count", zap.Error(err))
+		}
+		loadAvgScaled = loadAvg.Load5 / float64(cpuCoresCount)
+		if loadAvgScaled > 12.0 { // TODO(khassanov): remove magic number
 			ss.cpuFull = true
-		} else if ctMax < 800*time.Second {
+		} else {
 			ss.cpuFull = false
 		}
 		// check for free RAM
-		err := syscall.Sysinfo(&sysinfo)
+		err = syscall.Sysinfo(&sysinfo)
 		if err != nil {
-			ss.log.Error("can't read sysinfo to get free RAM", zap.Error(err))
+			ss.log.Error("free RAM read", zap.Error(err))
 			time.Sleep(200 * time.Millisecond)
 			continue
 		}
@@ -895,7 +901,9 @@ func (ss *StrategyService) runIsFullTracking() {
 		}
 		ss.log.Debug("resources check",
 			zap.Uint64("free RAM, bytes", sysinfo.Freeram),
-			zap.Duration("max cycle time", ctMax),
+			zap.Float64("load avg 5 scaled", loadAvgScaled),
+			zap.Float64("load avg 5", loadAvg.Load5),
+			zap.Int("cpu count", cpuCoresCount),
 		)
 		time.Sleep(1 * time.Second)
 	}

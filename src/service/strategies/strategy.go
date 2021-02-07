@@ -10,6 +10,7 @@ import (
 	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.uber.org/zap"
+	"os"
 	"time"
 )
 
@@ -18,13 +19,19 @@ func GetStrategy(cur *mongo.Cursor, df interfaces.IDataFeed, tr trading.ITrading
 	var model models.MongoStrategy
 	err := cur.Decode(&model)
 	rs := redis.GetRedsync()
-	mutexName := fmt.Sprintf("strategy:%v:%v", model.Conditions.Pair, model.ID.Hex())
+	mutexName := fmt.Sprintf("strategy:%v:%v:%v", model.Conditions.MarketType, model.Conditions.Pair,
+		model.ID.Hex())
 	mutex := rs.NewMutex(mutexName,
 		redsync.WithTries(2),
-		redsync.WithRetryDelay(200*time.Millisecond),
+		redsync.WithRetryDelay(1*time.Second),
 		redsync.WithExpiry(10*time.Second), // TODO(khassanov): use parameter to conform with extend call period
 	) // upsert
-	logger, _ := zap.NewProduction() // TODO(khassanov): handle the error here and above
+	var logger *zap.Logger
+	if os.Getenv("LOCAL") == "true"{
+		logger, _ = zap.NewDevelopment()
+	} else {
+		logger, _ = zap.NewProduction() // TODO(khassanov): handle the error here and above
+	}
 	loggerName := fmt.Sprintf("sm-%v", model.ID.Hex())
 	logger = logger.With(zap.String("logger", loggerName))
 	return &Strategy{
@@ -144,6 +151,21 @@ func (strategy *Strategy) Settle() (bool, error) {
 		return false, err // unexpected error
 	}
 	strategy.Log.Info("mutex locked")
+	// extend settlement
+	go func() {
+		for {
+			time.Sleep(3 * time.Second) // TODO(khassanov): connect this with watchdog time
+			strategy.Log.Debug("extending settlement")
+			success, err := strategy.SettlementMutex.Extend()
+			if !success || err != nil {
+				strategy.Log.Error("settlement mutex extension",
+					zap.Bool("success", success),
+					zap.Error(err),
+				)
+				return
+			}
+		}
+	}()
 	return true, nil
 }
 

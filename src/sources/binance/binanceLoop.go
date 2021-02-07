@@ -3,8 +3,10 @@ package binance
 import (
 	"encoding/json"
 	"github.com/Cryptocurrencies-AI/go-binance"
+	"github.com/joho/godotenv"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"go.uber.org/zap"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -19,7 +21,12 @@ var binanceLoop *BinanceLoop
 var log *zap.Logger
 
 func init() {
-	log, _ = zap.NewProduction()
+	_ = godotenv.Load()
+	if os.Getenv("LOCAL") == "true" {
+		log, _ = zap.NewDevelopment()
+	} else {
+		log, _ = zap.NewProduction() // TODO: handle the error
+	}
 	log = log.With(zap.String("logger", "binance"))
 }
 
