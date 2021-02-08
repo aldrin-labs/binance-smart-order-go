@@ -760,8 +760,15 @@ func (sm *SmartOrder) Stop() {
 	// TODO: we should get rid of it, it should not work like this
 	StateS := model.State.State
 
-	if state != End && StateS != Timeout &&
-		!model.Conditions.EntrySpreadHunter && model.Conditions.WaitingEntryTimeout > 0 {
+	if state != End && StateS != Timeout && sm.Strategy.GetModel().Conditions.EntrySpreadHunter == false {
+		sm.Statsd.Inc("strategy_service.ended_with_not_end_status")
+		sm.PlaceOrder(0, 0.0, Canceled)
+	}
+
+	if state != End && StateS != Timeout && !model.Conditions.EntrySpreadHunter  {
+		sm.Statsd.Inc("strategy_service.ended_with_not_end_status")
+		sm.PlaceOrder(0, 0.0, Canceled)
+
 		// we should check after some time if we have opened order and this one got executed before been canceled
 		go func() {
 			sm.Statsd.Inc("smart_order.place_cancel_order_in_stop_func_attempt")
