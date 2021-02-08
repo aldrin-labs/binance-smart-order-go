@@ -424,7 +424,6 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 		}
 		break
 	}
-
 	baseAmount = sm.toFixed(baseAmount, sm.QuantityAmountPrecision)
 	orderPrice = sm.toFixed(orderPrice, sm.QuantityPricePrecision)
 
