@@ -2,14 +2,32 @@ package redis
 
 import (
 	"context"
+	"github.com/go-redsync/redsync/v4"
+	redsyncredis "github.com/go-redsync/redsync/v4/redis"
+	redsyncredigo "github.com/go-redsync/redsync/v4/redis/redigo"
 	"github.com/gomodule/redigo/redis"
-	"log"
+	"github.com/joho/godotenv"
+	"go.uber.org/zap"
 	"os"
 	"time"
 )
 
 var redisPool *redis.Pool
 var pubsubredisPool *redis.Pool
+var redisDLMPool *redis.Pool
+var redsyncDLMPool redsyncredis.Pool
+var redsyncToDLM *redsync.Redsync
+var log *zap.Logger
+
+func init() {
+	_ = godotenv.Load()
+	if os.Getenv("LOCAL") == "true"{
+		log, _ = zap.NewDevelopment()
+	} else {
+		log, _ = zap.NewProduction() // TODO: handle the error
+	}
+	log = log.With(zap.String("logger", "srcRedis"))
+}
 
 func GetRedisPubsub() (*redis.PubSubConn, redis.Conn) {
 	var conn = GetRedisClientInstance(true, false, false)
@@ -20,7 +38,7 @@ func GetRedisClientInstance(pubsub bool, master bool, newClient bool) redis.Conn
 	var con redis.Conn
 	if pubsub {
 		if pubsubredisPool == nil || newClient {
-			log.Print("connect to pubsub redis")
+			log.Info("connect to pubsub redis")
 			pubsubredisPool = &redis.Pool{
 				MaxActive:   3000000,
 				MaxIdle:     3000000,
@@ -30,16 +48,16 @@ func GetRedisClientInstance(pubsub bool, master bool, newClient bool) redis.Conn
 				Dial: func() (redis.Conn, error) {
 					c, err := redis.Dial("tcp", os.Getenv("REDIS_HOST")+":"+os.Getenv("REDIS_PORT"))
 					if err != nil {
-						log.Print("pubsub dial1 error", err.Error())
+						log.Error("pubsub dial1 error", zap.Error(err))
 						return nil, err
 					}
 					if _, err := c.Do("AUTH", os.Getenv("REDIS_PASSWORD")); err != nil {
-						log.Print("pubsub dial2 error", err.Error())
+						log.Error("pubsub dial2 error", zap.Error(err))
 						c.Close()
 						return nil, err
 					}
 					if _, err := c.Do("SELECT", 0); err != nil {
-						log.Print("pubsub dial3 error", err.Error())
+						log.Error("pubsub dial3 error", zap.Error(err))
 						c.Close()
 						return nil, err
 					}
@@ -51,7 +69,7 @@ func GetRedisClientInstance(pubsub bool, master bool, newClient bool) redis.Conn
 		con = pubsubredisPool.Get()
 	}
 	if redisPool == nil {
-		log.Print("connect to redis")
+		log.Info("connect to redis")
 		redisPool = &redis.Pool{
 			MaxActive:   300000,
 			MaxIdle:     300000,
@@ -61,16 +79,16 @@ func GetRedisClientInstance(pubsub bool, master bool, newClient bool) redis.Conn
 			Dial: func() (redis.Conn, error) {
 				c, err := redis.Dial("tcp", os.Getenv("REDIS_HOST")+":"+os.Getenv("REDIS_PORT"))
 				if err != nil {
-					log.Print("dial1 error", err.Error())
+					log.Error("pubsub dial1 error", zap.Error(err))
 					return nil, err
 				}
 				if _, err := c.Do("AUTH", os.Getenv("REDIS_PASSWORD")); err != nil {
-					log.Print("dial2 error", err.Error())
+					log.Error("pubsub dial2 error", zap.Error(err))
 					c.Close()
 					return nil, err
 				}
 				if _, err := c.Do("SELECT", 0); err != nil {
-					log.Print("dial3 error", err.Error())
+					log.Error("pubsub dial3 error", zap.Error(err))
 					c.Close()
 					return nil, err
 				}
@@ -85,11 +103,51 @@ func GetRedisClientInstance(pubsub bool, master bool, newClient bool) redis.Conn
 
 	_, err := con.Do("PING")
 	if err != nil {
-		log.Print("can't connect to the redis database, got error:\n%v", err)
+		log.Error("can't connect to the redis database", zap.Error(err))
 		time.Sleep(500 * time.Millisecond)
 		return GetRedisClientInstance(pubsub, master, newClient)
 	}
 	return con
+}
+
+func GetRedsync() *redsync.Redsync {
+	if redisDLMPool == nil {
+		log.Info("connecting to redis DLM pool")
+		redisDLMPool = &redis.Pool{
+			MaxActive:   300000,
+			MaxIdle:     300000,
+			IdleTimeout: 20 * time.Second,
+			Dial: func() (redis.Conn, error) {
+				c, err := redis.Dial("tcp", os.Getenv("REDIS_HOST")+":"+os.Getenv("REDIS_PORT"))
+				if err != nil {
+					log.Error("redis DLM dial 1/3 error", zap.Error(err))
+					return nil, err
+				}
+				if _, err := c.Do("AUTH", os.Getenv("REDIS_PASSWORD")); err != nil {
+					log.Error("redis DLM dial 2/3 error", zap.Error(err))
+					c.Close()
+					return nil, err
+				}
+				if _, err := c.Do("SELECT", 0); err != nil {
+					log.Error("redis DLM dial 3/3 error", zap.Error(err))
+					c.Close()
+					return nil, err
+				}
+				return c, nil
+			},
+		}
+		redsyncDLMPool = redsyncredigo.NewPool(redisDLMPool)
+		redsyncToDLM = redsync.New(redsyncDLMPool)
+	}
+	con := redisDLMPool.Get()
+	_, err := con.Do("PING")
+	if err != nil {
+		log.Error("can't connect to redis DLM pool, retry", zap.Error(err))
+		time.Sleep(500 * time.Millisecond)
+		return GetRedsync()
+	}
+	log.Info("connected to redis DLM pool")
+	return redsyncToDLM
 }
 
 func ListenPubSubChannels(ctx context.Context,
@@ -163,13 +221,12 @@ Loop:
 	err = psc.Unsubscribe()
 	_ = psc.Close()
 	if err != nil {
-		log.Print("EXIT1 EOF")
-		log.Print(err.Error())
+		log.Error("EXIT1 EOF", zap.Error(err))
 	}
 
 	// Wait for goroutine to complete.
 	<-done
-	log.Print("EXIT EOF")
+	log.Info("EXIT1 EOF")
 	// os.Exit(1)
 	//if resp != nil {
 	//	log.Print("recursive call")

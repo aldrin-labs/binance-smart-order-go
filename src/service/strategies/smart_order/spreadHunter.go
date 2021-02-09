@@ -3,7 +3,7 @@ package smart_order
 import (
 	"context"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
-	"log"
+	"go.uber.org/zap"
 )
 
 func (sm *SmartOrder) checkSpreadCondition(spread interfaces.SpreadData) bool {
@@ -24,12 +24,14 @@ func (sm *SmartOrder) checkSpreadEntry(ctx context.Context, args ...interface{})
 		return false
 	}
 	currentSpread := args[0].(interfaces.SpreadData)
-
 	if sm.checkSpreadCondition(currentSpread) {
-		log.Print("place waitForEntry bestBid", currentSpread.BestBid, ", close ", currentSpread.Close, ", amount ", sm.Strategy.GetModel().Conditions.EntryOrder.Amount)
+		sm.Strategy.GetLogger().Info("place waitForEntry",
+			zap.Float64("best bid", currentSpread.BestBid),
+			zap.Float64("close", currentSpread.Close),
+			zap.Float64("amount", sm.Strategy.GetModel().Conditions.EntryOrder.Amount),
+		)
 		sm.PlaceOrder(currentSpread.BestBid, 0.0, WaitForEntry)
 	}
-
 	return false
 }
 

@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/joho/godotenv"
+	"go.uber.org/zap"
 	"io/ioutil"
-	"log"
 	"math"
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/mitchellh/mapstructure"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
@@ -60,6 +62,18 @@ type ITrading interface {
 type Trading struct {
 }
 
+var log *zap.Logger
+
+func init() {
+	_ = godotenv.Load()
+	if os.Getenv("LOCAL") == "true" {
+		log, _ = zap.NewDevelopment()
+	} else {
+		log, _ = zap.NewProduction()
+	}
+	log = log.With(zap.String("logger", "trading"))
+}
+
 func InitTrading() ITrading {
 	tr := &Trading{}
 
@@ -69,26 +83,34 @@ func InitTrading() ITrading {
 // Request encodes data to JSON, sends it to exchange service and returns decoded response.
 func Request(method string, data interface{}) interface{} {
 	url := "http://" + os.Getenv("EXCHANGESERVICE") + "/" + method
-	fmt.Println("URL:>", url)
+	log.Info("request", zap.String("url", url), zap.String("data", fmt.Sprintf("%+v", data)))
 
 	var jsonStr, err = json.Marshal(data)
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{}
+	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Print(err.Error())
-
+		retryDelay := time.Duration(1 * time.Second)
+		log.Error("request not successful",
+			zap.String("url", url),
+			zap.Error(err),
+			zap.Duration("retry in, seconds", retryDelay),
+			zap.String("request", fmt.Sprintf("%+v", req)),
+			zap.String("data", fmt.Sprintf("%+v", data)),
+		)
+		time.Sleep(retryDelay)
 		return Request(method, data)
 	}
 	defer resp.Body.Close()
-
-	fmt.Println("response Status:", resp.Status)
-	fmt.Println("response Headers:", resp.Header)
 	body, _ := ioutil.ReadAll(resp.Body)
-	fmt.Println("request Body:", string(jsonStr))
-	fmt.Println("response Body:", string(body))
+	log.Info("response",
+		zap.String("status", resp.Status),
+		zap.String("header", fmt.Sprintf("%v", resp.Header)),
+		zap.String("request body", string(jsonStr)),
+		zap.String("response body", string(body)),
+	)
 	var response interface{}
 	_ = json.Unmarshal(body, &response)
 	return response
@@ -197,7 +219,15 @@ func (t *Trading) CreateOrder(order CreateOrderRequest) OrderResponse {
 		order.KeyParams.TimeInForce = "GTC"
 	}
 	if strings.Contains(order.KeyParams.Type, "market") || strings.Contains(order.KeyParams.Params.Type, "market") {
+		// TODO: figure out
+		// somehow set price to 0 here or at placeOrder
+		// "request body":"{\"keyId\":\"5e9d948f15a68aaf7a6aa55d\",\"keyParams\":{\"symbol\":\"ETH_USDT\",\"marketType\":1,\"side\":\"sell\",\"amount\":0.007,\"filled\":0,\"average\":0,\"reduceOnly\":true,\"timeInForce\":\"GTC\",\"type\":\"stop\",\"stopPrice\":1730.76,\"positionSide\":\"BOTH\",\"params\":{\"type\":\"stop-limit\",\"update\":true},\"frequency\":0}}","response body":"{\"status\":\"ERR\",\"data\":{\"msg\":\"Error code: -1102 Message: A mandatory parameter was not sent, was empty/null, or malformed.\"}}"}
 		order.KeyParams.Price = 0.0
+		log.Info(
+			"set order.KeyParams.Price to zero",
+			zap.String("order.KeyParams.Type", order.KeyParams.Type),
+			zap.String("order.KeyParams.Params.Type", order.KeyParams.Params.Type),
+		)
 	}
 	if order.KeyParams.ReduceOnly != nil && *order.KeyParams.ReduceOnly == false {
 		order.KeyParams.ReduceOnly = nil

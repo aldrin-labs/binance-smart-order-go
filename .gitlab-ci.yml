@@ -334,10 +334,10 @@ production:
 
     if [[ "$CI_ENVIRONMENT_NAME" == "develop" ]]; then
       echo "Configuring aws in DEV environment"
-      aws eks update-kubeconfig --name nerv-cluster-dev
+      aws eks update-kubeconfig --name eoe-cluster-dev
     else
       echo "Configuring aws in PROD environment"
-      aws eks update-kubeconfig --name nerv-cluster
+      aws eks update-kubeconfig --name eoe-cluster
     fi
   } 
 
@@ -350,7 +350,7 @@ production:
     # apk add glibc-2.23-r3.apk
     # rm glibc-2.23-r3.apk
 
-    curl "https://kubernetes-helm.storage.googleapis.com/helm-v${HELM_VERSION}-linux-amd64.tar.gz" | tar zx
+    curl "https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz" | tar zx
     mv linux-amd64/helm /usr/bin/
     helm version --client
 
@@ -385,8 +385,7 @@ production:
       auto_chart="chart"
       auto_chart_name="chart"
     fi
-
-    helm init --client-only
+    for i in {1..5}; do if helm init --client-only --stable-repo-url https://charts.helm.sh/stable; then break; fi; sleep 1; done
     helm repo add gitlab https://charts.gitlab.io
     if [[ ! -d "$auto_chart" ]]; then
       helm fetch ${auto_chart} --untar
