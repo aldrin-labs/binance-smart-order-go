@@ -3,7 +3,7 @@ package smart_order
 import (
 	"context"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
-	"log"
+	"go.uber.org/zap"
 	"time"
 )
 
@@ -22,7 +22,9 @@ func (sm *SmartOrder) checkTrailingEntry(ctx context.Context, args ...interface{
 	edgePrice := sm.Strategy.GetModel().State.TrailingEntryPrice
 	activateTrailing := false
 	if edgePrice == 0 {
-		log.Print("edgePrice=0, set TrailingEntryPrice ", currentOHLCV.Close)
+		sm.Strategy.GetLogger().Info("edgePrice=0, set TrailingEntryPrice",
+			zap.Float64("value", currentOHLCV.Close),
+		)
 		sm.Strategy.GetModel().State.TrailingEntryPrice = currentOHLCV.Close
 		activateTrailing = true
 	}

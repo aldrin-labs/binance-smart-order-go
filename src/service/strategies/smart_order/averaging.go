@@ -2,14 +2,17 @@ package smart_order
 
 import (
 	"context"
+	"fmt"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
-	"log"
+	"go.uber.org/zap"
 	"time"
 )
 
 func (sm *SmartOrder) placeMultiEntryOrders(stopLoss bool) {
 	// we execute this func again for 1 option
-	log.Println("WaitForEntryIds cancel in placeMultiEntryOrders", sm.Strategy.GetModel().State.WaitForEntryIds)
+	sm.Strategy.GetLogger().Info("WaitForEntryIds cancel in placeMultiEntryOrders",
+		zap.String("WaitForEntryIds", fmt.Sprintf("%v", sm.Strategy.GetModel().State.WaitForEntryIds)),
+	)
 	go sm.TryCancelAllOrders(sm.Strategy.GetModel().State.WaitForEntryIds)
 
 	model := sm.Strategy.GetModel()
@@ -56,7 +59,6 @@ func (sm *SmartOrder) placeMultiEntryOrders(stopLoss bool) {
 // entryMultiEntry executes once multiEntryOrder got executed
 func (sm *SmartOrder) entryMultiEntry(ctx context.Context, args ...interface{}) error {
 	sm.StopMux.Lock()
-	log.Print("entryMultiEntry")
 	model := sm.Strategy.GetModel()
 
 	// place forced loss, TODO: requires e2e tests

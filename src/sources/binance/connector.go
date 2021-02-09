@@ -4,16 +4,12 @@ import (
 	"context"
 	"fmt"
 	"github.com/Cryptocurrencies-AI/go-binance"
-	"github.com/go-kit/kit/log"
+	"go.uber.org/zap"
 	"os"
 	"os/signal"
 )
 
 func GetBinanceClientInstance() (binance.Binance, context.CancelFunc) {
-	var logger log.Logger
-	logger = log.NewLogfmtLogger(log.NewSyncWriter(os.Stderr))
-	logger = log.With(logger, "time", log.DefaultTimestampUTC, "caller", log.DefaultCaller)
-
 	ctx, cancelCtx := context.WithCancel(context.Background())
 	// use second return value for cancelling request when shutting down the app
 
@@ -21,43 +17,49 @@ func GetBinanceClientInstance() (binance.Binance, context.CancelFunc) {
 		"https://www.binance.com",
 		"",
 		nil,
-		logger,
+		nil,
 		ctx,
 	)
 	b := binance.NewBinance(binanceService)
 	return b, cancelCtx
 }
 
-func ListenBinanceMarkPrice(onMessage func(data *binance.MarkPriceAllStrEvent) error) error {
+func ListenBinancePrice(onMessage func(data *binance.RawEvent, marketType int8) error) error {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
-
 	binance, cancelCtx := GetBinanceClientInstance()
-	kech, done, err := binance.MarkPriceAllStrWebsocket()
-
-	fmt.Println("here ", done, err)
-
+	kechSpot, doneSpot, err := binance.SpotAllMarketMiniTickersStreamWebsocket()
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("listen spot: %v", err)
 	}
+	kechFutures, doneFutures, err := binance.FuturesAllMarketMiniTickersStreamWebsocket()
+	if err != nil {
+		return fmt.Errorf("listen futures: %v", err)
+	}
+
 	go func() {
 		for {
 			select {
-			case ke := <-kech:
-				_ = onMessage(ke)
-			case <-done:
+			case e := <-kechFutures:
+				onMessage(e, 1)
+			case e := <-kechSpot:
+				onMessage(e, 0)
+			case <-doneSpot:
+				break
+			case <-doneFutures:
 				break
 			}
 		}
 	}()
 
-	fmt.Println("waiting for interrupt")
+	log.Info("waiting for interrupt")
 	<-interrupt
-	fmt.Println("canceling context")
+	log.Info("canceling context")
 	cancelCtx()
-	fmt.Println("waiting for signal")
-	<-done
-	fmt.Println("exit")
+	log.Info("waiting for signal")
+	<-doneSpot
+	<-doneFutures
+	log.Info("exit")
 	return nil
 }
 
@@ -68,7 +70,10 @@ func ListenBinanceSpread(onMessage func(data *binance.SpreadAllEvent) error) err
 	binanceInstance, cancelCtx := GetBinanceClientInstance()
 	kech, done, err := binanceInstance.SpreadAllWebsocket()
 
-	fmt.Println("here ", done, err)
+	log.Info("here",
+		zap.String("done", fmt.Sprintf("%v", done)),
+		zap.Error(err),
+	)
 
 	if err != nil {
 		panic(err)
@@ -85,12 +90,12 @@ func ListenBinanceSpread(onMessage func(data *binance.SpreadAllEvent) error) err
 		}
 	}()
 
-	fmt.Println("waiting for interrupt")
+	log.Info("waiting for interrupt")
 	<-interrupt
-	fmt.Println("canceling context")
+	log.Info("canceling context")
 	cancelCtx()
-	fmt.Println("waiting for signal")
+	log.Info("waiting for signal")
 	<-done
-	fmt.Println("exit")
+	log.Info("exit")
 	return nil
 }
