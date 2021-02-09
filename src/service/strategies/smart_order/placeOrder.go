@@ -490,6 +490,8 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 		sm.Strategy.GetLogger().Info("create order strategyId",
 			zap.String("step", step),
 			zap.Float64("amount", baseAmount),
+			zap.Float64("price", orderPrice),
+			zap.Float64("stopPrice", stopPrice),
 		)
 		if step == WaitForEntry {
 			sm.IsEntryOrderPlaced = true

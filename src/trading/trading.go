@@ -219,7 +219,15 @@ func (t *Trading) CreateOrder(order CreateOrderRequest) OrderResponse {
 		order.KeyParams.TimeInForce = "GTC"
 	}
 	if strings.Contains(order.KeyParams.Type, "market") || strings.Contains(order.KeyParams.Params.Type, "market") {
+		// TODO: figure out
+		// somehow set price to 0 here or at placeOrder
+		// "request body":"{\"keyId\":\"5e9d948f15a68aaf7a6aa55d\",\"keyParams\":{\"symbol\":\"ETH_USDT\",\"marketType\":1,\"side\":\"sell\",\"amount\":0.007,\"filled\":0,\"average\":0,\"reduceOnly\":true,\"timeInForce\":\"GTC\",\"type\":\"stop\",\"stopPrice\":1730.76,\"positionSide\":\"BOTH\",\"params\":{\"type\":\"stop-limit\",\"update\":true},\"frequency\":0}}","response body":"{\"status\":\"ERR\",\"data\":{\"msg\":\"Error code: -1102 Message: A mandatory parameter was not sent, was empty/null, or malformed.\"}}"}
 		order.KeyParams.Price = 0.0
+		log.Info(
+			"set order.KeyParams.Price to zero",
+			zap.String("order.KeyParams.Type", order.KeyParams.Type),
+			zap.String("order.KeyParams.Params.Type", order.KeyParams.Params.Type),
+		)
 	}
 	if order.KeyParams.ReduceOnly != nil && *order.KeyParams.ReduceOnly == false {
 		order.KeyParams.ReduceOnly = nil
