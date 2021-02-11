@@ -13,7 +13,7 @@ func (sm *SmartOrder) exit(ctx context.Context, args ...interface{}) (stateless.
 	model := sm.Strategy.GetModel()
 	amount := model.Conditions.EntryOrder.Amount
 	if model.Conditions.MarketType == 0 {
-		amount = amount * 0.99 // TODO(khassanov): why?
+		amount = amount * 0.98 // TODO(khassanov): respect real executed amount
 	}
 
 	// TODO
