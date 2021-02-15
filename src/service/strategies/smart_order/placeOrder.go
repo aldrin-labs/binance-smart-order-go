@@ -429,10 +429,18 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 		break
 	}
 
-
 	// Respect exchange rules on values precision
+	sm.Strategy.GetLogger().Info("before rounding",
+		zap.Float64("baseAmount", baseAmount),
+		zap.Float64("orderPrice", orderPrice),
+		zap.String("step", step),
+	)
 	baseAmount = sm.toFixed(baseAmount, sm.QuantityAmountPrecision)
 	orderPrice = sm.toFixed(orderPrice, sm.QuantityPricePrecision)
+	sm.Strategy.GetLogger().Info("after rounding",
+		zap.Float64("baseAmount", baseAmount),
+		zap.Float64("orderPrice", orderPrice),
+	)
 
 	advancedOrderType := orderType
 	if strings.Contains(orderType, "stop") || strings.Contains(orderType, "take-profit") {
