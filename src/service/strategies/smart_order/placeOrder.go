@@ -5,10 +5,12 @@ import (
 	"go.uber.org/zap"
 	"strings"
 	"time"
+	"fmt"
 
 	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 )
 
+// PlaceOrder is a procedure calculates create order request and dispatches it to trading interface.
 func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 	baseAmount := 0.0
 	orderType := "market"
@@ -35,6 +37,8 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 	if isSpot || leverage == 0 {
 		leverage = 1
 	}
+
+	// Calculate request
 	switch step {
 	case TrailingEntry:
 		sm.Strategy.GetLogger().Info("trailing entry order placing")
@@ -380,7 +384,7 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 			} else {
 				orderPrice = model.State.TrailingEntryPrice * (1 + target.EntryDeviation/100/leverage)
 			}
-			if model.Conditions.TakeProfitExternal {
+			if model.Conditions.TakeProfitExternal { // TV alert?
 				orderPrice = model.Conditions.TrailingExitPrice
 			}
 		}
@@ -424,14 +428,27 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 		}
 		break
 	}
+
+	// Respect exchange rules on values precision
+	sm.Strategy.GetLogger().Info("before rounding",
+		zap.Float64("baseAmount", baseAmount),
+		zap.Float64("orderPrice", orderPrice),
+		zap.String("step", step),
+	)
 	baseAmount = sm.toFixed(baseAmount, sm.QuantityAmountPrecision)
 	orderPrice = sm.toFixed(orderPrice, sm.QuantityPricePrecision)
+	sm.Strategy.GetLogger().Info("after rounding",
+		zap.Float64("baseAmount", baseAmount),
+		zap.Float64("orderPrice", orderPrice),
+	)
 
 	advancedOrderType := orderType
 	if strings.Contains(orderType, "stop") || strings.Contains(orderType, "take-profit") {
 		orderType = "stop"
 		stopPrice = orderPrice
 	}
+
+	// Call trading API with retries
 	for {
 		if baseAmount == 0 || orderType == "limit" && orderPrice == 0 {
 			return
@@ -487,22 +504,26 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 		} else {
 			request.KeyParams.PositionSide = "BOTH"
 		}
-		sm.Strategy.GetLogger().Info("create order strategyId",
-			zap.String("step", step),
-			zap.Float64("amount", baseAmount),
-			zap.Float64("price", orderPrice),
-			zap.Float64("stopPrice", stopPrice),
-		)
 		if step == WaitForEntry {
 			sm.IsEntryOrderPlaced = true
 			sm.IsWaitingForOrder.Store(step, true)
 		}
+
+		sm.Strategy.GetLogger().Info("create order",
+			zap.String("step", step),
+			zap.Float64("amount", baseAmount),
+			zap.Float64("price", orderPrice),
+			zap.Float64("stopPrice", stopPrice),
+			zap.String("request", fmt.Sprint(request)),
+		)
 		var response trading.OrderResponse
 		if request.KeyParams.Type == "maker-only" {
 			response = sm.Strategy.GetSingleton().CreateOrder(request)
 		} else {
 			response = sm.ExchangeApi.CreateOrder(request)
 		}
+
+		// Update state with order attempt results
 		if response.Status == "OK" && response.Data.OrderId != "0" && response.Data.OrderId != "" {
 			sm.IsWaitingForOrder.Store(step, true)
 			if ifShouldCancelPreviousOrder {

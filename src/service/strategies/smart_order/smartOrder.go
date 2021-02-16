@@ -54,7 +54,7 @@ const (
 	TriggerTimeout           = "TriggerTimeout"
 )
 
-// A SmartOrder takes strategy to execute with context by the service runtime
+// A SmartOrder takes strategy to execute with context by the service runtime.
 type SmartOrder struct {
 	Strategy                interfaces.IStrategy // TODO(khassanov): can we use type instead of the interface here?
 	State                   *stateless.StateMachine
@@ -73,8 +73,8 @@ type SmartOrder struct {
 	Lock                    bool
 	StopLock                bool
 	LastTrailingTimestamp   int64
-	SelectedExitTarget      int
-	SelectedEntryTarget     int
+	SelectedExitTarget      int // number of current order
+	SelectedEntryTarget     int // represents what amount of targets executed for the SM by averaging
 	OrdersMux               sync.Mutex
 	StopMux                 sync.Mutex
 }
