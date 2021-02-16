@@ -455,8 +455,14 @@ func (sm *StateMgmt) GetMarketPrecision(pair string, marketType int64) (int64, i
 	var market *models.MongoMarket
 	err := coll.FindOne(ctx, request).Decode(&market)
 	if err != nil {
-		log.Error("", zap.Error(err))
+		log.Error("read market precision", zap.Error(err))
 	}
+	log.Info("got market precision",
+		zap.String("pair", pair),
+		zap.Int64("marketType", marketType),
+		zap.Int64("PricePrecision", market.Properties.Binance.PricePrecision),
+		zap.Int64("QuantityPrecision", market.Properties.Binance.QuantityPrecision),
+	)
 	sm.Statsd.TimingDuration("state_mgmt.get_market_precision", time.Since(t1))
 	return market.Properties.Binance.PricePrecision, market.Properties.Binance.QuantityPrecision
 }
