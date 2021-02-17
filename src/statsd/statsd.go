@@ -17,7 +17,7 @@ type StatsdClient struct {
 var once sync.Once
 
 func (sd *StatsdClient) Init() {
-	if os.Getenv("LOCAL") == "true"{
+	if os.Getenv("LOCAL") == "true" {
 		sd.Log, _ = zap.NewDevelopment()
 	} else {
 		sd.Log, _ = zap.NewProduction()

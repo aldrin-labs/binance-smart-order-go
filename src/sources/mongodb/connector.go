@@ -24,7 +24,7 @@ var log *zap.Logger
 
 func init() {
 	_ = godotenv.Load()
-	if os.Getenv("LOCAL") == "true"{
+	if os.Getenv("LOCAL") == "true" {
 		log, _ = zap.NewDevelopment()
 	} else {
 		log, _ = zap.NewProduction() // TODO: handle the error

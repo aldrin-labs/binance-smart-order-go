@@ -50,7 +50,7 @@ var once sync.Once
 func GetStrategyService() *StrategyService {
 	once.Do(func() {
 		var logger *zap.Logger
-		if os.Getenv("LOCAL") == "true"{
+		if os.Getenv("LOCAL") == "true" {
 			logger, _ = zap.NewDevelopment()
 		} else {
 			logger, _ = zap.NewProduction() // TODO(khassanov): handle the error
@@ -191,7 +191,7 @@ func GetStrategy(strategy *models.MongoStrategy, df interfaces.IDataFeed, tr tra
 	// TODO(khassanov): why we use this instead of the same from the `strategy` package?
 	// TODO(khassanov): remove code copy got from the same in the strategy package
 	var logger *zap.Logger
-	if os.Getenv("LOCAL") == "true"{
+	if os.Getenv("LOCAL") == "true" {
 		logger, _ = zap.NewDevelopment()
 	} else {
 		logger, _ = zap.NewProduction() // TODO(khassanov): handle the error

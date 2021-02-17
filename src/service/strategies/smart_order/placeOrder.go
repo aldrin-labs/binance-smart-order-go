@@ -2,10 +2,10 @@ package smart_order
 
 import (
 	"context"
+	"fmt"
 	"go.uber.org/zap"
 	"strings"
 	"time"
-	"fmt"
 
 	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 )

@@ -27,7 +27,7 @@ func GetStrategy(cur *mongo.Cursor, df interfaces.IDataFeed, tr trading.ITrading
 		redsync.WithExpiry(10*time.Second), // TODO(khassanov): use parameter to conform with extend call period
 	) // upsert
 	var logger *zap.Logger
-	if os.Getenv("LOCAL") == "true"{
+	if os.Getenv("LOCAL") == "true" {
 		logger, _ = zap.NewDevelopment()
 	} else {
 		logger, _ = zap.NewProduction() // TODO(khassanov): handle the error here and above
