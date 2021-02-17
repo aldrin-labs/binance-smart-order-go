@@ -88,6 +88,7 @@ type MongoOrder struct {
 	Price                  float64            `json:"price,omitempty" bson:"price"`
 	StopPrice              float64            `json:"stopPrice,omitempty" bson:"stopPrice"`
 	Timestamp              float64            `json:"timestamp,omitempty" bson:"timestamp"`
+	UpdatedAt              time.Time          `json:"updatedAt,omitempty" bson:"updatedAt"`
 }
 
 type MongoPosition struct {

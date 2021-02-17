@@ -109,13 +109,14 @@ func (sm *StateMgmt) InitOrdersWatch() {
 				if event.FullDocument.PostOnlyInitialOrderId != "" {
 					orderId = event.FullDocument.PostOnlyInitialOrderId
 				}
-
-				log.Info("",
+				log.Info("order",
 					zap.String("orderId", orderId),
 					zap.String("status", event.FullDocument.Status),
+					zap.Time("event.FullDocument.UpdatedAt", event.FullDocument.UpdatedAt),
 				)
 				getCallBackRaw, ok := sm.OrderCallbacks.Load(orderId)
 				if ok {
+					log.Info("callback found", zap.String("orderId", orderId))
 					callback := getCallBackRaw.(func(order *models.MongoOrder))
 					callback(&event.FullDocument)
 				}
