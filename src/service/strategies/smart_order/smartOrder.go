@@ -696,7 +696,7 @@ func (sm *SmartOrder) Start() {
 	sm.Statsd.Inc("smart_order.start")
 	var lastValidityCheckAt = time.Now().Add(-1 * time.Second)
 	for state != End && localState != End && state != Canceled && state != Timeout {
-		if time.Since(lastValidityCheckAt) > 2 * time.Second { // TODO: remove magic number
+		if time.Since(lastValidityCheckAt) > 2*time.Second { // TODO: remove magic number
 			sm.Strategy.GetLogger().Debug("settlement mutex validity check")
 			if valid, err := sm.Strategy.GetSettlementMutex().Valid(); !valid || err != nil {
 				sm.Strategy.GetLogger().Error("invalid settlement mutex, breaking event loop",
@@ -705,6 +705,7 @@ func (sm *SmartOrder) Start() {
 				)
 				break
 			}
+			lastValidityCheckAt = time.Now()
 		}
 		if sm.Strategy.GetModel().Enabled == false {
 			state, _ = sm.State.State(ctx)
@@ -765,7 +766,7 @@ func (sm *SmartOrder) Stop() {
 		sm.PlaceOrder(0, 0.0, Canceled)
 	}
 
-	if state != End && StateS != Timeout && !model.Conditions.EntrySpreadHunter  {
+	if state != End && StateS != Timeout && !model.Conditions.EntrySpreadHunter {
 		sm.Statsd.Inc("strategy_service.ended_with_not_end_status")
 		sm.PlaceOrder(0, 0.0, Canceled)
 
