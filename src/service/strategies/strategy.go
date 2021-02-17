@@ -154,13 +154,20 @@ func (strategy *Strategy) Settle() (bool, error) {
 	// extend settlement
 	go func() {
 		for {
-			time.Sleep(3 * time.Second) // TODO(khassanov): connect this with watchdog time
+			time.Sleep(3 * time.Second)                // TODO(khassanov): connect this with watchdog time
 			strategy.Log.Debug("extending settlement")
 			success, err := strategy.SettlementMutex.Extend()
 			if !success || err != nil {
 				strategy.Log.Error("settlement mutex extension",
 					zap.Bool("success", success),
 					zap.Error(err),
+				)
+				return
+			}
+			if !strategy.Model.Enabled {
+				strategy.Log.Info("disable settlement mutex extension",
+					zap.Bool("strategy.Model.Enabled", strategy.Model.Enabled),
+					zap.String("strategy.Model.State.State", strategy.Model.State.State),
 				)
 				return
 			}
