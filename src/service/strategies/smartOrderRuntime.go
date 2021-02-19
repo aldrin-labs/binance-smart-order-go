@@ -22,6 +22,7 @@ type KeyAsset struct {
 
 // RunSmartOrder starts a runtime for the strategy with given interfaces to market data and trading API.
 func RunSmartOrder(strategy *Strategy, df interfaces.IDataFeed, td trading.ITrading, st *statsd_client.StatsdClient, keyId *primitive.ObjectID) interfaces.IStrategyRuntime {
+	strategy.Log.Info("entry")
 	if strategy.Model.Conditions.Leverage == 0 {
 		strategy.Model.Conditions.Leverage = 1
 	}
@@ -75,8 +76,9 @@ func RunSmartOrder(strategy *Strategy, df interfaces.IDataFeed, td trading.ITrad
 
 	strategy.StateMgmt.SaveStrategyConditions(strategy.Model) // TODO(khassanov): rename this and the following
 	strategy.StateMgmt.UpdateStateAndConditions(strategy.Model.ID, strategy.Model)
+	strategy.Log.Info("instantiate runtime")
 	runtime := smart_order.NewSmartOrder(strategy, df, td, st, keyId, strategy.StateMgmt)
-	strategy.Log.Info("runtime starts")
+	strategy.Log.Info("start runtime")
 	go runtime.Start()
 
 	return runtime
