@@ -524,6 +524,10 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 		}
 
 		// Update state with order attempt results
+		sm.Strategy.GetLogger().Info("got response",
+			zap.String("status", response.Status),
+			zap.String("orderId", response.Data.OrderId),
+		)
 		if response.Status == "OK" && response.Data.OrderId != "0" && response.Data.OrderId != "" {
 			sm.IsWaitingForOrder.Store(step, true)
 			if ifShouldCancelPreviousOrder {
