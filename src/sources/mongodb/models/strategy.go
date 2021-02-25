@@ -157,6 +157,8 @@ type MongoStrategyState struct {
 	TakeProfitPrice      float64            `json:"takeProfitPrice, omitempty" bson:"takeProfitPrice"`
 	TakeProfitHedgePrice float64            `json:"takeProfitHedgePrice,omitempty" bson:"takeProfitHedgePrice"`
 	TakeProfitOrderIds   []string           `json:"takeProfitOrderIds,omitempty" bson:"takeProfitOrderIds"`
+	// An accumulated part of amount paid for fees
+	Commission float64 `json:"commission" bson:"commission"`
 
 	TrailingEntryPrice     float64 `json:"trailingEntryPrice,omitempty" bson:"trailingEntryPrice"`
 	HedgeExitPrice         float64 `json:"hedgeExitPrice,omitempty" bson:"hedgeExitPrice"`
