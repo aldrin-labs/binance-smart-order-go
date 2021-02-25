@@ -71,6 +71,11 @@ func (mm MongoMarket) MarketTypeString() (string, error) {
 	}
 }
 
+type MongoOrderFee struct {
+	Cost     float64 `json:"cost,string" bson:"cost"`
+	Currency string  `json:"currency" bson:"currency"`
+}
+
 type MongoOrder struct {
 	ID                     primitive.ObjectID `json:"_id" bson:"_id"`
 	Status                 string             `json:"status,omitempty" bson:"status"`
@@ -80,6 +85,7 @@ type MongoOrder struct {
 	PostOnlyInitialOrderId string             `json:"postOnlyInitialOrderId,omitempty" bson:"postOnlyInitialOrderId"`
 	Filled                 float64            `json:"filled,omitempty" bson:"filled"`
 	Amount                 float64            `json:"amount,omitempty" bson:"amount"`
+	Fee                    MongoOrderFee      `json:"fee" bson:"fee"`
 	Average                float64            `json:"average,omitempty" bson:"average"`
 	Side                   string             `json:"side,omitempty" bson:"side"`
 	Type                   string             `json:"type,omitempty" bson:"type"`
