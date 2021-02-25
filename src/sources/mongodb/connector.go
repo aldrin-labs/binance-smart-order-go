@@ -201,7 +201,7 @@ func (sm *StateMgmt) SubscribeToOrder(orderId string, onOrderStatusUpdate func(o
 	log.Info("subscribing to order",
 		zap.Bool("executedOrder is nil", executedOrder == nil),
 	)
-	if executedOrder != nil {
+	if executedOrder != nil { // looks like if this is true, we store a callback above forever, no?
 		onOrderStatusUpdate(executedOrder)
 	}
 	return nil
