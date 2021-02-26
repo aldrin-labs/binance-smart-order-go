@@ -430,8 +430,14 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 	}
 
 	// Respect fees paid
+	// TODO: reset commission if PlaceEntryAfterTAP set and TakeProfit executes
 	if side == "sell" && isSpot {
-		baseAmount = baseAmount - sm.Strategy.GetModel().State.Commission
+		if step == TakeProfit && len(sm.Strategy.GetModel().Conditions.ExitLevels) > 1 { // split targets
+			baseAmount = baseAmount - sm.Strategy.GetModel().State.Commission*
+				sm.Strategy.GetModel().Conditions.ExitLevels[sm.SelectedExitTarget].Amount/100.0
+		} else {
+			baseAmount = baseAmount - sm.Strategy.GetModel().State.Commission
+		}
 	}
 
 	// Respect exchange rules on values precision

@@ -71,9 +71,10 @@ func (mm MongoMarket) MarketTypeString() (string, error) {
 	}
 }
 
+// A MongoOrderFee represents optional field of order describes fees.
 type MongoOrderFee struct {
-	Cost     float64 `json:"cost,string" bson:"cost"`
-	Currency string  `json:"currency" bson:"currency"`
+	Cost     *string `json:"cost" bson:"cost"`
+	Currency *string `json:"currency" bson:"currency"`
 }
 
 type MongoOrder struct {

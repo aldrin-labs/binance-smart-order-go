@@ -101,7 +101,10 @@ func (sm *StateMgmt) InitOrdersWatch() {
 		// log.Print(data)
 		//		err := json.Unmarshal([]byte(data), &event)
 		if err != nil {
-			log.Error("event decode", zap.Error(err))
+			log.Error("event decode",
+				zap.Error(err),
+				zap.String("orderRaw", fmt.Sprintf("%+v", cs.Current)),
+			)
 		}
 		go func(event models.MongoOrderUpdateEvent) {
 			if event.FullDocument.Status == "filled" || event.FullDocument.Status == "canceled" {

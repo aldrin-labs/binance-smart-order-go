@@ -4,6 +4,7 @@ import (
 	"context"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
 	"go.uber.org/zap"
+	"strconv"
 )
 
 func (sm *SmartOrder) waitForOrder(orderId string, orderStatus string) {
@@ -25,7 +26,11 @@ func (sm *SmartOrder) orderCallback(order *models.MongoOrder) {
 	}
 	sm.OrdersMux.Lock()
 	if order.Side == "buy" && order.Status == "filled" { // TODO: is it necessary to check
-		sm.Strategy.GetModel().State.Commission += order.Fee.Cost
+		cost, err := strconv.ParseFloat(*order.Fee.Cost, 64)
+		if err != nil {
+			sm.Strategy.GetLogger().Error("parse fee cost", zap.Error(err))
+		}
+		sm.Strategy.GetModel().State.Commission += cost
 	}
 	if _, ok := sm.OrdersMap[order.OrderId]; ok {
 		delete(sm.OrdersMap, order.OrderId)
