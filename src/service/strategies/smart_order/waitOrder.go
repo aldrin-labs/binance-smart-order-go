@@ -4,6 +4,7 @@ import (
 	"context"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
 	"go.uber.org/zap"
+	"strconv"
 )
 
 func (sm *SmartOrder) waitForOrder(orderId string, orderStatus string) {
@@ -24,6 +25,13 @@ func (sm *SmartOrder) orderCallback(order *models.MongoOrder) {
 		return
 	}
 	sm.OrdersMux.Lock()
+	if order.Side == "buy" && order.Status == "filled" { // TODO: is it necessary to check
+		cost, err := strconv.ParseFloat(*order.Fee.Cost, 64)
+		if err != nil {
+			sm.Strategy.GetLogger().Error("parse fee cost", zap.Error(err))
+		}
+		sm.Strategy.GetModel().State.Commission += cost
+	}
 	if _, ok := sm.OrdersMap[order.OrderId]; ok {
 		delete(sm.OrdersMap, order.OrderId)
 	} else {
@@ -142,7 +150,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 				model.State.ExecutedAmount += order.Filled
 			}
 			if model.Conditions.MarketType == 0 {
-				amount = amount * 0.98 // TODO: use real executed amount here
+				amount = amount - sm.Strategy.GetModel().State.Commission
 			}
 			sm.Strategy.GetLogger().Info("",
 				zap.Bool("model.State.ExecutedAmount >= amount", model.State.ExecutedAmount >= amount),
@@ -176,7 +184,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			model.State.ExitPrice = order.Average
 			amount := model.Conditions.EntryOrder.Amount
 			if model.Conditions.MarketType == 0 {
-				amount = amount * 0.98
+				amount = amount - sm.Strategy.GetModel().State.Commission
 			}
 
 			sm.calculateAndSavePNL(model, step, order.Filled)
@@ -194,7 +202,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			model.State.ExitPrice = order.Average
 			amount := model.Conditions.EntryOrder.Amount
 			if model.Conditions.MarketType == 0 {
-				amount = amount * 0.98
+				amount = amount - sm.Strategy.GetModel().State.Commission
 			}
 
 			sm.calculateAndSavePNL(model, step, order.Filled)
@@ -211,7 +219,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			model.State.ExitPrice = order.Average
 			amount := model.Conditions.EntryOrder.Amount
 			if model.Conditions.MarketType == 0 {
-				amount = amount * 0.98
+				amount = amount - sm.Strategy.GetModel().State.Commission
 			}
 
 			sm.calculateAndSavePNL(model, step, order.Filled)
@@ -229,7 +237,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			model.State.ExitPrice = order.Average
 			amount := model.Conditions.EntryOrder.Amount
 			if model.Conditions.MarketType == 0 {
-				amount = amount * 0.98
+				amount = amount - sm.Strategy.GetModel().State.Commission
 			}
 
 			sm.calculateAndSavePNL(model, step, order.Filled)

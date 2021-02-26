@@ -429,6 +429,17 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 		break
 	}
 
+	// Respect fees paid
+	// TODO: reset commission if PlaceEntryAfterTAP set and TakeProfit executes
+	if side == "sell" && isSpot {
+		if step == TakeProfit && len(sm.Strategy.GetModel().Conditions.ExitLevels) > 1 { // split targets
+			baseAmount = baseAmount - sm.Strategy.GetModel().State.Commission*
+				sm.Strategy.GetModel().Conditions.ExitLevels[sm.SelectedExitTarget].Amount/100.0
+		} else {
+			baseAmount = baseAmount - sm.Strategy.GetModel().State.Commission
+		}
+	}
+
 	// Respect exchange rules on values precision
 	sm.Strategy.GetLogger().Info("before rounding",
 		zap.Float64("baseAmount", baseAmount),
@@ -576,10 +587,6 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 			}
 			break
 		} else {
-			sm.Strategy.GetLogger().Info("got response",
-				zap.String("status", response.Status),
-			)
-
 			// if error
 			if len(response.Data.Msg) > 0 {
 				// TODO
