@@ -25,7 +25,7 @@ func (sm *SmartOrder) orderCallback(order *models.MongoOrder) {
 		return
 	}
 	sm.OrdersMux.Lock()
-	if order.Side == "buy" && order.Status == "filled" { // TODO: is it necessary to check
+	if order.Side == "buy" && order.Status == "filled" && order.Fee.Cost != nil { // TODO: is it necessary to check
 		cost, err := strconv.ParseFloat(*order.Fee.Cost, 64)
 		if err != nil {
 			sm.Strategy.GetLogger().Error("parse fee cost", zap.Error(err))
