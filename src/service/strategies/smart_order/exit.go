@@ -13,7 +13,7 @@ func (sm *SmartOrder) exit(ctx context.Context, args ...interface{}) (stateless.
 	model := sm.Strategy.GetModel()
 	amount := model.Conditions.EntryOrder.Amount
 	if model.Conditions.MarketType == 0 {
-		amount = amount * 0.98 // TODO(khassanov): respect real executed amount
+		amount = amount - sm.Strategy.GetModel().State.Commission
 	}
 
 	// TODO
@@ -25,7 +25,7 @@ func (sm *SmartOrder) exit(ctx context.Context, args ...interface{}) (stateless.
 		zap.String("smart order state", state.(string)),
 		zap.String("model state", model.State.State),
 		zap.Float64("executed amount", model.State.ExecutedAmount),
-		zap.Float64("conditions entry amount", amount),
+		zap.Float64("conditions entry amount", model.Conditions.EntryOrder.Amount),
 		zap.Bool("is executed amount >= amount in exit", model.State.ExecutedAmount >= amount),
 	)
 	if model.State.State != WaitLossHedge && model.State.ExecutedAmount >= amount { // all trades executed, nothing more to trade

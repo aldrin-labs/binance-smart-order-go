@@ -71,6 +71,12 @@ func (mm MongoMarket) MarketTypeString() (string, error) {
 	}
 }
 
+// A MongoOrderFee represents optional field of order describes fees.
+type MongoOrderFee struct {
+	Cost     *string `json:"cost" bson:"cost"`
+	Currency *string `json:"currency" bson:"currency"`
+}
+
 type MongoOrder struct {
 	ID                     primitive.ObjectID `json:"_id" bson:"_id"`
 	Status                 string             `json:"status,omitempty" bson:"status"`
@@ -80,6 +86,7 @@ type MongoOrder struct {
 	PostOnlyInitialOrderId string             `json:"postOnlyInitialOrderId,omitempty" bson:"postOnlyInitialOrderId"`
 	Filled                 float64            `json:"filled,omitempty" bson:"filled"`
 	Amount                 float64            `json:"amount,omitempty" bson:"amount"`
+	Fee                    MongoOrderFee      `json:"fee" bson:"fee"`
 	Average                float64            `json:"average,omitempty" bson:"average"`
 	Side                   string             `json:"side,omitempty" bson:"side"`
 	Type                   string             `json:"type,omitempty" bson:"type"`
@@ -151,6 +158,8 @@ type MongoStrategyState struct {
 	TakeProfitPrice      float64            `json:"takeProfitPrice, omitempty" bson:"takeProfitPrice"`
 	TakeProfitHedgePrice float64            `json:"takeProfitHedgePrice,omitempty" bson:"takeProfitHedgePrice"`
 	TakeProfitOrderIds   []string           `json:"takeProfitOrderIds,omitempty" bson:"takeProfitOrderIds"`
+	// An accumulated part of amount paid for fees
+	Commission float64 `json:"commission" bson:"commission"`
 
 	TrailingEntryPrice     float64 `json:"trailingEntryPrice,omitempty" bson:"trailingEntryPrice"`
 	HedgeExitPrice         float64 `json:"hedgeExitPrice,omitempty" bson:"hedgeExitPrice"`

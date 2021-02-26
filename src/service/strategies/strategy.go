@@ -154,7 +154,7 @@ func (strategy *Strategy) Settle() (bool, error) {
 	// extend settlement
 	go func() {
 		for {
-			time.Sleep(3 * time.Second)                // TODO(khassanov): connect this with watchdog time
+			time.Sleep(3 * time.Second) // TODO(khassanov): connect this with watchdog time
 			strategy.Log.Debug("extending settlement")
 			success, err := strategy.SettlementMutex.Extend()
 			if !success || err != nil {
