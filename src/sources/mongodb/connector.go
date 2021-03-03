@@ -554,7 +554,11 @@ func (sm *StateMgmt) UpdateStrategyState(strategyId *primitive.ObjectID, state *
 	}
 	updated, err := col.UpdateOne(context.TODO(), request, update)
 	if err != nil {
-		log.Error("error in arg", zap.Error(err))
+		log.Error("error in arg",
+			zap.Error(err),
+			zap.String("filter", fmt.Sprint(request)),
+			zap.String("update", fmt.Sprint(update)),
+		)
 		return
 	}
 	log.Info("updated state of strategy",

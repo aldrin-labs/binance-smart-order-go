@@ -12,6 +12,11 @@ import (
 
 // PlaceOrder is a procedure calculates create order request and dispatches it to trading interface.
 func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
+	sm.Strategy.GetLogger().Debug("place order",
+		zap.Float64("price", price),
+		zap.Float64("amount", amount),
+		zap.String("step", step),
+	)
 	baseAmount := 0.0
 	orderType := "market"
 	stopPrice := 0.0
@@ -303,6 +308,10 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 		prefix := "take-profit-"
 		reduceOnly = true
 		if sm.SelectedExitTarget >= len(model.Conditions.ExitLevels) {
+			sm.Strategy.GetLogger().Debug("don't place order",
+				zap.Int("SelectedExitTarget", sm.SelectedExitTarget),
+				zap.Int("len(model.Conditions.ExitLevels)", len(model.Conditions.ExitLevels)),
+			)
 			return
 		}
 		target := model.Conditions.ExitLevels[sm.SelectedExitTarget]
@@ -322,9 +331,17 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 
 		if price == 0 && isTrailingTarget {
 			// trailing exit, we cant place exit order now
+			sm.Strategy.GetLogger().Debug("don't place order",
+				zap.Float64("price", price),
+				zap.Bool("isTrailingTarget", isTrailingTarget),
+			)
 			return
 		}
 		if price > 0 && !isSpotMarketOrder {
+			sm.Strategy.GetLogger().Debug("don't place order",
+				zap.Float64("price", price),
+				zap.Bool("!isSpotMarketOrder", !isSpotMarketOrder),
+			)
 			return // order was placed before, exit
 		}
 
@@ -351,6 +368,12 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 					orderType = prefix + target.OrderType
 					recursiveCall = true
 				} else {
+					sm.Strategy.GetLogger().Debug("don't place order",
+						zap.Bool("isFutures", isFutures),
+						zap.String("target.OrderType", target.OrderType),
+						zap.Bool("!isTrailingTarget", !isTrailingTarget),
+						zap.Float64("price", price),
+					)
 					return // we cant place market order on spot at exists before it happened, because there is no stop markets
 				}
 			} else {
@@ -377,6 +400,12 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 			if isFutures {
 				orderType = prefix + target.OrderType
 			} else if price == 0 {
+				sm.Strategy.GetLogger().Debug("don't place order",
+					zap.Float64("price", price),
+					zap.Bool("isFutures", isFutures),
+					zap.Bool("isTrailingTarget", isTrailingTarget),
+					zap.Bool("isNewTrailingMaximum", isNewTrailingMaximum),
+				)
 				return // we cant place stop-market orders on spot so we'll wait for exact price
 			}
 			if side == "sell" {
