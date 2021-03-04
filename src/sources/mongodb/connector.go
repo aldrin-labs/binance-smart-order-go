@@ -544,9 +544,6 @@ func (sm *StateMgmt) UpdateStrategyState(strategyId *primitive.ObjectID, state *
 			"state", state,
 		},
 	}
-	if len(state.Msg) > 0 {
-		updates = append(updates, bson.E{Key: "state.msg", Value: state.Msg})
-	}
 	update = bson.D{
 		{
 			"$set", updates,
