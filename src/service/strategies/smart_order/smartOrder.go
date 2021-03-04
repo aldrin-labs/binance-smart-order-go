@@ -79,13 +79,29 @@ type SmartOrder struct {
 	StopMux                 sync.Mutex
 }
 
+const (
+	Nearest = iota
+	Floor
+	Ceil
+)
+
 func round(num float64) int {
 	return int(num + math.Copysign(0.5, num))
 }
 
-func (sm *SmartOrder) toFixed(num float64, precision int64) float64 {
-	output := math.Pow(10, float64(precision))
-	return float64(round(num*output)) / output
+// toFixed returns floating point number rounded to precision given to nearest, floor or ceil function.
+func (sm *SmartOrder) toFixed(n float64, precision int64, mode int) float64 {
+	rank := math.Pow(10, float64(precision))
+	switch mode {
+	case Ceil:
+		return math.Ceil(n*rank) / rank
+	case Nearest:
+		return float64(round(n*rank)) / rank
+	case Floor:
+		return math.Floor(n*rank) / rank
+	default:
+		return n
+	}
 }
 
 // NewSmartOrder instantiates new smart order with given strategy.
@@ -239,7 +255,7 @@ func (sm *SmartOrder) getLastTargetAmount() float64 {
 				}
 				baseAmount = sm.Strategy.GetModel().Conditions.EntryOrder.Amount * (baseAmount / 100)
 			}
-			baseAmount = sm.toFixed(baseAmount, sm.QuantityAmountPrecision)
+			baseAmount = sm.toFixed(baseAmount, sm.QuantityAmountPrecision, Floor)
 			sumAmount += baseAmount
 		}
 	}

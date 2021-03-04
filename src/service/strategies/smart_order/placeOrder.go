@@ -475,8 +475,8 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 		zap.Float64("orderPrice", orderPrice),
 		zap.String("step", step),
 	)
-	baseAmount = sm.toFixed(baseAmount, sm.QuantityAmountPrecision)
-	orderPrice = sm.toFixed(orderPrice, sm.QuantityPricePrecision)
+	baseAmount = sm.toFixed(baseAmount, sm.QuantityAmountPrecision, Floor)
+	orderPrice = sm.toFixed(orderPrice, sm.QuantityPricePrecision, Nearest)
 	sm.Strategy.GetLogger().Info("after rounding",
 		zap.Float64("baseAmount", baseAmount),
 		zap.Float64("orderPrice", orderPrice),
