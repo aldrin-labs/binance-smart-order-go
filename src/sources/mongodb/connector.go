@@ -24,7 +24,7 @@ var log *zap.Logger
 
 func init() {
 	_ = godotenv.Load()
-	if os.Getenv("LOCAL") == "true"{
+	if os.Getenv("LOCAL") == "true" {
 		log, _ = zap.NewDevelopment()
 	} else {
 		log, _ = zap.NewProduction() // TODO: handle the error
@@ -101,7 +101,10 @@ func (sm *StateMgmt) InitOrdersWatch() {
 		// log.Print(data)
 		//		err := json.Unmarshal([]byte(data), &event)
 		if err != nil {
-			log.Error("event decode", zap.Error(err))
+			log.Error("event decode",
+				zap.Error(err),
+				zap.String("orderRaw", fmt.Sprintf("%+v", cs.Current)),
+			)
 		}
 		go func(event models.MongoOrderUpdateEvent) {
 			if event.FullDocument.Status == "filled" || event.FullDocument.Status == "canceled" {
@@ -109,20 +112,24 @@ func (sm *StateMgmt) InitOrdersWatch() {
 				if event.FullDocument.PostOnlyInitialOrderId != "" {
 					orderId = event.FullDocument.PostOnlyInitialOrderId
 				}
-
-				log.Info("",
+				log.Info("order",
 					zap.String("orderId", orderId),
 					zap.String("status", event.FullDocument.Status),
+					zap.Time("event.FullDocument.UpdatedAt", event.FullDocument.UpdatedAt),
 				)
 				getCallBackRaw, ok := sm.OrderCallbacks.Load(orderId)
 				if ok {
+					log.Debug("callback found",
+						zap.String("orderId", orderId),
+						zap.String("fullDocument", fmt.Sprintf("%+v", event.FullDocument)),
+					)
 					callback := getCallBackRaw.(func(order *models.MongoOrder))
 					callback(&event.FullDocument)
 				}
 			}
 		}(eventDecoded)
 	}
-	log.Warn("watching for new orders stopped")
+	log.Fatal("new orders watch")
 }
 
 func (sm *StateMgmt) EnableStrategy(strategyId *primitive.ObjectID) {
@@ -200,7 +207,7 @@ func (sm *StateMgmt) SubscribeToOrder(orderId string, onOrderStatusUpdate func(o
 	log.Info("subscribing to order",
 		zap.Bool("executedOrder is nil", executedOrder == nil),
 	)
-	if executedOrder != nil {
+	if executedOrder != nil { // looks like if this is true, we store a callback above forever, no?
 		onOrderStatusUpdate(executedOrder)
 	}
 	return nil
@@ -320,6 +327,7 @@ func (sm *StateMgmt) SubscribeToHedge(strategyId *primitive.ObjectID, onStrategy
 		}
 		onStrategyUpdate(&event.FullDocument)
 	}
+	log.Fatal("strategies update watch")
 	return nil
 }
 
@@ -537,9 +545,6 @@ func (sm *StateMgmt) UpdateStrategyState(strategyId *primitive.ObjectID, state *
 			"state", state,
 		},
 	}
-	if len(state.Msg) > 0 {
-		updates = append(updates, bson.E{Key: "state.msg", Value: state.Msg})
-	}
 	update = bson.D{
 		{
 			"$set", updates,
@@ -547,7 +552,11 @@ func (sm *StateMgmt) UpdateStrategyState(strategyId *primitive.ObjectID, state *
 	}
 	updated, err := col.UpdateOne(context.TODO(), request, update)
 	if err != nil {
-		log.Error("error in arg", zap.Error(err))
+		log.Error("error in arg",
+			zap.Error(err),
+			zap.String("filter", fmt.Sprint(request)),
+			zap.String("update", fmt.Sprint(update)),
+		)
 		return
 	}
 	log.Info("updated state of strategy",

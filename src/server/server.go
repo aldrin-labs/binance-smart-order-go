@@ -10,8 +10,8 @@ import (
 	"gitlab.com/crypto_project/core/strategy_service/src/service"
 	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"go.uber.org/zap"
-	"sync"
 	"os"
+	"sync"
 )
 
 var log *zap.Logger
