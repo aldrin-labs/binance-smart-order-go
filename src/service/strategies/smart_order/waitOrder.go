@@ -2,10 +2,10 @@ package smart_order
 
 import (
 	"context"
+	"fmt"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
 	"go.uber.org/zap"
 	"strconv"
-	"fmt"
 )
 
 func (sm *SmartOrder) waitForOrder(orderId string, orderStatus string) {
