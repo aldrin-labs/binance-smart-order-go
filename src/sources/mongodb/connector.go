@@ -129,7 +129,7 @@ func (sm *StateMgmt) InitOrdersWatch() {
 			}
 		}(eventDecoded)
 	}
-	log.Warn("watching for new orders stopped")
+	log.Fatal("new orders watch")
 }
 
 func (sm *StateMgmt) EnableStrategy(strategyId *primitive.ObjectID) {
@@ -327,6 +327,7 @@ func (sm *StateMgmt) SubscribeToHedge(strategyId *primitive.ObjectID, onStrategy
 		}
 		onStrategyUpdate(&event.FullDocument)
 	}
+	log.Fatal("strategies update watch")
 	return nil
 }
 

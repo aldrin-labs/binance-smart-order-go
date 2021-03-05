@@ -566,7 +566,7 @@ func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) 
 			}
 		}
 	}
-	ss.log.Warn("watching for new strategies stopped")
+	ss.log.Fatal("new strategies watch")
 	return nil
 }
 
@@ -636,7 +636,7 @@ func (ss *StrategyService) InitPositionsWatch() {
 			}
 		}(positionEventDecoded)
 	}
-	ss.log.Warn("watching for new positions stopped")
+	ss.log.Fatal("new positions watch")
 }
 
 func (ss *StrategyService) EditConditions(strategy *strategies.Strategy) {
