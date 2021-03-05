@@ -5,6 +5,7 @@ import (
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
 	"go.uber.org/zap"
 	"strconv"
+	"fmt"
 )
 
 func (sm *SmartOrder) waitForOrder(orderId string, orderStatus string) {
@@ -152,9 +153,15 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			if model.Conditions.MarketType == 0 {
 				amount = amount - sm.Strategy.GetModel().State.Commission
 			}
-			sm.Strategy.GetLogger().Info("",
+			sm.Strategy.GetLogger().Info("check for close",
 				zap.Bool("model.State.ExecutedAmount >= amount", model.State.ExecutedAmount >= amount),
+				zap.Float64("model.Conditions.EntryOrder.Amount", model.Conditions.EntryOrder.Amount),
+				zap.Float64("model.State.ExecutedAmount", model.State.ExecutedAmount),
+				zap.Float64("amount", amount),
+				zap.Float64("sm.Strategy.GetModel().State.Commission", sm.Strategy.GetModel().State.Commission),
 				zap.Bool("model.Conditions.PlaceEntryAfterTAP ", model.Conditions.PlaceEntryAfterTAP),
+				zap.String("orderStatus", orderStatus),
+				zap.String("step", fmt.Sprint(step)),
 			)
 			// here we gonna close SM if CloseStrategyAfterFirstTAP enabled or we executed all entry && TAP orders
 			if model.State.ExecutedAmount >= amount || model.Conditions.CloseStrategyAfterFirstTAP {
@@ -186,12 +193,16 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			if model.Conditions.MarketType == 0 {
 				amount = amount - sm.Strategy.GetModel().State.Commission
 			}
-
 			sm.calculateAndSavePNL(model, step, order.Filled)
-			sm.Strategy.GetLogger().Info("",
+			sm.Strategy.GetLogger().Info("check for close",
 				zap.Bool("model.State.ExecutedAmount >= amount in SL", model.State.ExecutedAmount >= amount),
+				zap.Float64("model.Conditions.EntryOrder.Amount", model.Conditions.EntryOrder.Amount),
+				zap.Float64("model.State.ExecutedAmount", model.State.ExecutedAmount),
+				zap.Float64("amount", amount),
+				zap.Float64("sm.Strategy.GetModel().State.Commission", sm.Strategy.GetModel().State.Commission),
+				zap.String("orderStatus", orderStatus),
+				zap.String("step", fmt.Sprint(step)),
 			)
-
 			if model.State.ExecutedAmount >= amount {
 				return true
 			}
