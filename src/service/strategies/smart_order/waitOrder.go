@@ -152,6 +152,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			}
 			if model.Conditions.MarketType == 0 {
 				amount = amount - sm.Strategy.GetModel().State.Commission
+				amount = sm.toFixed(amount, sm.QuantityAmountPrecision, Floor)
 			}
 			sm.Strategy.GetLogger().Info("check for close",
 				zap.Bool("model.State.ExecutedAmount >= amount", model.State.ExecutedAmount >= amount),
@@ -192,6 +193,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			amount := model.Conditions.EntryOrder.Amount
 			if model.Conditions.MarketType == 0 {
 				amount = amount - sm.Strategy.GetModel().State.Commission
+				amount = sm.toFixed(amount, sm.QuantityAmountPrecision, Floor)
 			}
 			sm.calculateAndSavePNL(model, step, order.Filled)
 			sm.Strategy.GetLogger().Info("check for close",
