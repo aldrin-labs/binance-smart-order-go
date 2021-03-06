@@ -79,13 +79,29 @@ type SmartOrder struct {
 	StopMux                 sync.Mutex
 }
 
+const (
+	Nearest = iota
+	Floor
+	Ceil
+)
+
 func round(num float64) int {
 	return int(num + math.Copysign(0.5, num))
 }
 
-func (sm *SmartOrder) toFixed(num float64, precision int64) float64 {
-	output := math.Pow(10, float64(precision))
-	return float64(round(num*output)) / output
+// toFixed returns floating point number rounded to precision given to nearest, floor or ceil function.
+func (sm *SmartOrder) toFixed(n float64, precision int64, mode int) float64 {
+	rank := math.Pow(10, float64(precision))
+	switch mode {
+	case Ceil:
+		return math.Ceil(n*rank) / rank
+	case Nearest:
+		return float64(round(n*rank)) / rank
+	case Floor:
+		return math.Floor(n*rank) / rank
+	default:
+		return n
+	}
 }
 
 // NewSmartOrder instantiates new smart order with given strategy.
@@ -239,7 +255,7 @@ func (sm *SmartOrder) getLastTargetAmount() float64 {
 				}
 				baseAmount = sm.Strategy.GetModel().Conditions.EntryOrder.Amount * (baseAmount / 100)
 			}
-			baseAmount = sm.toFixed(baseAmount, sm.QuantityAmountPrecision)
+			baseAmount = sm.toFixed(baseAmount, sm.QuantityAmountPrecision, Floor)
 			sumAmount += baseAmount
 		}
 	}
@@ -696,7 +712,7 @@ func (sm *SmartOrder) Start() {
 	sm.Statsd.Inc("smart_order.start")
 	var lastValidityCheckAt = time.Now().Add(-1 * time.Second)
 	for state != End && localState != End && state != Canceled && state != Timeout {
-		if time.Since(lastValidityCheckAt) > 2 * time.Second { // TODO: remove magic number
+		if time.Since(lastValidityCheckAt) > 2*time.Second { // TODO: remove magic number
 			sm.Strategy.GetLogger().Debug("settlement mutex validity check")
 			if valid, err := sm.Strategy.GetSettlementMutex().Valid(); !valid || err != nil {
 				sm.Strategy.GetLogger().Error("invalid settlement mutex, breaking event loop",
@@ -705,6 +721,7 @@ func (sm *SmartOrder) Start() {
 				)
 				break
 			}
+			lastValidityCheckAt = time.Now()
 		}
 		if sm.Strategy.GetModel().Enabled == false {
 			state, _ = sm.State.State(ctx)
@@ -765,7 +782,7 @@ func (sm *SmartOrder) Stop() {
 		sm.PlaceOrder(0, 0.0, Canceled)
 	}
 
-	if state != End && StateS != Timeout && !model.Conditions.EntrySpreadHunter  {
+	if state != End && StateS != Timeout && !model.Conditions.EntrySpreadHunter {
 		sm.Statsd.Inc("strategy_service.ended_with_not_end_status")
 		sm.PlaceOrder(0, 0.0, Canceled)
 

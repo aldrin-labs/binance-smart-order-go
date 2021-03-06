@@ -60,7 +60,7 @@ type MiniTicker struct {
 	// Symbol string `json:"s,string"` // "BNBBTC"
 	// Close float64 `json:"c,string"` // "0.0025"
 	Symbol string `json:"s"` // "BNBBTC"
-	Close string `json:"c"` // "0.0025"
+	Close  string `json:"c"` // "0.0025"
 	// Open float64 `json:"o,string"` // "0.0010"
 	// High float64 `json:"h,string"` // "0.0025"
 	// Low float64 `json:"l,string"` // "0.0010"
