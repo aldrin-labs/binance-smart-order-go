@@ -243,6 +243,7 @@ func (sm *SmartOrder) checkIfPlaceOrderInstantlyOnStart() {
 	}
 }
 
+// getLastTargetAmount returns an amount for latest take a profit order.
 func (sm *SmartOrder) getLastTargetAmount() float64 {
 	sumAmount := 0.0
 	length := len(sm.Strategy.GetModel().Conditions.ExitLevels)
@@ -260,6 +261,13 @@ func (sm *SmartOrder) getLastTargetAmount() float64 {
 		}
 	}
 	endTargetAmount := sm.Strategy.GetModel().Conditions.EntryOrder.Amount - sumAmount
+
+	// This rounding is important due to limited IEEE-754 floating point arithmetics precision.
+	// For instance if `endTargetAmount = 219.2 - 21.9`, you will get `197.29999999999998` instead of `197.3`.
+	// Bug report related: https://cryptocurrenciesai.slack.com/archives/CCSQNTQ4W/p1615040296128100
+	// We use Nearest because subtraction result may be slightly smaller or slightly bigger then true value.
+	endTargetAmount = sm.toFixed(endTargetAmount, sm.QuantityAmountPrecision, Nearest)
+
 	return endTargetAmount
 }
 
