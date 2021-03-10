@@ -513,7 +513,9 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 			}
 		}
 		if isSpot {
-			request.KeyParams.Params.MaxIfNotEnough = 1
+			// if SM wants to exit in a short period after entry executed, ES may have no balance updated and set
+			// exit order amount to zero. That's why we should not use MaxIfNotEnough option here.
+			request.KeyParams.Params.MaxIfNotEnough = 0
 			request.KeyParams.Params.Retry = true
 			request.KeyParams.Params.RetryTimeout = 1000
 			request.KeyParams.Params.RetryCount = 5
