@@ -105,6 +105,9 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 	case "Altcoins":
 		filter := primitive.Regex{Pattern: "^((?!BTC).)*$"} // does not contain BTC substring
 		ss.setPairs(ctx, coll, filter)
+	case "ADA_USDT":
+		filter := primitive.Regex{Pattern: "^ADA_USDT$"}
+		ss.setPairs(ctx, coll, filter)
 	default:
 		ss.log.Fatal("Can't start in provided mode. "+
 			"Please set 'MODE' environment variable to 'Bitcoin', 'Altcoins' or 'All'",
