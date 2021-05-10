@@ -56,6 +56,7 @@ func Healthz(ctx *fasthttp.RequestCtx) {
 func CreateOrder(ctx *fasthttp.RequestCtx) {
 	var createOrder trading.CreateOrderRequest
 	_ = json.Unmarshal(ctx.PostBody(), &createOrder)
+	log.Info("incoming", zap.String("request", fmt.Sprintf("%+v", createOrder)))
 	response := service.GetStrategyService().CreateOrder(createOrder)
 	jsonStr, err := json.Marshal(response)
 	if err != nil {
@@ -66,9 +67,9 @@ func CreateOrder(ctx *fasthttp.RequestCtx) {
 
 // CancelOrder is a handler to pass a request to cancel a smart trade to service instance and return a status for the attempt.
 func CancelOrder(ctx *fasthttp.RequestCtx) {
-	log.Info("cancelOrder in ss")
 	var cancelOrder trading.CancelOrderRequest
 	_ = json.Unmarshal(ctx.PostBody(), &cancelOrder)
+	log.Info("incoming", zap.String("request", fmt.Sprintf("%+v", cancelOrder)))
 	response := service.GetStrategyService().CancelOrder(cancelOrder)
 	jsonStr, err := json.Marshal(response)
 	if err != nil {
