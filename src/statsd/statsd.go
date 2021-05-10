@@ -20,7 +20,7 @@ func (sd *StatsdClient) Init() {
 	if os.Getenv("LOCAL") == "true" {
 		sd.Log, _ = zap.NewDevelopment()
 	} else {
-		sd.Log, _ = zap.NewProduction()
+		sd.Log, _ = zap.NewDevelopment()
 	}
 	sd.Log = sd.Log.With(zap.String("logger", "statsd"))
 	host := os.Getenv("STATSD_HOST")
