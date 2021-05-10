@@ -69,7 +69,7 @@ func init() {
 	if os.Getenv("LOCAL") == "true" {
 		log, _ = zap.NewDevelopment()
 	} else {
-		log, _ = zap.NewDevelopment()
+		log, _ = zap.NewProduction()
 	}
 	log = log.With(zap.String("logger", "trading"))
 }

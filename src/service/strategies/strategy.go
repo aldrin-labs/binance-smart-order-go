@@ -30,7 +30,7 @@ func GetStrategy(cur *mongo.Cursor, df interfaces.IDataFeed, tr trading.ITrading
 	if os.Getenv("LOCAL") == "true" {
 		logger, _ = zap.NewDevelopment()
 	} else {
-		logger, _ = zap.NewDevelopment() // TODO(khassanov): handle the error here and above
+		logger, _ = zap.NewProduction() // TODO(khassanov): handle the error here and above
 	}
 	loggerName := fmt.Sprintf("sm-%v", model.ID.Hex())
 	logger = logger.With(zap.String("logger", loggerName))

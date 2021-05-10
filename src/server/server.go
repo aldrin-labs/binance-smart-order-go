@@ -26,7 +26,7 @@ func init() {
 	if os.Getenv("LOCAL") == "true" {
 		log, _ = zap.NewDevelopment()
 	} else {
-		log, _ = zap.NewDevelopment() // TODO: handle the error
+		log, _ = zap.NewProduction() // TODO: handle the error
 	}
 	log = log.With(zap.String("logger", "srv"))
 }

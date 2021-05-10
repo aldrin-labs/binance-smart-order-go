@@ -53,7 +53,7 @@ func GetStrategyService() *StrategyService {
 		if os.Getenv("LOCAL") == "true" {
 			logger, _ = zap.NewDevelopment()
 		} else {
-			logger, _ = zap.NewDevelopment() // TODO(khassanov): handle the error
+			logger, _ = zap.NewProduction() // TODO(khassanov): handle the error
 		}
 		logger = logger.With(zap.String("logger", "ss"))
 		// df := redis.InitRedis()
@@ -194,7 +194,7 @@ func GetStrategy(strategy *models.MongoStrategy, df interfaces.IDataFeed, tr tra
 	if os.Getenv("LOCAL") == "true" {
 		logger, _ = zap.NewDevelopment()
 	} else {
-		logger, _ = zap.NewDevelopment() // TODO(khassanov): handle the error
+		logger, _ = zap.NewProduction() // TODO(khassanov): handle the error
 	}
 	loggerName := fmt.Sprintf("sm-%v", strategy.ID.Hex())
 	logger = logger.With(zap.String("logger", loggerName))
