@@ -104,8 +104,8 @@ func (sm *SmartOrder) toFixed(n float64, precision int64, mode int) float64 {
 	}
 }
 
-// NewSmartOrder instantiates new smart order with given strategy.
-func NewSmartOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed, TradingAPI trading.ITrading, Statsd *statsd_client.StatsdClient, keyId *primitive.ObjectID, stateMgmt interfaces.IStateMgmt) *SmartOrder {
+// New instantiates new smart order with given strategy.
+func New(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed, TradingAPI trading.ITrading, Statsd *statsd_client.StatsdClient, keyId *primitive.ObjectID, stateMgmt interfaces.IStateMgmt) *SmartOrder {
 
 	sm := &SmartOrder{
 		Strategy:           strategy,

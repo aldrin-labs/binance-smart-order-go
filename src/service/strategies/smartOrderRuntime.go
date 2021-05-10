@@ -77,7 +77,7 @@ func RunSmartOrder(strategy *Strategy, df interfaces.IDataFeed, td trading.ITrad
 	strategy.StateMgmt.SaveStrategyConditions(strategy.Model) // TODO(khassanov): rename this and the following
 	strategy.StateMgmt.UpdateStateAndConditions(strategy.Model.ID, strategy.Model)
 	strategy.Log.Info("instantiate runtime")
-	runtime := smart_order.NewSmartOrder(strategy, df, td, st, keyId, strategy.StateMgmt)
+	runtime := smart_order.New(strategy, df, td, st, keyId, strategy.StateMgmt)
 	strategy.Log.Info("start runtime")
 	go runtime.Start()
 
