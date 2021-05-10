@@ -142,22 +142,26 @@ type MongoStrategyState struct {
 	Iteration    int    `json:"iteration,omitempty" bson:"iteration"`
 	// we save params to understand which was changed
 
-	EntryPointPrice      float64            `json:"entryPointPrice,omitempty" bson:"entryPointPrice"`
-	EntryPointType       string             `json:"entryPointType,omitempty" bson:"entryPointType"`
-	EntryPointSide       string             `json:"entryPointSide,omitempty" bson:"entryPointSide"`
-	EntryPointAmount     float64            `json:"entryPointAmount,omitempty" bson:"entryPointAmount"`
-	EntryPointDeviation  float64            `json:"entryPointDeviation,omitempty" bson:"entryPointDeviation"`
-	WaitForEntryIds      []string           `json:"waitForEntryIds,omitempty" bson:"waitForEntryIds"`
-	StopLoss             float64            `json:"stopLoss,omitempty" bson:"stopLoss"`
-	StopLossPrice        float64            `json:"stopLossPrice, omitempty" bson:"stopLossPrice"`
-	StopLossOrderIds     []string           `json:"stopLossOrderIds,omitempty" bson:"stopLossOrderIds"`
-	ForcedLoss           float64            `json:"forcedLoss,omitempty" bson:"forcedLoss"`
-	ForcedLossPrice      float64            `json:"forcedLossPrice, omitempty" bson:"forcedLossPrice"`
+	EntryPointPrice     float64 `json:"entryPointPrice,omitempty" bson:"entryPointPrice"`
+	EntryPointType      string  `json:"entryPointType,omitempty" bson:"entryPointType"`
+	EntryPointSide      string  `json:"entryPointSide,omitempty" bson:"entryPointSide"`
+	EntryPointAmount    float64 `json:"entryPointAmount,omitempty" bson:"entryPointAmount"`
+	EntryPointDeviation float64 `json:"entryPointDeviation,omitempty" bson:"entryPointDeviation"`
+	// Orders created by strategy to entry.
+	WaitForEntryIds []string `json:"waitForEntryIds,omitempty" bson:"waitForEntryIds"`
+	StopLoss        float64  `json:"stopLoss,omitempty" bson:"stopLoss"`
+	StopLossPrice   float64  `json:"stopLossPrice, omitempty" bson:"stopLossPrice"`
+	// Orders created by strategy for regular stop-loss.
+	StopLossOrderIds []string `json:"stopLossOrderIds,omitempty" bson:"stopLossOrderIds"`
+	ForcedLoss       float64  `json:"forcedLoss,omitempty" bson:"forcedLoss"`
+	ForcedLossPrice  float64  `json:"forcedLossPrice, omitempty" bson:"forcedLossPrice"`
+	// Orders created by strategy for forced stop-loss.
 	ForcedLossOrderIds   []string           `json:"forcedLossOrderIds,omitempty" bson:"forcedLossOrderIds"`
 	TakeProfit           []*MongoEntryPoint `json:"takeProfit,omitempty" bson:"takeProfit"`
 	TakeProfitPrice      float64            `json:"takeProfitPrice, omitempty" bson:"takeProfitPrice"`
 	TakeProfitHedgePrice float64            `json:"takeProfitHedgePrice,omitempty" bson:"takeProfitHedgePrice"`
-	TakeProfitOrderIds   []string           `json:"takeProfitOrderIds,omitempty" bson:"takeProfitOrderIds"`
+	// Orders created by strategy for take a profit.
+	TakeProfitOrderIds []string `json:"takeProfitOrderIds,omitempty" bson:"takeProfitOrderIds"`
 	// An accumulated part of amount paid for fees
 	Commission float64 `json:"commission" bson:"commission"`
 
