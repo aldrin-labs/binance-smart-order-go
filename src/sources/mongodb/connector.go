@@ -502,6 +502,7 @@ func (sm *StateMgmt) UpdateConditions(strategyId *primitive.ObjectID, state *mod
 	sm.Statsd.TimingDuration("state_mgmt.update_conditions", time.Since(t1))
 	// log.Print(res)
 }
+
 func (sm *StateMgmt) UpdateState(strategyId *primitive.ObjectID, state *models.MongoStrategyState) {
 	t1 := time.Now()
 	col := GetCollection("core_strategies")
@@ -607,6 +608,8 @@ func (sm *StateMgmt) UpdateExecutedAmount(strategyId *primitive.ObjectID, state 
 	)
 	sm.Statsd.TimingDuration("state_mgmt.update_executed_amount", time.Since(t1))
 }
+
+// UpdateOrders tries to save new order IDs stored in a state provided into a strategy document specified by ID.
 func (sm *StateMgmt) UpdateOrders(strategyId *primitive.ObjectID, state *models.MongoStrategyState) {
 	t1 := time.Now()
 	col := GetCollection("core_strategies")
