@@ -141,31 +141,35 @@ func (strategy *Strategy) HotReload(mongoStrategy models.MongoStrategy) {
 
 // Settle takes the strategy to work in the instance trying to set a distributed lock.
 func (strategy *Strategy) Settle() (bool, error) {
-	strategy.Log.Debug("trying to lock mutex")
-	// TODO(khassanov): add mutex / redis key name if merged https://github.com/go-redsync/redsync/pull/64
+	strategy.Log.Debug("trying to lock mutex", zap.String("name", strategy.SettlementMutex.Name()))
 	if err := strategy.SettlementMutex.Lock(); err != nil {
-		strategy.Log.Debug("mutex lock failed", zap.Error(err))
+		strategy.Log.Debug("mutex lock failed",
+			zap.String("name", strategy.SettlementMutex.Name()),
+			zap.Error(err),
+		)
 		if err == redsync.ErrFailed {
 			return false, nil // already locked
 		}
 		return false, err // unexpected error
 	}
-	strategy.Log.Info("mutex locked")
+	strategy.Log.Info("mutex locked", zap.String("name", strategy.SettlementMutex.Name()))
 	// extend settlement
 	go func() {
 		for {
 			time.Sleep(3 * time.Second) // TODO(khassanov): connect this with watchdog time
-			strategy.Log.Debug("extending settlement")
+			strategy.Log.Debug("extending settlement", zap.String("name", strategy.SettlementMutex.Name()))
 			success, err := strategy.SettlementMutex.Extend()
 			if !success || err != nil {
 				strategy.Log.Error("settlement mutex extension",
 					zap.Bool("success", success),
+					zap.String("name", strategy.SettlementMutex.Name()),
 					zap.Error(err),
 				)
 				return
 			}
 			if !strategy.Model.Enabled {
 				strategy.Log.Info("disable settlement mutex extension",
+					zap.String("name", strategy.SettlementMutex.Name()),
 					zap.Bool("strategy.Model.Enabled", strategy.Model.Enabled),
 					zap.String("strategy.Model.State.State", strategy.Model.State.State),
 				)
