@@ -43,7 +43,7 @@ func GetMongoClientInstance() *mongo.Client {
 		isLocalBuild := os.Getenv("LOCAL") == "true"
 		timeout := 10 * time.Second
 		ctx, _ := context.WithTimeout(context.Background(), timeout)
-		client, _ := mongo.Connect(ctx, options.Client().SetDirect(isLocalBuild).
+		client, err := mongo.Connect(ctx, options.Client().SetDirect(isLocalBuild).
 			//client, _ := mongo.Connect(ctx, options.Client().SetDirect(false).
 			SetReadPreference(readpref.Primary()).
 			SetWriteConcern(writeconcern.New(writeconcern.WMajority())).
@@ -51,6 +51,9 @@ func GetMongoClientInstance() *mongo.Client {
 			SetReplicaSet("rs0").
 			SetConnectTimeout(timeout).ApplyURI(url))
 		mongoClient = client
+		if err != nil {
+			log.Panic("mongodb connection failure", zap.Error(err))
+		}
 	}
 	return mongoClient
 }
