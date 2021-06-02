@@ -2,7 +2,6 @@ package trading
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/joho/godotenv"
@@ -84,7 +83,13 @@ func InitTrading() ITrading {
 const REQUEST_RETRY_MAX int = 5
 
 // Request encodes data to JSON, sends it to exchange service and returns decoded response.
-func Request(ctx context.Context, method string, data interface{}) interface{} {
+//
+// A note on retries policy.
+// This function blocks until HTTP client call returns no error. In case of networking error it may block forever. This
+// behavior is ordered to implement while I am (Alisher Khassanov) against it because the request may become obsolete
+// and it may produce unwanted behavior. A client code can't control current retry implementation and possible
+// connectivity problem that may affect strategy logic does not escalated to the right level of decision making here.
+func Request(method string, data interface{}) interface{} {
 	url := "http://" + os.Getenv("EXCHANGESERVICE") + "/" + method
 	log.Info("request", zap.String("url", url), zap.String("data", fmt.Sprintf("%+v", data)))
 
@@ -93,33 +98,27 @@ func Request(ctx context.Context, method string, data interface{}) interface{} {
 	req.Header.Set("Content-Type", "application/json")
 
 	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		if ctx == nil {
-			ctx = context.WithValue(context.Background(), "attempt", 2)
-		} else if ctx.Value("attempt") == nil {
-			ctx = context.WithValue(ctx, "attempt", 2)
-		} else {
-			if ctx.Value("attempt").(int) > REQUEST_RETRY_MAX {
-				log.Panic("retry attempts limit exceeded",
-					zap.String("url", url),
-					zap.String("request", fmt.Sprintf("%+v", req)),
-					zap.String("data", fmt.Sprintf("%+v", data)),
-					zap.Int("attempts made", ctx.Value("attempt").(int)),
-				)
-			}
-			ctx = context.WithValue(ctx, "attempt", ctx.Value("attempt").(int)+1)
+	var resp *http.Response
+	var attempt int
+	firstAttemtAt := time.Now()
+	for {
+		attempt += 1
+		resp, err = client.Do(req)
+		if err != nil {
+			retryDelay := 1 * time.Second
+			log.Error("request not successful",
+				zap.String("url", url),
+				zap.Error(err),
+				zap.Duration("retry in, seconds", retryDelay),
+				zap.String("request", fmt.Sprintf("%+v", req)),
+				zap.String("data", fmt.Sprintf("%+v", data)),
+				zap.Int("attempts made", attempt),
+				zap.Duration("time since first attempt", time.Since(firstAttemtAt)),
+			)
+			time.Sleep(retryDelay)
+			continue
 		}
-		retryDelay := time.Duration(1 * ctx.Value("attempt").(time.Duration) * time.Second) // 2, 3, 4, 5 sec
-		log.Error("request not successful",
-			zap.String("url", url),
-			zap.Error(err),
-			zap.Duration("retry in, seconds", retryDelay),
-			zap.String("request", fmt.Sprintf("%+v", req)),
-			zap.String("data", fmt.Sprintf("%+v", data)),
-		)
-		time.Sleep(retryDelay)
-		return Request(ctx, method, data)
+		break
 	}
 	defer resp.Body.Close()
 	body, _ := ioutil.ReadAll(resp.Body)
@@ -250,7 +249,7 @@ func (t *Trading) CreateOrder(order CreateOrderRequest) OrderResponse {
 	if order.KeyParams.ReduceOnly != nil && *order.KeyParams.ReduceOnly == false {
 		order.KeyParams.ReduceOnly = nil
 	}
-	rawResponse := Request(context.TODO(), "createOrder", order)
+	rawResponse := Request("createOrder", order)
 	var response OrderResponse
 	_ = mapstructure.Decode(rawResponse, &response)
 
@@ -275,7 +274,7 @@ func (t *Trading) UpdateLeverage(keyId *primitive.ObjectID, leverage float64, sy
 		Symbol:   symbol,
 	}
 
-	rawResponse := Request(context.TODO(), "updateLeverage", request)
+	rawResponse := Request("updateLeverage", request)
 
 	var response UpdateLeverageResponse
 	_ = mapstructure.Decode(rawResponse, &response)
@@ -284,7 +283,7 @@ func (t *Trading) UpdateLeverage(keyId *primitive.ObjectID, leverage float64, sy
 }
 
 func (t *Trading) CancelOrder(cancelRequest CancelOrderRequest) OrderResponse {
-	rawResponse := Request(context.TODO(), "cancelOrder", cancelRequest)
+	rawResponse := Request("cancelOrder", cancelRequest)
 	var response OrderResponse
 	_ = mapstructure.Decode(rawResponse, &response)
 	return response
@@ -323,14 +322,14 @@ func (t *Trading) PlaceHedge(parentSmartOrder *models.MongoStrategy) OrderRespon
 		},
 	}
 
-	rawResponse := Request(context.TODO(), "createOrder", createRequest)
+	rawResponse := Request("createOrder", createRequest)
 	var response OrderResponse
 	_ = mapstructure.Decode(rawResponse, &response)
 	return response
 }
 
 func (t *Trading) Transfer(request TransferRequest) OrderResponse {
-	rawResponse := Request(context.TODO(), "transfer", request)
+	rawResponse := Request("transfer", request)
 
 	var response OrderResponse
 	_ = mapstructure.Decode(rawResponse, &response)
@@ -342,7 +341,7 @@ func (t *Trading) SetHedgeMode(keyId *primitive.ObjectID, hedgeMode bool) OrderR
 		KeyId:     keyId,
 		HedgeMode: hedgeMode,
 	}
-	rawResponse := Request(context.TODO(), "changePositionMode", request)
+	rawResponse := Request("changePositionMode", request)
 
 	var response OrderResponse
 	_ = mapstructure.Decode(rawResponse, &response)
