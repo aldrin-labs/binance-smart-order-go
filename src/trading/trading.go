@@ -80,8 +80,6 @@ func InitTrading() ITrading {
 	return tr
 }
 
-const REQUEST_RETRY_MAX int = 5
-
 // Request encodes data to JSON, sends it to exchange service and returns decoded response.
 //
 // A note on retries policy.
