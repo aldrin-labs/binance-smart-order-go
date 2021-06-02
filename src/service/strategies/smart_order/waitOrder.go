@@ -58,6 +58,8 @@ func (sm *SmartOrder) orderCallback(order *models.MongoOrder) {
 		)
 	}
 }
+
+// checkExistingOrders is a guard function with return value defined by status if the first order provided in args.
 func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface{}) bool {
 	sm.Strategy.GetLogger().Info("checking existing orders")
 	if args == nil {
