@@ -212,8 +212,16 @@ func New(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed, TradingAP
 
 	sm.State = State
 	sm.ExchangeName = "binance"
+	// The following piece commented creates a file at ./graph.dot with graphviz formatted state chart and also prints
+	// the same to stdout. Unfortunately I see it does not show PermitDymanic connections at least here at start.
 	// fmt.Printf(sm.State.ToGraph())
-	// fmt.Printf("DONE\n")
+	// graph := sm.State.ToGraph()
+	// fd, _ := os.Create("./graph.dot")
+	// writer := bufio.NewWriter(fd)
+	// writer.WriteString(graph)
+	// writer.Flush()
+	// fmt.Println("State chart graph written to ./graph.dot")
+	// os.Exit(0)
 	_ = sm.onStart(nil)
 	return sm
 }
