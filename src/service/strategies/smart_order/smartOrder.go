@@ -151,50 +151,62 @@ func New(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed, TradingAP
 			5) so we'll wait for any target or trailing target
 			6) or stop-loss
 	*/
-	State.Configure(WaitForEntry).PermitDynamic(TriggerTrade, sm.exitWaitEntry,
-		sm.checkWaitEntry).PermitDynamic(TriggerSpread, sm.exitWaitEntry,
-		sm.checkSpreadEntry).PermitDynamic(CheckExistingOrders, sm.exitWaitEntry,
-		sm.checkExistingOrders).Permit(TriggerTimeout, Timeout).OnEntry(sm.onStart)
 
-	State.Configure(TrailingEntry).Permit(TriggerTrade, InEntry,
-		sm.checkTrailingEntry).Permit(CheckExistingOrders, InEntry,
-		sm.checkExistingOrders).OnEntry(sm.enterTrailingEntry)
+	State.Configure(WaitForEntry).
+		PermitDynamic(TriggerTrade, sm.exitWaitEntry, sm.checkWaitEntry).
+		PermitDynamic(TriggerSpread, sm.exitWaitEntry, sm.checkSpreadEntry).
+		PermitDynamic(CheckExistingOrders, sm.exitWaitEntry, sm.checkExistingOrders).
+		Permit(TriggerTimeout, Timeout).
+		OnEntry(sm.onStart)
 
-	State.Configure(InEntry).PermitDynamic(CheckProfitTrade, sm.exit,
-		sm.checkProfit).PermitDynamic(CheckTrailingProfitTrade, sm.exit,
-		sm.checkTrailingProfit).PermitDynamic(CheckLossTrade, sm.exit,
-		sm.checkLoss).PermitDynamic(CheckExistingOrders, sm.exit,
-		sm.checkExistingOrders).PermitDynamic(CheckHedgeLoss, sm.exit,
-		sm.checkLossHedge).OnEntry(sm.enterEntry)
+	State.Configure(TrailingEntry).
+		Permit(TriggerTrade, InEntry, sm.checkTrailingEntry).
+		Permit(CheckExistingOrders, InEntry, sm.checkExistingOrders).
+		OnEntry(sm.enterTrailingEntry)
 
-	State.Configure(InMultiEntry).PermitDynamic(CheckExistingOrders, sm.exit,
-		sm.checkExistingOrders).PermitReentry(CheckExistingOrders,
-		sm.checkExistingOrders).OnEntry(sm.entryMultiEntry)
+	State.Configure(InEntry).
+		PermitDynamic(CheckProfitTrade, sm.exit, sm.checkProfit).
+		PermitDynamic(CheckTrailingProfitTrade, sm.exit, sm.checkTrailingProfit).
+		PermitDynamic(CheckLossTrade, sm.exit, sm.checkLoss).
+		PermitDynamic(CheckExistingOrders, sm.exit, sm.checkExistingOrders).
+		PermitDynamic(CheckHedgeLoss, sm.exit, sm.checkLossHedge).
+		OnEntry(sm.enterEntry)
 
-	State.Configure(WaitLossHedge).PermitDynamic(CheckHedgeLoss, sm.exit,
-		sm.checkLossHedge).OnEntry(sm.enterWaitLossHedge)
+	State.Configure(InMultiEntry).
+		PermitDynamic(CheckExistingOrders, sm.exit, sm.checkExistingOrders).
+		PermitReentry(CheckExistingOrders, sm.checkExistingOrders).
+		OnEntry(sm.entryMultiEntry)
 
-	State.Configure(TakeProfit).PermitDynamic(CheckProfitTrade, sm.exit,
-		sm.checkProfit).PermitDynamic(CheckTrailingProfitTrade, sm.exit,
-		sm.checkTrailingProfit).PermitDynamic(CheckLossTrade, sm.exit,
-		sm.checkLoss).PermitDynamic(CheckExistingOrders, sm.exit,
-		sm.checkExistingOrders).PermitDynamic(CheckHedgeLoss, sm.exit,
-		sm.checkLossHedge).OnEntry(sm.enterTakeProfit)
+	State.Configure(WaitLossHedge).
+		PermitDynamic(CheckHedgeLoss, sm.exit, sm.checkLossHedge).
+		OnEntry(sm.enterWaitLossHedge)
 
-	State.Configure(Stoploss).PermitDynamic(CheckProfitTrade, sm.exit,
-		sm.checkProfit).PermitDynamic(CheckTrailingProfitTrade, sm.exit,
-		sm.checkTrailingProfit).PermitDynamic(CheckLossTrade, sm.exit,
-		sm.checkLoss).PermitDynamic(CheckExistingOrders, sm.exit,
-		sm.checkExistingOrders).PermitDynamic(CheckHedgeLoss, sm.exit,
-		sm.checkLossHedge).OnEntry(sm.enterStopLoss)
+	State.Configure(TakeProfit).
+		PermitDynamic(CheckProfitTrade, sm.exit, sm.checkProfit).
+		PermitDynamic(CheckTrailingProfitTrade, sm.exit, sm.checkTrailingProfit).
+		PermitDynamic(CheckLossTrade, sm.exit, sm.checkLoss).
+		PermitDynamic(CheckExistingOrders, sm.exit, sm.checkExistingOrders).
+		PermitDynamic(CheckHedgeLoss, sm.exit, sm.checkLossHedge).
+		OnEntry(sm.enterTakeProfit)
 
-	State.Configure(HedgeLoss).PermitDynamic(CheckTrailingLossTrade, sm.exit,
-		sm.checkTrailingHedgeLoss).PermitDynamic(CheckExistingOrders, sm.exit,
-		sm.checkExistingOrders)
+	State.Configure(Stoploss).
+		PermitDynamic(CheckProfitTrade, sm.exit, sm.checkProfit).
+		PermitDynamic(CheckTrailingProfitTrade, sm.exit, sm.checkTrailingProfit).
+		PermitDynamic(CheckLossTrade, sm.exit, sm.checkLoss).
+		PermitDynamic(CheckExistingOrders, sm.exit, sm.checkExistingOrders).
+		PermitDynamic(CheckHedgeLoss, sm.exit, sm.checkLossHedge).
+		OnEntry(sm.enterStopLoss)
 
-	State.Configure(Timeout).Permit(Restart, WaitForEntry)
+	State.Configure(HedgeLoss).
+		PermitDynamic(CheckTrailingLossTrade, sm.exit, sm.checkTrailingHedgeLoss).
+		PermitDynamic(CheckExistingOrders, sm.exit, sm.checkExistingOrders)
 
-	State.Configure(End).PermitReentry(CheckExistingOrders, sm.checkExistingOrders).OnEntry(sm.enterEnd)
+	State.Configure(Timeout).
+		Permit(Restart, WaitForEntry)
+
+	State.Configure(End).
+		PermitReentry(CheckExistingOrders, sm.checkExistingOrders).
+		OnEntry(sm.enterEnd)
 
 	_ = State.Activate()
 
