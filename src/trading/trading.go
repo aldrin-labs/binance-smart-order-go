@@ -2,6 +2,7 @@ package trading
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/joho/godotenv"
@@ -80,8 +81,10 @@ func InitTrading() ITrading {
 	return tr
 }
 
+const REQUEST_RETRY_MAX int = 5
+
 // Request encodes data to JSON, sends it to exchange service and returns decoded response.
-func Request(method string, data interface{}) interface{} {
+func Request(ctx context.Context, method string, data interface{}) interface{} {
 	url := "http://" + os.Getenv("EXCHANGESERVICE") + "/" + method
 	log.Info("request", zap.String("url", url), zap.String("data", fmt.Sprintf("%+v", data)))
 
@@ -92,7 +95,22 @@ func Request(method string, data interface{}) interface{} {
 	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		retryDelay := time.Duration(1 * time.Second)
+		if ctx == nil {
+			ctx = context.WithValue(context.Background(), "attempt", 2)
+		} else if ctx.Value("attempt") == nil {
+			ctx = context.WithValue(ctx, "attempt", 2)
+		} else {
+			if ctx.Value("attempt").(int) > REQUEST_RETRY_MAX {
+				log.Panic("retry attempts limit exceeded",
+					zap.String("url", url),
+					zap.String("request", fmt.Sprintf("%+v", req)),
+					zap.String("data", fmt.Sprintf("%+v", data)),
+					zap.Int("attempts made", ctx.Value("attempt").(int)),
+				)
+			}
+			ctx = context.WithValue(ctx, "attempt", ctx.Value("attempt").(int)+1)
+		}
+		retryDelay := time.Duration(1 * ctx.Value("attempt").(time.Duration) * time.Second) // 2, 3, 4, 5 sec
 		log.Error("request not successful",
 			zap.String("url", url),
 			zap.Error(err),
@@ -101,7 +119,7 @@ func Request(method string, data interface{}) interface{} {
 			zap.String("data", fmt.Sprintf("%+v", data)),
 		)
 		time.Sleep(retryDelay)
-		return Request(method, data)
+		return Request(ctx, method, data)
 	}
 	defer resp.Body.Close()
 	body, _ := ioutil.ReadAll(resp.Body)
@@ -232,7 +250,7 @@ func (t *Trading) CreateOrder(order CreateOrderRequest) OrderResponse {
 	if order.KeyParams.ReduceOnly != nil && *order.KeyParams.ReduceOnly == false {
 		order.KeyParams.ReduceOnly = nil
 	}
-	rawResponse := Request("createOrder", order)
+	rawResponse := Request(context.TODO(), "createOrder", order)
 	var response OrderResponse
 	_ = mapstructure.Decode(rawResponse, &response)
 
@@ -257,7 +275,7 @@ func (t *Trading) UpdateLeverage(keyId *primitive.ObjectID, leverage float64, sy
 		Symbol:   symbol,
 	}
 
-	rawResponse := Request("updateLeverage", request)
+	rawResponse := Request(context.TODO(), "updateLeverage", request)
 
 	var response UpdateLeverageResponse
 	_ = mapstructure.Decode(rawResponse, &response)
@@ -266,7 +284,7 @@ func (t *Trading) UpdateLeverage(keyId *primitive.ObjectID, leverage float64, sy
 }
 
 func (t *Trading) CancelOrder(cancelRequest CancelOrderRequest) OrderResponse {
-	rawResponse := Request("cancelOrder", cancelRequest)
+	rawResponse := Request(context.TODO(), "cancelOrder", cancelRequest)
 	var response OrderResponse
 	_ = mapstructure.Decode(rawResponse, &response)
 	return response
@@ -305,14 +323,14 @@ func (t *Trading) PlaceHedge(parentSmartOrder *models.MongoStrategy) OrderRespon
 		},
 	}
 
-	rawResponse := Request("createOrder", createRequest)
+	rawResponse := Request(context.TODO(), "createOrder", createRequest)
 	var response OrderResponse
 	_ = mapstructure.Decode(rawResponse, &response)
 	return response
 }
 
 func (t *Trading) Transfer(request TransferRequest) OrderResponse {
-	rawResponse := Request("transfer", request)
+	rawResponse := Request(context.TODO(), "transfer", request)
 
 	var response OrderResponse
 	_ = mapstructure.Decode(rawResponse, &response)
@@ -324,7 +342,7 @@ func (t *Trading) SetHedgeMode(keyId *primitive.ObjectID, hedgeMode bool) OrderR
 		KeyId:     keyId,
 		HedgeMode: hedgeMode,
 	}
-	rawResponse := Request("changePositionMode", request)
+	rawResponse := Request(context.TODO(), "changePositionMode", request)
 
 	var response OrderResponse
 	_ = mapstructure.Decode(rawResponse, &response)
