@@ -250,7 +250,9 @@ func (sm *SmartOrder) checkIfPlaceOrderInstantlyOnStart() {
 	isMultiEntry := len(model.Conditions.EntryLevels) > 0
 	isFirstRunSoStateIsEmpty := model.State.State == "" ||
 		(model.State.State == WaitForEntry && model.Conditions.ContinueIfEnded && model.Conditions.WaitingEntryTimeout > 0)
-	if isFirstRunSoStateIsEmpty && model.Enabled &&
+	isFirstRunSoOrdersListsAreEmpty := (len(sm.Strategy.GetModel().State.Orders) +
+		len(sm.Strategy.GetModel().State.ExecutedOrders)) == 0
+	if isFirstRunSoStateIsEmpty && isFirstRunSoOrdersListsAreEmpty && model.Enabled &&
 		!model.Conditions.EntrySpreadHunter && !isMultiEntry {
 		entryIsNotTrailing := model.Conditions.EntryOrder.ActivatePrice == 0
 		if entryIsNotTrailing { // then we must know exact price
