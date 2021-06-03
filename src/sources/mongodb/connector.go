@@ -648,8 +648,23 @@ func (sm *StateMgmt) UpdateOrders(strategyId *primitive.ObjectID, state *models.
 	// )
 	updated, err := col.UpdateOne(context.TODO(), request, update)
 	if err != nil {
-		log.Error("error in arg", zap.Error(err))
-		return
+		// If state.orders or state.executedOrders is null, set it to empty list and retry.
+		log.Warn("can't update order, trying to replace null fields with empty arrays", zap.Error(err))
+		col.UpdateOne(context.TODO(),
+			// bson.M{"_id": strategyId, "state.orders": nil},
+			bson.M{"_id": strategyId},
+			bson.M{"$set": bson.M{"state.orders": bson.A{}}},
+		)
+		col.UpdateOne(context.TODO(),
+			bson.M{"_id": strategyId, "state.executedOrders": nil},
+			bson.M{"$set": bson.M{"state.executedOrders": bson.A{}}},
+		)
+		updated, err = col.UpdateOne(context.TODO(), request, update)
+		// If it does not help, report on error.
+		if err != nil {
+			log.Error("update order", zap.Error(err))
+			return
+		}
 	}
 	log.Info("updated order state",
 		zap.Int64("count", updated.ModifiedCount),
