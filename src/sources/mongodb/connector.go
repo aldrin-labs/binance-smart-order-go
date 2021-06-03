@@ -612,35 +612,40 @@ func (sm *StateMgmt) UpdateExecutedAmount(strategyId *primitive.ObjectID, state 
 // UpdateOrders tries to save new order IDs stored in a state provided into a strategy document specified by ID.
 func (sm *StateMgmt) UpdateOrders(strategyId *primitive.ObjectID, state *models.MongoStrategyState) {
 	t1 := time.Now()
+	// log.Debug("update orders",
+	// 	zap.String("strategy", strategyId.Hex()),
+	// 	zap.String("orders", fmt.Sprintf("%v", state.Orders)),
+	// )
+	if (state.Orders == nil && state.ExecutedOrders == nil) || ((len(state.Orders) + len(state.ExecutedOrders)) == 0) {
+		return
+	}
 	col := GetCollection("core_strategies")
 	var request bson.D
 	request = bson.D{
 		{"_id", strategyId},
 	}
-	if len(state.ExecutedOrders) == 0 || state.ExecutedOrders == nil {
-		return
-	}
 	var update bson.D
-	update = bson.D{
-		{
-			"$addToSet", bson.D{
-				{
-					"state.executedOrders", bson.D{
-						{
-							"$each", state.ExecutedOrders,
-						},
-					},
-				},
-				{
-					"state.orders", bson.D{
-						{
-							"$each", state.Orders,
-						},
-					},
-				},
-			},
-		},
+	update = bson.D{{"$addToSet", bson.D{}}}
+	if state.Orders != nil && len(state.Orders) > 0 {
+		var ordersUpdate bson.E
+		ordersUpdate = bson.E{
+			Key: "state.orders",
+			Value: bson.D{{"$each", state.Orders}},
+		}
+		update[0].Value = append(update[0].Value.(bson.D), ordersUpdate)
 	}
+	if state.ExecutedOrders != nil && len(state.ExecutedOrders) > 0 {
+		var executedOrdersUpdate bson.E
+		executedOrdersUpdate = bson.E{
+			Key: "state.executedOrders",
+			Value: bson.D{{"$each", state.ExecutedOrders}},
+		}
+		update[0].Value = append(update[0].Value.(bson.D), executedOrdersUpdate)
+	}
+	// log.Debug("sending update order request",
+	// 	zap.Any("request", request),
+	// 	zap.Any("update", update),
+	// )
 	updated, err := col.UpdateOne(context.TODO(), request, update)
 	if err != nil {
 		log.Error("error in arg", zap.Error(err))
