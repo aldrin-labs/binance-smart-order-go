@@ -105,7 +105,7 @@ func DetermineRelativeEntryAmount(strategy *Strategy, keyAsset KeyAsset, df inte
 				strategy.Model.Conditions.EntryOrder.Amount = margin * strategy.Model.Conditions.Leverage / strategy.Model.Conditions.EntryOrder.Price
 				break
 			} else { // market and maker-only
-				currentOHLCVp := df.GetPriceForPairAtExchange(strategy.GetModel().Conditions.Pair, "binance", strategy.GetModel().Conditions.MarketType)
+				currentOHLCVp := df.GetPriceForPairAtExchange(strategy.GetModel().Conditions.Pair, strategy.GetModel().Conditions.Exchange, strategy.GetModel().Conditions.MarketType)
 				if currentOHLCVp != nil {
 					strategy.Model.Conditions.EntryOrder.Amount = margin * strategy.Model.Conditions.Leverage / currentOHLCVp.Close
 					break

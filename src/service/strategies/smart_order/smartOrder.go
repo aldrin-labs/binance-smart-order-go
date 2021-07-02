@@ -211,7 +211,7 @@ func New(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed, TradingAP
 	_ = State.Activate()
 
 	sm.State = State
-	sm.ExchangeName = "binance"
+	sm.ExchangeName = sm.Strategy.GetModel().Conditions.Exchange
 	// The following piece commented creates a file at ./graph.dot with graphviz formatted state chart and also prints
 	// the same to stdout. Unfortunately I see it does not show PermitDymanic connections at least here at start.
 	// fmt.Printf(sm.State.ToGraph())
