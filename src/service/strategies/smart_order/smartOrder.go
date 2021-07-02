@@ -2,7 +2,6 @@ package smart_order
 
 import (
 	"context"
-	statsd_client "gitlab.com/crypto_project/core/strategy_service/src/statsd"
 	"go.uber.org/zap"
 
 	// "go.uber.org/zap"
@@ -62,7 +61,7 @@ type SmartOrder struct {
 	KeyId                   *primitive.ObjectID
 	DataFeed                interfaces.IDataFeed
 	ExchangeApi             trading.ITrading
-	Statsd                  *statsd_client.StatsdClient
+	Statsd                  interfaces.IStatsClient
 	StateMgmt               interfaces.IStateMgmt
 	IsWaitingForOrder       sync.Map // TODO: this must be filled on start of SM if not first start (e.g. restore the state by checking order statuses)
 	IsEntryOrderPlaced      bool     // we need it for case when response from createOrder was returned after entryTimeout was executed
@@ -105,7 +104,7 @@ func (sm *SmartOrder) toFixed(n float64, precision int64, mode int) float64 {
 }
 
 // New instantiates new smart order with given strategy.
-func New(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed, TradingAPI trading.ITrading, Statsd *statsd_client.StatsdClient, keyId *primitive.ObjectID, stateMgmt interfaces.IStateMgmt) *SmartOrder {
+func New(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed, TradingAPI trading.ITrading, Statsd interfaces.IStatsClient, keyId *primitive.ObjectID, stateMgmt interfaces.IStateMgmt) *SmartOrder {
 
 	sm := &SmartOrder{
 		Strategy:           strategy,

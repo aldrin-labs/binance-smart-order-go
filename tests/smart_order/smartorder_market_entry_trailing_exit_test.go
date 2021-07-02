@@ -3,6 +3,7 @@ package smart_order
 import (
 	"context"
 	"fmt"
+	"github.com/go-redsync/redsync/v4"
 	"log"
 	"testing"
 	"time"
@@ -200,9 +201,13 @@ func TestSmartOrderMarketEntryAndTrailingExit(t *testing.T) {
 	tradingApi.SellDelay = 300
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
+	logger, statsd := GetLoggerStatsd()
 	strategy := strategies.Strategy{
 		Model:     &smartOrderModel,
 		StateMgmt: &sm,
+		Log: logger,
+		Statsd: statsd,
+		SettlementMutex: &redsync.Mutex{},
 	}
 	smartOrder := smart_order.New(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
@@ -402,9 +407,13 @@ func TestSmartOrderMarketEntryAndThenFollowTrailing(t *testing.T) {
 	tradingApi.SellDelay = 300
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
+	logger, statsd := GetLoggerStatsd()
 	strategy := strategies.Strategy{
 		Model:     &smartOrderModel,
 		StateMgmt: &sm,
+		Log: logger,
+		Statsd: statsd,
+		SettlementMutex: &redsync.Mutex{},
 	}
 	smartOrder := smart_order.New(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {

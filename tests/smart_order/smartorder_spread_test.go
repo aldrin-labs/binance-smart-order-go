@@ -3,6 +3,7 @@ package smart_order
 import (
 	"context"
 	"fmt"
+	"github.com/go-redsync/redsync/v4"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies/smart_order"
@@ -59,9 +60,13 @@ func TestSmartOrderEntryBySpread(t *testing.T) {
 	tradingApi := *tests.NewMockedTradingAPI()
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(&tradingApi, df)
+	logger, stats := GetLoggerStatsd()
 	strategy := strategies.Strategy{
 		Model:     &smartOrderModel,
 		StateMgmt: &sm,
+		Log: logger,
+		Statsd: stats,
+		SettlementMutex: &redsync.Mutex{},
 	}
 	smartOrder := smart_order.New(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
 	go smartOrder.Start()

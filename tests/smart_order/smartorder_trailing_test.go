@@ -3,6 +3,7 @@ package smart_order
 import (
 	"context"
 	"fmt"
+	"github.com/go-redsync/redsync/v4"
 	"log"
 	"testing"
 	"time"
@@ -56,9 +57,13 @@ func TestSmartOrderTrailingEntryAndThenActivateTrailingWithHighLeverage(t *testi
 	keyId := primitive.NewObjectID()
 	//sm := mongodb.StateMgmt{}
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
+	logger, stats := GetLoggerStatsd()
 	strategy := strategies.Strategy{
 		Model:     &smartOrderModel,
 		StateMgmt: &sm,
+		Log: logger,
+		Statsd: stats,
+		SettlementMutex: &redsync.Mutex{},
 	}
 	smartOrder := smart_order.New(&strategy, df, sm.Trading, strategy.Statsd, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
@@ -120,9 +125,13 @@ func TestSmartOrderTrailingEntryAndTrailingExitWithHighLeverage(t *testing.T) {
 	tradingApi.SellDelay = 100
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
+	logger, stats := GetLoggerStatsd()
 	strategy := strategies.Strategy{
 		Model:     &smartOrderModel,
 		StateMgmt: &sm,
+		Log: logger,
+		Statsd: stats,
+		SettlementMutex: &redsync.Mutex{},
 	}
 	smartOrder := smart_order.New(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
@@ -193,9 +202,13 @@ func TestSmartOrderTrailingEntryAndFollowTrailingMaximumsWithoutEarlyExitWithHig
 	tradingApi.SellDelay = 20100
 	//sm := mongodb.StateMgmt{}
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
+	logger, stats := GetLoggerStatsd()
 	strategy := strategies.Strategy{
 		Model: &smartOrderModel,
 		StateMgmt: &sm,
+		Log: logger,
+		Statsd: stats,
+		SettlementMutex: &redsync.Mutex{},
 	}
 	keyId := primitive.NewObjectID()
 	smartOrder := smart_order.New(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)

@@ -3,6 +3,7 @@ package smart_order
 import (
 	"context"
 	"fmt"
+	"github.com/go-redsync/redsync/v4"
 	"log"
 	"strconv"
 	"testing"
@@ -45,9 +46,13 @@ func TestSmartOrderMultiEntryPlacing(t *testing.T) {
 	tradingApi.SellDelay = 5000
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
+	logger, statsd := GetLoggerStatsd()
 	strategy := strategies.Strategy{
 		Model:     &smartOrderModel,
 		StateMgmt: &sm,
+		Log: logger,
+		Statsd: statsd,
+		SettlementMutex: &redsync.Mutex{},
 	}
 	smartOrder := smart_order.New(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
@@ -60,6 +65,7 @@ func TestSmartOrderMultiEntryPlacing(t *testing.T) {
 	buyCallCount, buyOk := tradingApi.CallCount.Load("buy")
 	sellCallCount, sellOk := tradingApi.CallCount.Load("sell")
 	btcUsdtCallCount, usdtBtcOk := tradingApi.CallCount.Load("BTC_USDT")
+	//For some reason, btcUsdtCallCount are both buyCallCount less then needed by 2
 	if !sellOk || !buyOk || !usdtBtcOk || sellCallCount != 2 || btcUsdtCallCount != 5 || buyCallCount != 3 {
 		t.Error("3 Entry orders or 1 SL/FL was not placed")
 	} else {
@@ -99,9 +105,13 @@ func TestSmartOrderMultiEntryStopLoss(t *testing.T) {
 	tradingApi := tests.NewMockedTradingAPI()
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
+	logger, statsd := GetLoggerStatsd()
 	strategy := strategies.Strategy{
 		Model:     &smartOrderModel,
 		StateMgmt: &sm,
+		Log: logger,
+		Statsd: statsd,
+		SettlementMutex: &redsync.Mutex{},
 	}
 	smartOrder := smart_order.New(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
@@ -307,9 +317,13 @@ func TestSmartOrderMultiEntryTAP(t *testing.T) {
 	tradingApi := tests.NewMockedTradingAPI()
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
+	logger, statsd := GetLoggerStatsd()
 	strategy := strategies.Strategy{
 		Model:     &smartOrderModel,
 		StateMgmt: &sm,
+		Log: logger,
+		Statsd: statsd,
+		SettlementMutex: &redsync.Mutex{},
 	}
 	smartOrder := smart_order.New(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
@@ -558,9 +572,13 @@ func TestSmartOrderMultiEntryClosingAfterFirstTAP(t *testing.T) {
 	tradingApi := tests.NewMockedTradingAPI()
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
+	logger, statsd := GetLoggerStatsd()
 	strategy := strategies.Strategy{
 		Model:     &smartOrderModel,
 		StateMgmt: &sm,
+		Log: logger,
+		Statsd: statsd,
+		SettlementMutex: &redsync.Mutex{},
 	}
 	tradingApi.BuyDelay = 30
 	smartOrder := smart_order.New(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
@@ -813,9 +831,13 @@ func TestSmartOrderMultiEntryClosingByWithoutLoss(t *testing.T) {
 	tradingApi := tests.NewMockedTradingAPI()
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
+	logger, statsd := GetLoggerStatsd()
 	strategy := strategies.Strategy{
 		Model:     &smartOrderModel,
 		StateMgmt: &sm,
+		Log: logger,
+		Statsd: statsd,
+		SettlementMutex: &redsync.Mutex{},
 	}
 	tradingApi.BuyDelay = 30
 	smartOrder := smart_order.New(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)

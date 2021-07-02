@@ -3,6 +3,7 @@ package smart_order
 import (
 	"context"
 	"fmt"
+	"github.com/go-redsync/redsync/v4"
 	"log"
 	"strconv"
 	"testing"
@@ -37,9 +38,13 @@ func TestSmartTakeProfit(t *testing.T) {
 	tradingApi := tests.NewMockedTradingAPI()
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
+	logger, stats := GetLoggerStatsd()
 	strategy := strategies.Strategy{
 		Model:     &smartOrderModel,
 		StateMgmt: &sm,
+		Log: logger,
+		Statsd: stats,
+		SettlementMutex: &redsync.Mutex{},
 	}
 	smartOrder := smart_order.New(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
@@ -117,9 +122,13 @@ func TestSmartOrderTakeProfit(t *testing.T) {
 	keyId := primitive.NewObjectID()
 	//sm := mongodb.StateMgmt{}
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
+	logger, stats := GetLoggerStatsd()
 	strategy := strategies.Strategy{
 		Model:     &smartOrderModel,
 		StateMgmt: &sm,
+		Log: logger,
+		Statsd: stats,
+		SettlementMutex: &redsync.Mutex{},
 	}
 	smartOrder := smart_order.New(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
@@ -187,9 +196,13 @@ func TestSmartOrderTakeProfitAllTargets(t *testing.T) {
 	tradingApi := tests.NewMockedTradingAPI()
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
+	logger, stats := GetLoggerStatsd()
 	strategy := strategies.Strategy{
 		Model:     &smartOrderModel,
 		StateMgmt: &sm,
+		Log: logger,
+		Statsd: stats,
+		SettlementMutex: &redsync.Mutex{},
 	}
 	smartOrder := smart_order.New(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm) //TODO
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {

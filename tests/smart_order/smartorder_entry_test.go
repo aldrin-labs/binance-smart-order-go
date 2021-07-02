@@ -8,7 +8,10 @@ package smart_order
 import (
 	"context"
 	"fmt"
+	"github.com/go-redsync/redsync/v4"
+	"go.uber.org/zap"
 	"log"
+	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -21,8 +24,21 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+func GetLoggerStatsd() (*zap.Logger, interfaces.IStatsClient) {
+	var logger *zap.Logger
+	if os.Getenv("LOCAL") == "true" {
+		logger, _ = zap.NewDevelopment()
+	} else {
+		logger, _ = zap.NewProduction() // TODO(khassanov): handle the error
+	}
+	logger = logger.With(zap.String("logger", "ss"))
+	statsd := &tests.MockStatsdClient{Client: nil, Log: logger}
+	return logger, statsd
+}
+
 // smart order should create limit order while still in waitingForEntry state if not trailing
 func TestSmartOrderGetInEntryLong(t *testing.T) {
+
 	smartOrderModel := GetTestSmartOrderStrategy("entryLong")
 	// price dips in the middle (This has no meaning now, reuse and then remove fake data stream)
 	fakeDataStream := []interfaces.OHLCV{{
@@ -48,9 +64,15 @@ func TestSmartOrderGetInEntryLong(t *testing.T) {
 	tradingApi := tests.NewMockedTradingAPI()
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
+	logger, statsd := GetLoggerStatsd()
+
 	strategy := strategies.Strategy{
 		Model:     &smartOrderModel,
 		StateMgmt: &sm,
+		Log: logger,
+		Datafeed: df,
+		Statsd: statsd,
+		SettlementMutex: &redsync.Mutex{},
 	}
 	smartOrder := smart_order.New(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
@@ -97,9 +119,14 @@ func TestSmartOrderGetInEntryShort(t *testing.T) {
 	tradingApi := tests.NewMockedTradingAPI()
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
+	logger, statsd := GetLoggerStatsd();
 	strategy := strategies.Strategy{
 		Model:     &smartOrderModel,
 		StateMgmt: &sm,
+		Log: logger,
+		Statsd: statsd,
+		Datafeed: df,
+		SettlementMutex: &redsync.Mutex{},
 	}
 	smartOrder := smart_order.New(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
@@ -146,9 +173,13 @@ func TestSmartOrderGetInTrailingEntryLong(t *testing.T) {
 	keyId := primitive.NewObjectID()
 	//sm := mongodb.StateMgmt{}
 	sm := tests.NewMockedStateMgmt(&tradingApi, df)
+	logger, statsd := GetLoggerStatsd()
 	strategy := strategies.Strategy{
 		Model:     &smartOrderModel,
 		StateMgmt: &sm,
+		Log: logger,
+		Statsd: statsd,
+		SettlementMutex: &redsync.Mutex{},
 	}
 	smartOrder := smart_order.New(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
 	go smartOrder.Start()
@@ -230,9 +261,13 @@ func TestSmartOrderGetInTrailingEntryShort(t *testing.T) {
 	tradingApi := *tests.NewMockedTradingAPI()
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(&tradingApi, df)
+	logger, statsd := GetLoggerStatsd()
 	strategy := strategies.Strategy{
 		Model:     &smartOrderModel,
 		StateMgmt: &sm,
+		Log: logger,
+		Statsd: statsd,
+		SettlementMutex: &redsync.Mutex{},
 	}
 	smartOrder := smart_order.New(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
 	go smartOrder.Start()
