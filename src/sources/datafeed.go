@@ -28,6 +28,10 @@ func init() {
 }
 
 func InitDataFeed() interfaces.IDataFeed {
+	if dataFeed == nil {
+		dataFeed = &DataFeed{}
+	}
+
 	if dataFeed.binanceLoop == nil {
 		dataFeed.binanceLoop = binance.InitBinance()
 	}
@@ -47,8 +51,11 @@ func (df *DataFeed) GetPriceForPairAtExchange(pair string, exchange string, mark
 		case "binance": {
 			return df.binanceLoop.GetPriceForPairAtExchange(pair, exchange, marketType)
 		}
+		case "": {
+			return df.binanceLoop.GetPriceForPairAtExchange(pair, exchange, marketType)
+		}
 		default: {
-			log.Error("unknown exchange for getting GetPriceForPairAtExchange")
+			log.Error("unknown exchange for getting GetPriceForPairAtExchange", zap.String("exchange", exchange))
 			return nil
 		}
 	}
@@ -62,8 +69,11 @@ func (df *DataFeed) GetSpreadForPairAtExchange(pair string, exchange string, mar
 		case "binance": {
 			return df.binanceLoop.GetSpreadForPairAtExchange(pair, exchange, marketType)
 		}
+		case "": {
+			return df.binanceLoop.GetSpreadForPairAtExchange(pair, exchange, marketType)
+		}
 		default: {
-			log.Error("unknown exchange for getting GetPriceForPairAtExchange")
+			log.Error("unknown exchange for getting GetPriceForPairAtExchange", zap.String("exchange", exchange))
 			return nil
 		}
 	}

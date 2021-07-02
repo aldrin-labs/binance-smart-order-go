@@ -90,7 +90,6 @@ func (rl *RedisLoop) UpdateOHLCV(channel string, data []byte) {
 		Close:  ohlcvOB.Close,
 		Volume: ohlcvOB.Volume,
 	}
-	fmt.Println(exchange+pair+strconv.FormatInt(ohlcvOB.MarketType, 10), ohlcv)
 	rl.OhlcvMap.Store(exchange+pair+strconv.FormatInt(ohlcvOB.MarketType, 10), ohlcv)
 
 }
