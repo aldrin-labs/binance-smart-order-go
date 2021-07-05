@@ -21,6 +21,8 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+//TODO: these test are taking way too long
+
 // smart order should exit if loss condition is met
 func TestSmartExitOnStopMarket(t *testing.T) {
 	// price drops
@@ -47,8 +49,8 @@ func TestSmartExitOnStopMarket(t *testing.T) {
 	df := tests.NewMockedDataFeed(fakeDataStream)
 	tradingApi := tests.NewMockedTradingAPI()
 
-	tradingApi.BuyDelay = 1000
-	tradingApi.SellDelay = 1000
+	tradingApi.BuyDelay = 200
+	tradingApi.SellDelay = 200
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
 	logger, stats := GetLoggerStatsd()
@@ -312,11 +314,11 @@ func TestSmartOrderReturnToInEntryAfterTimeoutLoss(t *testing.T) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
 	go smartOrder.Start()
-	time.Sleep(1000 * time.Millisecond)
+	time.Sleep(2000 * time.Millisecond)
 	if strategy.Model.State.StopLossAt == 0 {
 		t.Error("Timeout didn't started")
 	}
-	time.Sleep(5000 * time.Millisecond)
+	time.Sleep(2000 * time.Millisecond)
 	// check that one call with 'sell' and one with 'BTC_USDT' should be done
 	sellCallCount, sellFound := tradingApi.CallCount.Load("sell")
 	btcUsdtCallCount, usdtBtcFound := tradingApi.CallCount.Load("BTC_USDT")

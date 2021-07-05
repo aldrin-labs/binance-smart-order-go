@@ -68,6 +68,12 @@ func (sm *SmartOrder) entryMultiEntry(ctx context.Context, args ...interface{}) 
 		time.AfterFunc(3*time.Second, func() { sm.PlaceOrder(model.State.EntryPrice, 0.0, "ForcedLoss") })
 	}
 
+	//TODO: HACK, state machine should never get here after all entryTargets fired \
+	// we should look into this and fix it ASAP; until then averaging might not work as intended
+	if sm.SelectedEntryTarget >= len(model.Conditions.EntryLevels) {
+		sm.Strategy.GetLogger().Error("SelectedEntry target not in model.Conditions.EntryLevels")
+		return nil
+	}
 	// place BEP
 	if model.Conditions.EntryLevels[sm.SelectedEntryTarget].PlaceWithoutLoss {
 		sm.PlaceOrder(0, sm.getAveragingEntryAmount(model, sm.SelectedEntryTarget), "WithoutLoss")

@@ -119,7 +119,7 @@ func TestSmartOrderTrailingEntryAndTrailingExitWithHighLeverage(t *testing.T) {
 			Volume: 30,
 		}}
 	smartOrderModel := GetTestSmartOrderStrategy("trailingEntryExitLeverage")
-	df := tests.NewMockedDataFeed(fakeDataStream)
+	df := tests.NewMockedDataFeedWithWait(fakeDataStream, 3500)
 	tradingApi := tests.NewMockedTradingAPI()
 	tradingApi.BuyDelay = 100
 	tradingApi.SellDelay = 100
@@ -138,7 +138,7 @@ func TestSmartOrderTrailingEntryAndTrailingExitWithHighLeverage(t *testing.T) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
 	go smartOrder.Start()
-	time.Sleep(5 * time.Second)
+	time.Sleep(10 * time.Second)
 	isInState, _ := smartOrder.State.IsInState(smart_order.End)
 	if !isInState {
 		state, _ := smartOrder.State.State(context.Background())

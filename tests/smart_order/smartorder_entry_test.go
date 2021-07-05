@@ -79,7 +79,7 @@ func TestSmartOrderGetInEntryLong(t *testing.T) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
 	go smartOrder.Start()
-	time.Sleep(800 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
 
 	// one call with 'buy' and one with 'BTC_USDT' should be done
 	buyCallCount, buyFound := tradingApi.CallCount.Load("buy")
@@ -133,7 +133,7 @@ func TestSmartOrderGetInEntryShort(t *testing.T) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
 	go smartOrder.Start()
-	time.Sleep(800 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
 
 	// one call with 'sell' and one with 'BTC_USDT' should be done
 	sellCallCount, sellOk := tradingApi.CallCount.Load("sell")
@@ -183,7 +183,7 @@ func TestSmartOrderGetInTrailingEntryLong(t *testing.T) {
 	}
 	smartOrder := smart_order.New(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
 	go smartOrder.Start()
-	time.Sleep(800 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
 	isInState, _ := smartOrder.State.IsInState(smart_order.TrailingEntry)
 	if !isInState {
 		state, _ := smartOrder.State.State(context.Background())
@@ -271,7 +271,7 @@ func TestSmartOrderGetInTrailingEntryShort(t *testing.T) {
 	}
 	smartOrder := smart_order.New(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
 	go smartOrder.Start()
-	time.Sleep(800 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
 	isInState, _ := smartOrder.State.IsInState(smart_order.TrailingEntry)
 	if !isInState {
 		state, _ := smartOrder.State.State(context.Background())

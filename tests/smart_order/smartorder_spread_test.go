@@ -45,7 +45,7 @@ func TestSmartOrderEntryBySpread(t *testing.T) {
 	fakeDataStream := []interfaces.SpreadData{{
 		BestAsk: 7006,
 		BestBid: 6000,
-		Close:   7005,
+		Close:   6990,
 	}, {
 		BestAsk: 7006,
 		BestBid: 6000,
@@ -70,7 +70,7 @@ func TestSmartOrderEntryBySpread(t *testing.T) {
 	}
 	smartOrder := smart_order.New(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
 	go smartOrder.Start()
-	time.Sleep(1800 * time.Millisecond)
+	time.Sleep(5800 * time.Millisecond)
 	isInState, _ := smartOrder.State.IsInState(smart_order.InEntry)
 	if !isInState {
 		state, _ := smartOrder.State.State(context.Background())

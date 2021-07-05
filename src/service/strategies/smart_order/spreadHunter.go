@@ -30,6 +30,7 @@ func (sm *SmartOrder) checkSpreadEntry(ctx context.Context, args ...interface{})
 			zap.Float64("close", currentSpread.Close),
 			zap.Float64("amount", sm.Strategy.GetModel().Conditions.EntryOrder.Amount),
 		)
+		//TODO: do we want to use bestbid in this strategy?
 		sm.PlaceOrder(currentSpread.BestBid, 0.0, WaitForEntry)
 	}
 	return false

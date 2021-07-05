@@ -192,7 +192,7 @@ func TestSmartOrderTakeProfitAllTargets(t *testing.T) {
 		Volume: 30,
 	}}
 	smartOrderModel := GetTestSmartOrderStrategy("multiplePriceTargets")
-	df := tests.NewMockedDataFeed(fakeDataStream)
+	df := tests.NewMockedDataFeedWithWait(fakeDataStream, 1500)
 	tradingApi := tests.NewMockedTradingAPI()
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
@@ -210,7 +210,7 @@ func TestSmartOrderTakeProfitAllTargets(t *testing.T) {
 	})
 	go smartOrder.Start()
 
-	time.Sleep(2 * time.Second)
+	time.Sleep(15 * time.Second)
 
 	sellCallCount, _ := tradingApi.CallCount.Load("sell")
 	amountSold, _ := tradingApi.AmountSum.Load("BTC_USDTsell")

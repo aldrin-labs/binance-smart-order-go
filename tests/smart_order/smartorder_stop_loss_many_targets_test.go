@@ -43,7 +43,7 @@ func TestSmartPlaceStopLossForEachTarget(t *testing.T) {
 	smartOrderModel := GetTestSmartOrderStrategy("stopLossMultiTargets")
 	df := tests.NewMockedDataFeed(fakeDataStream)
 	tradingApi := tests.NewMockedTradingAPI()
-	tradingApi.SellDelay = 30000
+	tradingApi.SellDelay = 3000
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
 	logger, stats := GetLoggerStatsd()
@@ -59,7 +59,7 @@ func TestSmartPlaceStopLossForEachTarget(t *testing.T) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
 	go smartOrder.Start()
-	time.Sleep(10000 * time.Millisecond)
+	time.Sleep(2000 * time.Millisecond)
 
 	// check that one call with 'sell' and one with 'BTC_USDT' should be done
 	sellCallCount, sellCallsFound := tradingApi.CallCount.Load("sell")

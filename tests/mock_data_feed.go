@@ -2,19 +2,31 @@ package tests
 
 import (
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
+	"time"
 )
 
 type MockDataFeed struct {
-	tickerData        []interfaces.OHLCV
-	spreadData        []interfaces.SpreadData
-	currentTick       int
-	currentSpreadTick int
+	tickerData                  []interfaces.OHLCV
+	spreadData                  []interfaces.SpreadData
+	currentTick                 int
+	currentSpreadTick           int
+	waitForOrderInitialization  int
 }
 
 func NewMockedDataFeed(mockedStream []interfaces.OHLCV) *MockDataFeed {
 	dataFeed := MockDataFeed{
 		tickerData:  mockedStream,
 		currentTick: -1,
+	}
+
+	return &dataFeed
+}
+
+func NewMockedDataFeedWithWait(mockedStream []interfaces.OHLCV, initializationWait int) *MockDataFeed {
+	dataFeed := MockDataFeed{
+		tickerData:  mockedStream,
+		currentTick: -1,
+		waitForOrderInitialization: initializationWait,
 	}
 
 	return &dataFeed
@@ -32,6 +44,9 @@ func NewMockedSpreadDataFeed(mockedStream []interfaces.SpreadData, mockedOHLCVSt
 }
 
 func (df *MockDataFeed) GetPriceForPairAtExchange(pair string, exchange string, marketType int64) *interfaces.OHLCV {
+	if df.currentTick <= 0 {
+		time.Sleep(time.Duration(df.waitForOrderInitialization) * time.Millisecond)
+	}
 	df.currentTick += 1
 	len := len(df.tickerData)
 	if df.currentTick >= len && len > 0 {
