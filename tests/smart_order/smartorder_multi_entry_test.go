@@ -31,7 +31,7 @@ func TestSmartOrderMultiEntryPlacing(t *testing.T) {
 		Open:   7005,
 		High:   7100,
 		Low:    5800,
-		Close:  6850,
+		Close:  6800,
 		Volume: 30,
 	}, { // Hit entry
 		Open:   6950,
@@ -40,10 +40,11 @@ func TestSmartOrderMultiEntryPlacing(t *testing.T) {
 		Close:  5910,
 		Volume: 30,
 	}}
-	df := tests.NewMockedDataFeedWithWait(fakeDataStream, 1500)
+	df := tests.NewMockedDataFeedWithWait(fakeDataStream, 2500)
+	df.WaitBetweenTicks = 1000
 	tradingApi := tests.NewMockedTradingAPI()
-	tradingApi.BuyDelay = 1000
-	tradingApi.SellDelay = 1000
+	tradingApi.BuyDelay = 100
+	tradingApi.SellDelay = 100
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
 	logger, statsd := GetLoggerStatsd()
@@ -59,7 +60,7 @@ func TestSmartOrderMultiEntryPlacing(t *testing.T) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
 	go smartOrder.Start()
-	time.Sleep(5000 * time.Millisecond)
+	time.Sleep(10 * time.Second)
 
 	// one call with 'sell' and one with 'BTC_USDT' should be done
 	buyCallCount, buyOk := tradingApi.CallCount.Load("buy")
@@ -68,7 +69,7 @@ func TestSmartOrderMultiEntryPlacing(t *testing.T) {
 	cancelledCount, _ := tradingApi.CanceledOrdersCount.Load("BTC_USDT")
 	fmt.Println(strconv.Itoa(sellCallCount.(int)) + " sell calls " + strconv.Itoa(buyCallCount.(int)) +
 		" buy calls "  + strconv.Itoa(cancelledCount.(int)) + " cancels" )
-	if !sellOk || !buyOk || !usdtBtcOk || sellCallCount != 2 || btcUsdtCallCount != 5 || buyCallCount != 3 {
+	if !sellOk || !buyOk || !usdtBtcOk || sellCallCount.(int) - cancelledCount.(int) != 2 || btcUsdtCallCount.(int) - cancelledCount.(int) != 5 || buyCallCount != 3 {
 		t.Error("3 Entry orders or 1 SL/FL was not placed")
 	} else {
 		fmt.Println("Success")
@@ -312,10 +313,10 @@ func TestSmartOrderMultiEntryTAP(t *testing.T) {
 		Open:   7005,
 		High:   7100,
 		Low:    6800,
-		Close:  6000,
+		Close:  6050,
 		Volume: 30,
 	}}
-	df := tests.NewMockedDataFeed(fakeDataStream)
+	df := tests.NewMockedDataFeedWithWait(fakeDataStream, 1500)
 	tradingApi := tests.NewMockedTradingAPI()
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
@@ -332,7 +333,7 @@ func TestSmartOrderMultiEntryTAP(t *testing.T) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
 	go smartOrder.Start()
-	time.Sleep(15000 * time.Millisecond)
+	time.Sleep(5000 * time.Millisecond)
 
 	isInState, _ := smartOrder.State.IsInState(smart_order.End)
 	sellCallCount, sellOk := tradingApi.CallCount.Load("sell")
