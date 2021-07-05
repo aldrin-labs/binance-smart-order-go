@@ -32,13 +32,13 @@ func TestSmartOrderEntryBySpread(t *testing.T) {
 		Open:   7950,
 		High:   7305,
 		Low:    7950,
-		Close:  7090,
+		Close:  6990,
 		Volume: 30,
 	}, { // Hit entry
 		Open:   7950,
 		High:   7305,
 		Low:    7950,
-		Close:  6990,
+		Close:  5790,
 		Volume: 30,
 	}}
 
@@ -70,7 +70,7 @@ func TestSmartOrderEntryBySpread(t *testing.T) {
 	}
 	smartOrder := smart_order.New(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
 	go smartOrder.Start()
-	time.Sleep(5800 * time.Millisecond)
+	time.Sleep(7000 * time.Millisecond)
 	isInState, _ := smartOrder.State.IsInState(smart_order.InEntry)
 	if !isInState {
 		state, _ := smartOrder.State.State(context.Background())

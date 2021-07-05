@@ -111,18 +111,27 @@ func TestSmartOrderTrailingEntryAndTrailingExitWithHighLeverage(t *testing.T) {
 			Low:    6970,
 			Close:  6970,
 			Volume: 30,
+		}, { // It goes up..
+			Open:   6967.5,
+			High:   6967.5,
+			Low:    6967.5,
+			Close:  6999.5,
+			Volume: 30,
 		}, { // Spiked down, ok, up trend is over, we are taking profits now
 			Open:   6967.5,
 			High:   6967.5,
 			Low:    6967.5,
-			Close:  6967.5,
+			Close:  6980.5,
 			Volume: 30,
 		}}
 	smartOrderModel := GetTestSmartOrderStrategy("trailingEntryExitLeverage")
-	df := tests.NewMockedDataFeedWithWait(fakeDataStream, 3500)
+	df := tests.NewMockedDataFeed(fakeDataStream)
+	df.WaitForOrderInitialization = 3000
+	df.WaitBetweenTicks = 1500
+	df.CycleLastNEntries = 4
 	tradingApi := tests.NewMockedTradingAPI()
-	tradingApi.BuyDelay = 100
-	tradingApi.SellDelay = 100
+	tradingApi.BuyDelay = 300
+	tradingApi.SellDelay = 300
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
 	logger, stats := GetLoggerStatsd()
@@ -138,7 +147,7 @@ func TestSmartOrderTrailingEntryAndTrailingExitWithHighLeverage(t *testing.T) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
 	go smartOrder.Start()
-	time.Sleep(10 * time.Second)
+	time.Sleep(25 * time.Second)
 	isInState, _ := smartOrder.State.IsInState(smart_order.End)
 	if !isInState {
 		state, _ := smartOrder.State.State(context.Background())

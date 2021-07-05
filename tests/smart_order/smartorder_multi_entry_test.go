@@ -570,7 +570,7 @@ func TestSmartOrderMultiEntryClosingAfterFirstTAP(t *testing.T) {
 		Close:  5704,
 		Volume: 30,
 	}}
-	df := tests.NewMockedDataFeed(fakeDataStream)
+	df := tests.NewMockedDataFeedWithWait(fakeDataStream, 1500)
 	tradingApi := tests.NewMockedTradingAPI()
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
@@ -588,7 +588,7 @@ func TestSmartOrderMultiEntryClosingAfterFirstTAP(t *testing.T) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
 	go smartOrder.Start()
-	time.Sleep(3000 * time.Millisecond)
+	time.Sleep(5000 * time.Millisecond)
 
 	isInState, _ := smartOrder.State.IsInState(smart_order.End)
 	sellCallCount, sellOk := tradingApi.CallCount.Load("sell")

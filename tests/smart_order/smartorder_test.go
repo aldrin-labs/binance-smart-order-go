@@ -75,7 +75,7 @@ func GetTestSmartOrderStrategy(scenario string) models.MongoStrategy {
 				},
 			},
 			EntrySpreadHunter: true,
-			EntryWaitingTime:  3000,
+			EntryWaitingTime:  1000,
 		}
 	case "entryLongTimeout":
 		smartOrder.Conditions = &models.MongoStrategyCondition{
