@@ -4,6 +4,10 @@ import (
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 )
 
+type IDataFeed interface {
+	GetPriceForPairAtExchange(pair string, exchange string, marketType int64) *interfaces.OHLCV
+}
+
 type MockDataFeed struct {
 	tickerData        []interfaces.OHLCV
 	spreadData        []interfaces.SpreadData

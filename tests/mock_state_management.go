@@ -13,7 +13,7 @@ type MockStateMgmt struct {
 	StateMap      sync.Map
 	ConditionsMap sync.Map
 	Trading       *MockTrading
-	DataFeed      *MockDataFeed
+	DataFeed      IDataFeed
 }
 
 func (sm *MockStateMgmt) UpdateStrategyState(strategyId *primitive.ObjectID, state *models.MongoStrategyState) {
@@ -43,7 +43,7 @@ func (sm *MockStateMgmt) GetOrderById(orderId *primitive.ObjectID) *models.Mongo
 	panic("implement me")
 }
 
-func NewMockedStateMgmt(trading *MockTrading, dataFeed *MockDataFeed) MockStateMgmt {
+func NewMockedStateMgmt(trading *MockTrading, dataFeed IDataFeed) MockStateMgmt {
 	stateMgmt := MockStateMgmt{
 		Trading:  trading,
 		DataFeed: dataFeed,
