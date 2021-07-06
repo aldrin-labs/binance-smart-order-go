@@ -40,6 +40,7 @@ const (
 const (
 	TriggerTrade             = "Trade"
 	TriggerSpread            = "Spread"
+	TriggerAveragingEntryOrderExecuted = "TriggerAveragingEntryOrderExecuted"
 	TriggerOrderExecuted     = "TriggerOrderExecuted"
 	CheckExistingOrders      = "CheckExistingOrders"
 	CheckHedgeLoss           = "CheckHedgeLoss"
@@ -173,8 +174,7 @@ func New(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed, TradingAP
 
 	State.Configure(InMultiEntry).
 		PermitDynamic(CheckExistingOrders, sm.exit, sm.checkExistingOrders).
-		PermitReentry(CheckExistingOrders, sm.checkExistingOrders).
-		OnEntry(sm.entryMultiEntry)
+		PermitDynamic(TriggerAveragingEntryOrderExecuted, sm.enterMultiEntry)
 
 	State.Configure(WaitLossHedge).
 		PermitDynamic(CheckHedgeLoss, sm.exit, sm.checkLossHedge).

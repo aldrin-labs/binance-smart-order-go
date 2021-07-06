@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
 	"go.uber.org/zap"
+	"log"
 	"strconv"
 )
 
@@ -76,7 +77,8 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 	if !ok {
 		return false
 	}
-	sm.Strategy.GetLogger().Info("",
+
+	sm.Strategy.GetLogger().Info("checkExistingOrders",
 		zap.String("orderStatus", orderStatus),
 		zap.String("step", step.(string)),
 	)
@@ -135,6 +137,16 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 				} else {
 					model.State.EntryPrice = order.Average
 				}
+
+				log.Println("TriggerAveragingEntryOrderExecuted")
+				err := sm.State.Fire(TriggerAveragingEntryOrderExecuted)
+				if err != nil {
+					sm.Strategy.GetLogger().Error("TriggerAveragingEntryOrderExecuted error",
+						zap.Error(err),
+					)
+				}
+
+				return false
 			} else { // not avg
 				model.State.EntryPrice = order.Average
 				model.State.State = InEntry
