@@ -3,6 +3,7 @@ package smart_order
 import (
 	"context"
 	"fmt"
+	"github.com/go-redsync/redsync/v4"
 	"log"
 	"strconv"
 	"testing"
@@ -15,6 +16,12 @@ import (
 	"gitlab.com/crypto_project/core/strategy_service/tests"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
+
+func GetElapsed(previous time.Time, name string) time.Time {
+	elapsed := time.Since(previous)
+	log.Printf("%s took %s\n", name, elapsed)
+	return time.Now()
+}
 
 // smart order should create limit order while still in waitingForEntry state if not trailing
 func TestSmartOrderMandatoryForcedLoss(t *testing.T) {
@@ -43,16 +50,21 @@ func TestSmartOrderMandatoryForcedLoss(t *testing.T) {
 	tradingApi := tests.NewMockedTradingAPI()
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
+	logger, statsd := GetLoggerStatsd()
 	strategy := strategies.Strategy{
 		Model:     &smartOrderModel,
 		StateMgmt: &sm,
+		Log: logger,
+		Statsd: statsd,
+		SettlementMutex: &redsync.Mutex{},
 	}
 	smartOrder := smart_order.New(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
 	go smartOrder.Start()
-	time.Sleep(2000 * time.Millisecond)
+
+	time.Sleep(2000 * time.Millisecond) //TODO: Takes way too long, but fails without it
 
 	// one call with 'sell' and one with 'BTC_USDT' should be done
 	sellCallCount, sellOk := tradingApi.CallCount.Load("sell")

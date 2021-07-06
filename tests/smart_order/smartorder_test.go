@@ -63,7 +63,7 @@ func GetTestSmartOrderStrategy(scenario string) models.MongoStrategy {
 			EntryOrder: &models.MongoEntryPoint{
 				Side:      "buy",
 				Price:     7000,
-				Amount:    0.001,
+				Amount:    0.01,
 				OrderType: "limit",
 			},
 			ExitLevels: []*models.MongoEntryPoint{
@@ -149,12 +149,12 @@ func GetTestSmartOrderStrategy(scenario string) models.MongoStrategy {
 			EntryOrder: &models.MongoEntryPoint{
 				Side:      "buy",
 				OrderType: "limit",
-				Amount:    0.003,
+				Amount:    0.03,
 			},
 			EntryLevels: []*models.MongoEntryPoint{
 				{
 					Price:  6000,
-					Amount: 0.001,
+					Amount: 0.01,
 					Type:   0,
 				},
 				{
@@ -189,22 +189,22 @@ func GetTestSmartOrderStrategy(scenario string) models.MongoStrategy {
 			EntryOrder: &models.MongoEntryPoint{
 				Side:      "buy",
 				OrderType: "limit",
-				Amount:    0.003,
+				Amount:    0.03,
 			},
 			EntryLevels: []*models.MongoEntryPoint{
 				{
 					Price:  6000,
-					Amount: 0.001,
+					Amount: 0.01,
 					Type:   0,
 				},
 				{
 					Price:  20,
-					Amount: 0.001,
+					Amount: 33,
 					Type:   1,
 				},
 				{
 					Price:  20,
-					Amount: 0.001,
+					Amount: 33,
 					Type:   1,
 				},
 			},
@@ -216,7 +216,7 @@ func GetTestSmartOrderStrategy(scenario string) models.MongoStrategy {
 					Amount:    100,
 				},
 			},
-			StopLoss:     2000,
+			StopLoss:     15,
 			StopLossType: "market",
 		}
 	case "multiEntryPlacingClosingAfterFirstTAP":

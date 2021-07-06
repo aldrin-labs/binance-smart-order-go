@@ -9,6 +9,7 @@ import (
 	"time"
 )
 
+
 type StatsdClient struct {
 	Client *statsd.Statter
 	Log    *zap.Logger
