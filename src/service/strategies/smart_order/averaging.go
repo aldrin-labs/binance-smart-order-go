@@ -59,7 +59,6 @@ func (sm *SmartOrder) placeMultiEntryOrders(stopLoss bool) {
 
 // enterMultiEntry executes once multiEntryOrder got executed
 func (sm *SmartOrder) enterMultiEntry(ctx context.Context, args ...interface{}) (stateless.State, error) {
-	sm.Strategy.GetLogger().Info("enterMultiEntry ",zap.Int("SelectedEntryTarget", sm.SelectedEntryTarget))
 	sm.StopMux.Lock()
 	model := sm.Strategy.GetModel()
 
@@ -77,7 +76,6 @@ func (sm *SmartOrder) enterMultiEntry(ctx context.Context, args ...interface{}) 
 	//	return nil
 	//}
 	// place BEP
-	sm.Strategy.GetLogger().Info("before placeWithoutLoss ",zap.Int("SelectedEntryTarget", sm.SelectedEntryTarget))
 	if model.Conditions.EntryLevels[sm.SelectedEntryTarget].PlaceWithoutLoss {
 		sm.PlaceOrder(0, sm.getAveragingEntryAmount(model, sm.SelectedEntryTarget), "WithoutLoss")
 	}
