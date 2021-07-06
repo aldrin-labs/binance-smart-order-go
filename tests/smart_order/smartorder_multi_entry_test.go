@@ -40,8 +40,10 @@ func TestSmartOrderMultiEntryPlacing(t *testing.T) {
 		Close:  5910,
 		Volume: 30,
 	}}
+
 	df := tests.NewMockedDataFeedWithWait(fakeDataStream, 2500)
 	df.WaitBetweenTicks = 1000
+
 	tradingApi := tests.NewMockedTradingAPI()
 	tradingApi.BuyDelay = 100
 	tradingApi.SellDelay = 100
