@@ -3,6 +3,7 @@ package smart_order
 import (
 	"context"
 	"fmt"
+	"github.com/qmuntal/stateless"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
 	"go.uber.org/zap"
 	"time"
@@ -56,8 +57,8 @@ func (sm *SmartOrder) placeMultiEntryOrders(stopLoss bool) {
 
 }
 
-// entryMultiEntry executes once multiEntryOrder got executed
-func (sm *SmartOrder) entryMultiEntry(ctx context.Context, args ...interface{}) error {
+// enterMultiEntry executes once multiEntryOrder got executed
+func (sm *SmartOrder) enterMultiEntry(ctx context.Context, args ...interface{}) (stateless.State, error) {
 	sm.StopMux.Lock()
 	model := sm.Strategy.GetModel()
 
@@ -70,10 +71,10 @@ func (sm *SmartOrder) entryMultiEntry(ctx context.Context, args ...interface{}) 
 
 	//TODO: HACK, state machine should never get here after all entryTargets fired \
 	// we should look into this and fix it ASAP; until then averaging might not work as intended
-	if sm.SelectedEntryTarget >= len(model.Conditions.EntryLevels) {
-		sm.Strategy.GetLogger().Error("SelectedEntry target not in model.Conditions.EntryLevels")
-		return nil
-	}
+	//if sm.SelectedEntryTarget >= len(model.Conditions.EntryLevels) {
+	//	sm.Strategy.GetLogger().Error("SelectedEntry target not in model.Conditions.EntryLevels")
+	//	return nil
+	//}
 	// place BEP
 	if model.Conditions.EntryLevels[sm.SelectedEntryTarget].PlaceWithoutLoss {
 		sm.PlaceOrder(0, sm.getAveragingEntryAmount(model, sm.SelectedEntryTarget), "WithoutLoss")
@@ -84,7 +85,7 @@ func (sm *SmartOrder) entryMultiEntry(ctx context.Context, args ...interface{}) 
 	if ok && isWaitingForOrder.(bool) {
 		state, _ := sm.State.State(ctx)
 		if state == End {
-			return nil
+			return InMultiEntry, nil
 		}
 	}
 
@@ -95,7 +96,7 @@ func (sm *SmartOrder) entryMultiEntry(ctx context.Context, args ...interface{}) 
 
 	sm.SelectedEntryTarget += 1
 	sm.StopMux.Unlock()
-	return nil
+	return InMultiEntry, nil
 }
 
 func (sm *SmartOrder) getAveragingEntryAmount(model *models.MongoStrategy, executedTargets int) float64 {
