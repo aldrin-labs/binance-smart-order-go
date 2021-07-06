@@ -201,7 +201,7 @@ func TestSmartOrderMarketEntryAndTrailingExit(t *testing.T) {
 	tradingApi.SellDelay = 300
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
-	logger, statsd := GetLoggerStatsd()
+	logger, statsd := tests.GetLoggerStatsd()
 	strategy := strategies.Strategy{
 		Model:     &smartOrderModel,
 		StateMgmt: &sm,
@@ -407,7 +407,7 @@ func TestSmartOrderMarketEntryAndThenFollowTrailing(t *testing.T) {
 	tradingApi.SellDelay = 300
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
-	logger, statsd := GetLoggerStatsd()
+	logger, statsd := tests.GetLoggerStatsd()
 	strategy := strategies.Strategy{
 		Model:     &smartOrderModel,
 		StateMgmt: &sm,

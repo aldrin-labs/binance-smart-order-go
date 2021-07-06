@@ -57,7 +57,7 @@ func TestSmartOrderTrailingEntryAndThenActivateTrailingWithHighLeverage(t *testi
 	keyId := primitive.NewObjectID()
 	//sm := mongodb.StateMgmt{}
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
-	logger, stats := GetLoggerStatsd()
+	logger, stats := tests.GetLoggerStatsd()
 	strategy := strategies.Strategy{
 		Model:     &smartOrderModel,
 		StateMgmt: &sm,
@@ -134,7 +134,7 @@ func TestSmartOrderTrailingEntryAndTrailingExitWithHighLeverage(t *testing.T) {
 	tradingApi.SellDelay = 300
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
-	logger, stats := GetLoggerStatsd()
+	logger, stats := tests.GetLoggerStatsd()
 	strategy := strategies.Strategy{
 		Model:     &smartOrderModel,
 		StateMgmt: &sm,
@@ -211,7 +211,7 @@ func TestSmartOrderTrailingEntryAndFollowTrailingMaximumsWithoutEarlyExitWithHig
 	tradingApi.SellDelay = 20100
 	//sm := mongodb.StateMgmt{}
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
-	logger, stats := GetLoggerStatsd()
+	logger, stats := tests.GetLoggerStatsd()
 	strategy := strategies.Strategy{
 		Model: &smartOrderModel,
 		StateMgmt: &sm,

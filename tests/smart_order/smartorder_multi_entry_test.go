@@ -49,7 +49,7 @@ func TestSmartOrderMultiEntryPlacing(t *testing.T) {
 	tradingApi.SellDelay = 100
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
-	logger, statsd := GetLoggerStatsd()
+	logger, statsd := tests.GetLoggerStatsd()
 	strategy := strategies.Strategy{
 		Model:     &smartOrderModel,
 		StateMgmt: &sm,
@@ -110,7 +110,7 @@ func TestSmartOrderMultiEntryStopLoss(t *testing.T) {
 	tradingApi := tests.NewMockedTradingAPI()
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
-	logger, statsd := GetLoggerStatsd()
+	logger, statsd := tests.GetLoggerStatsd()
 	strategy := strategies.Strategy{
 		Model:     &smartOrderModel,
 		StateMgmt: &sm,
@@ -322,7 +322,7 @@ func TestSmartOrderMultiEntryTAP(t *testing.T) {
 	tradingApi := tests.NewMockedTradingAPI()
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
-	logger, statsd := GetLoggerStatsd()
+	logger, statsd := tests.GetLoggerStatsd()
 	strategy := strategies.Strategy{
 		Model:     &smartOrderModel,
 		StateMgmt: &sm,
@@ -577,7 +577,7 @@ func TestSmartOrderMultiEntryClosingAfterFirstTAP(t *testing.T) {
 	tradingApi := tests.NewMockedTradingAPI()
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
-	logger, statsd := GetLoggerStatsd()
+	logger, statsd := tests.GetLoggerStatsd()
 	strategy := strategies.Strategy{
 		Model:     &smartOrderModel,
 		StateMgmt: &sm,
@@ -836,7 +836,7 @@ func TestSmartOrderMultiEntryClosingByWithoutLoss(t *testing.T) {
 	tradingApi := tests.NewMockedTradingAPI()
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
-	logger, statsd := GetLoggerStatsd()
+	logger, statsd := tests.GetLoggerStatsd()
 	strategy := strategies.Strategy{
 		Model:     &smartOrderModel,
 		StateMgmt: &sm,

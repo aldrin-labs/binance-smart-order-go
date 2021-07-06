@@ -26,7 +26,7 @@ func GetTestSmartOrderStrategy(scenario string) models.MongoStrategy {
 			Pair: "BTC_USDT",
 			EntryOrder: &models.MongoEntryPoint{
 				Side:      "buy",
-				Price:     7000,
+				Price:     38000,
 				Amount:    0.001,
 				OrderType: "limit",
 			},
@@ -38,6 +38,8 @@ func GetTestSmartOrderStrategy(scenario string) models.MongoStrategy {
 					Amount:    100,
 				},
 			},
+			ForcedLoss:          20,
+			StopLoss:            10,
 		}
 	}
 

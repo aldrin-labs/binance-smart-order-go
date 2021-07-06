@@ -9,9 +9,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/go-redsync/redsync/v4"
-	"go.uber.org/zap"
 	"log"
-	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -23,18 +21,6 @@ import (
 	"gitlab.com/crypto_project/core/strategy_service/tests"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
-
-func GetLoggerStatsd() (*zap.Logger, interfaces.IStatsClient) {
-	var logger *zap.Logger
-	if os.Getenv("LOCAL") == "true" {
-		logger, _ = zap.NewDevelopment()
-	} else {
-		logger, _ = zap.NewProduction() // TODO(khassanov): handle the error
-	}
-	logger = logger.With(zap.String("logger", "ss"))
-	statsd := &tests.MockStatsdClient{Client: nil, Log: logger}
-	return logger, statsd
-}
 
 // smart order should create limit order while still in waitingForEntry state if not trailing
 func TestSmartOrderGetInEntryLong(t *testing.T) {
@@ -64,7 +50,7 @@ func TestSmartOrderGetInEntryLong(t *testing.T) {
 	tradingApi := tests.NewMockedTradingAPI()
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
-	logger, statsd := GetLoggerStatsd()
+	logger, statsd := tests.GetLoggerStatsd()
 
 	strategy := strategies.Strategy{
 		Model:     &smartOrderModel,
@@ -119,7 +105,7 @@ func TestSmartOrderGetInEntryShort(t *testing.T) {
 	tradingApi := tests.NewMockedTradingAPI()
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
-	logger, statsd := GetLoggerStatsd();
+	logger, statsd := tests.GetLoggerStatsd();
 	strategy := strategies.Strategy{
 		Model:     &smartOrderModel,
 		StateMgmt: &sm,
@@ -173,7 +159,7 @@ func TestSmartOrderGetInTrailingEntryLong(t *testing.T) {
 	keyId := primitive.NewObjectID()
 	//sm := mongodb.StateMgmt{}
 	sm := tests.NewMockedStateMgmt(&tradingApi, df)
-	logger, statsd := GetLoggerStatsd()
+	logger, statsd := tests.GetLoggerStatsd()
 	strategy := strategies.Strategy{
 		Model:     &smartOrderModel,
 		StateMgmt: &sm,
@@ -261,7 +247,7 @@ func TestSmartOrderGetInTrailingEntryShort(t *testing.T) {
 	tradingApi := *tests.NewMockedTradingAPI()
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(&tradingApi, df)
-	logger, statsd := GetLoggerStatsd()
+	logger, statsd := tests.GetLoggerStatsd()
 	strategy := strategies.Strategy{
 		Model:     &smartOrderModel,
 		StateMgmt: &sm,

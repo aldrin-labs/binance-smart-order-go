@@ -38,7 +38,7 @@ func TestSmartTakeProfit(t *testing.T) {
 	tradingApi := tests.NewMockedTradingAPI()
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
-	logger, stats := GetLoggerStatsd()
+	logger, stats := tests.GetLoggerStatsd()
 	strategy := strategies.Strategy{
 		Model:     &smartOrderModel,
 		StateMgmt: &sm,
@@ -122,7 +122,7 @@ func TestSmartOrderTakeProfit(t *testing.T) {
 	keyId := primitive.NewObjectID()
 	//sm := mongodb.StateMgmt{}
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
-	logger, stats := GetLoggerStatsd()
+	logger, stats := tests.GetLoggerStatsd()
 	strategy := strategies.Strategy{
 		Model:     &smartOrderModel,
 		StateMgmt: &sm,
@@ -196,7 +196,7 @@ func TestSmartOrderTakeProfitAllTargets(t *testing.T) {
 	tradingApi := tests.NewMockedTradingAPI()
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
-	logger, stats := GetLoggerStatsd()
+	logger, stats := tests.GetLoggerStatsd()
 	strategy := strategies.Strategy{
 		Model:     &smartOrderModel,
 		StateMgmt: &sm,

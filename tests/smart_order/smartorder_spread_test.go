@@ -60,7 +60,7 @@ func TestSmartOrderEntryBySpread(t *testing.T) {
 	tradingApi := *tests.NewMockedTradingAPI()
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(&tradingApi, df)
-	logger, stats := GetLoggerStatsd()
+	logger, stats := tests.GetLoggerStatsd()
 	strategy := strategies.Strategy{
 		Model:     &smartOrderModel,
 		StateMgmt: &sm,

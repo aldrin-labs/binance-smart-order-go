@@ -53,7 +53,7 @@ func TestSmartExitOnStopMarket(t *testing.T) {
 	tradingApi.SellDelay = 200
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
-	logger, stats := GetLoggerStatsd()
+	logger, stats := tests.GetLoggerStatsd()
 	strategy := strategies.Strategy{
 		Model:     &smartOrderModel,
 		StateMgmt: &sm,
@@ -132,7 +132,7 @@ func TestSmartExitOnStopMarketTimeout(t *testing.T) {
 	tradingApi := tests.NewMockedTradingAPI()
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
-	logger, stats := GetLoggerStatsd()
+	logger, stats := tests.GetLoggerStatsd()
 	strategy := strategies.Strategy{
 		Model:     &smartOrderModel,
 		StateMgmt: &sm,
@@ -192,7 +192,7 @@ func TestSmartExitAfterTimeoutLoss(t *testing.T) {
 	tradingApi := tests.NewMockedTradingAPI()
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
-	logger, stats := GetLoggerStatsd()
+	logger, stats := tests.GetLoggerStatsd()
 	strategy := strategies.Strategy{
 		Model:     &smartOrderModel,
 		StateMgmt: &sm,
@@ -301,7 +301,7 @@ func TestSmartOrderReturnToInEntryAfterTimeoutLoss(t *testing.T) {
 	tradingApi.SellDelay = 1000
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
-	logger, stats := GetLoggerStatsd()
+	logger, stats := tests.GetLoggerStatsd()
 	strategy := strategies.Strategy{
 		Model:     &smartOrderModel,
 		StateMgmt: &sm,

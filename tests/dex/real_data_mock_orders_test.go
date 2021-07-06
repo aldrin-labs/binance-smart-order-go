@@ -3,6 +3,7 @@ package dex
 import (
 	"context"
 	"fmt"
+	"github.com/go-redsync/redsync/v4"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources"
 
 	"github.com/qmuntal/stateless"
@@ -20,14 +21,17 @@ func TestRealSerumDataEntry(t *testing.T) {
 	smartOrderModel := GetTestSmartOrderStrategy("simpleEntry")
 	// price dips in the middle (This has no meaning now, reuse and then remove fake data stream)
 	df := sources.InitDataFeed()
+	time.Sleep(15 * time.Second)
 	tradingApi := tests.NewMockedTradingAPI()
 	keyId := primitive.NewObjectID()
-	sm := tests.NewMockedStateMgmt(tradingApi, df)
+	sm := tests.NewMockedStateMgmtWithOpts(tradingApi, df, "BTC_USDT", "serum", 0)
+	logger, statsd := tests.GetLoggerStatsd()
 	strategy := strategies.Strategy{
 		Model:     &smartOrderModel,
 		StateMgmt: &sm,
 		Log: logger,
-
+		Statsd: statsd,
+		SettlementMutex: &redsync.Mutex{},
 	}
 	smartOrder := smart_order.New(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {

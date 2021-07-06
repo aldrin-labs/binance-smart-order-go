@@ -46,7 +46,7 @@ func TestSmartPlaceStopLossForEachTarget(t *testing.T) {
 	tradingApi.SellDelay = 3000
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
-	logger, stats := GetLoggerStatsd()
+	logger, stats := tests.GetLoggerStatsd()
 	strategy := strategies.Strategy{
 		Model:     &smartOrderModel,
 		StateMgmt: &sm,
