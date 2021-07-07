@@ -55,11 +55,14 @@ func (sm *SmartOrder) waitForHedge() {
 	_ = sm.StateMgmt.SubscribeToHedge(sm.Strategy.GetModel().Conditions.HedgeStrategyId, sm.hedgeCallback)
 }
 
+const waitForSeconds = 5
+
 func (sm *SmartOrder) hedge() {
 	if sm.Strategy.GetModel().Conditions.MarketType == 1 && sm.Strategy.GetModel().Conditions.Hedging {
 		if !sm.Strategy.GetModel().Conditions.SkipInitialSetup {
+			//TODO: look into WHY is it done like that
 			sm.ExchangeApi.SetHedgeMode(sm.Strategy.GetModel().AccountId, true)
-			time.Sleep(5 * time.Second)
+			time.Sleep(waitForSeconds * time.Second)
 		}
 
 		if (sm.Strategy.GetModel().Conditions.HedgeStrategyId == nil || sm.Strategy.GetModel().Conditions.ContinueIfEnded) && sm.Strategy.GetModel().Enabled {
@@ -72,16 +75,15 @@ func (sm *SmartOrder) hedge() {
 		}
 		return
 	}
-
 	if sm.Strategy.GetModel().Conditions.MarketType == 1 && !sm.Strategy.GetModel().Conditions.SkipInitialSetup {
 		if sm.Strategy.GetModel().Conditions.HedgeMode {
 			sm.ExchangeApi.SetHedgeMode(sm.Strategy.GetModel().AccountId, true)
-			time.Sleep(5 * time.Second)
+			time.Sleep(waitForSeconds * time.Second)
 			return
 		}
 
 		sm.ExchangeApi.SetHedgeMode(sm.Strategy.GetModel().AccountId, false)
-		time.Sleep(5 * time.Second)
+		time.Sleep(waitForSeconds * time.Second)
 	}
 }
 

@@ -54,7 +54,7 @@ type Strategy struct {
 	Datafeed        interfaces.IDataFeed
 	Trading         trading.ITrading
 	StateMgmt       interfaces.IStateMgmt
-	Statsd          *statsd_client.StatsdClient
+	Statsd          interfaces.IStatsClient
 	Singleton       interfaces.ICreateRequest
 	Log             *zap.Logger
 }
@@ -87,7 +87,7 @@ func (strategy *Strategy) GetStateMgmt() interfaces.IStateMgmt {
 	return strategy.StateMgmt
 }
 
-func (strategy *Strategy) GetStatsd() *statsd_client.StatsdClient {
+func (strategy *Strategy) GetStatsd() interfaces.IStatsClient {
 	return strategy.Statsd
 }
 

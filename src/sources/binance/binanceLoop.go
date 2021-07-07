@@ -27,7 +27,7 @@ func init() {
 	} else {
 		log, _ = zap.NewProduction() // TODO: handle the error
 	}
-	log = log.With(zap.String("logger", "binance"))
+	log = log.With(zap.String("logger", "binanceLoop"))
 }
 
 func InitBinance() interfaces.IDataFeed {
