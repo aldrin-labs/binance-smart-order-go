@@ -19,7 +19,7 @@ import (
 )
 
 type OrderResponseData struct {
-	OrderId string `json:"orderId, string"`
+	OrderId string `json:"id, string"`
 	Msg     string `json:"msg,string"`
 	//OrderId string  `json:"orderId, string"`
 	Status  string  `json:"status"`
