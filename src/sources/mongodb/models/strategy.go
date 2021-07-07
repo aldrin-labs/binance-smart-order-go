@@ -210,6 +210,7 @@ type MongoEntryPoint struct {
 
 // A MongoStrategyCondition is a set of static (persistent) parameters for a smart trade.
 type MongoStrategyCondition struct {
+	Exchange string               `json:"exchange,omitempty" bson:"exchange"`
 	AccountId *primitive.ObjectID `json:"accountId,omitempty" bson:"accountId"`
 
 	Hedging         bool                `json:"hedging,omitempty" bson:"hedging"`

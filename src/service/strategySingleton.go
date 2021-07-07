@@ -8,6 +8,7 @@ import (
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies/makeronly_order"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies/smart_order"
+	"gitlab.com/crypto_project/core/strategy_service/src/sources"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/redis"
@@ -15,7 +16,6 @@ import (
 	// "gitlab.com/crypto_project/core/strategy_service/src/sources/redis"
 	cpu_info "github.com/shirou/gopsutil/cpu"
 	cpu_load "github.com/shirou/gopsutil/load"
-	"gitlab.com/crypto_project/core/strategy_service/src/sources/binance"
 	statsd_client "gitlab.com/crypto_project/core/strategy_service/src/statsd"
 	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"go.mongodb.org/mongo-driver/bson"
@@ -35,6 +35,7 @@ type StrategyService struct {
 	strategies map[string]*strategies.Strategy
 	trading    trading.ITrading
 	dataFeed   interfaces.IDataFeed
+	dataFeedSerum   interfaces.IDataFeed
 	stateMgmt  interfaces.IStateMgmt
 	statsd     statsd_client.StatsdClient
 	log        *zap.Logger
@@ -56,8 +57,7 @@ func GetStrategyService() *StrategyService {
 			logger, _ = zap.NewProduction() // TODO(khassanov): handle the error
 		}
 		logger = logger.With(zap.String("logger", "ss"))
-		// df := redis.InitRedis()
-		df := binance.InitBinance()
+		df := sources.InitDataFeed()
 		tr := trading.InitTrading()
 		statsd := statsd_client.StatsdClient{}
 		statsd.Init()

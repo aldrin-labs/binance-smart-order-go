@@ -7,7 +7,6 @@ import (
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies/smart_order"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
-	statsd_client "gitlab.com/crypto_project/core/strategy_service/src/statsd"
 	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -21,7 +20,7 @@ type KeyAsset struct {
 }
 
 // RunSmartOrder starts a runtime for the strategy with given interfaces to market data and trading API.
-func RunSmartOrder(strategy *Strategy, df interfaces.IDataFeed, td trading.ITrading, st *statsd_client.StatsdClient, keyId *primitive.ObjectID) interfaces.IStrategyRuntime {
+func RunSmartOrder(strategy *Strategy, df interfaces.IDataFeed, td trading.ITrading, st interfaces.IStatsClient, keyId *primitive.ObjectID) interfaces.IStrategyRuntime {
 	strategy.Log.Info("entry")
 	if strategy.Model.Conditions.Leverage == 0 {
 		strategy.Model.Conditions.Leverage = 1
@@ -105,7 +104,7 @@ func DetermineRelativeEntryAmount(strategy *Strategy, keyAsset KeyAsset, df inte
 				strategy.Model.Conditions.EntryOrder.Amount = margin * strategy.Model.Conditions.Leverage / strategy.Model.Conditions.EntryOrder.Price
 				break
 			} else { // market and maker-only
-				currentOHLCVp := df.GetPriceForPairAtExchange(strategy.GetModel().Conditions.Pair, "binance", strategy.GetModel().Conditions.MarketType)
+				currentOHLCVp := df.GetPriceForPairAtExchange(strategy.GetModel().Conditions.Pair, strategy.GetModel().Conditions.Exchange, strategy.GetModel().Conditions.MarketType)
 				if currentOHLCVp != nil {
 					strategy.Model.Conditions.EntryOrder.Amount = margin * strategy.Model.Conditions.Leverage / currentOHLCVp.Close
 					break
