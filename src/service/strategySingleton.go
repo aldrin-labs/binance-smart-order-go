@@ -38,7 +38,7 @@ type StrategyService struct {
 	dataFeedSerum   interfaces.IDataFeed
 	stateMgmt  interfaces.IStateMgmt
 	statsd     statsd_client.StatsdClient
-	log        *zap.Logger
+	log        interfaces.ILogger
 	full       bool // indicates whether an instance full or can take more strategies
 	ramFull    bool // indicates close to RAM limit
 	cpuFull    bool // indicates out of CPU usage limit
@@ -52,10 +52,34 @@ func GetStrategyService() *StrategyService {
 	once.Do(func() {
 		var logger *zap.Logger
 		if os.Getenv("LOCAL") == "true" {
-			logger, _ = zap.NewDevelopment()
+			//logger, _ = zap.NewDevelopment()
+			logger, _ = zap.Config{
+				Level:       zap.NewAtomicLevelAt(zap.WarnLevel),
+				Development: false,
+				Sampling: &zap.SamplingConfig{
+					Initial:    100,
+					Thereafter: 100,
+				},
+				Encoding:         "json",
+				EncoderConfig:    zap.NewProductionEncoderConfig(),
+				OutputPaths:      []string{"stderr"},
+				ErrorOutputPaths: []string{"stderr"},
+			}.Build()
 		} else {
-			logger, _ = zap.NewProduction() // TODO(khassanov): handle the error
+			logger, _ = zap.Config{
+				Level:       zap.NewAtomicLevelAt(zap.WarnLevel),
+				Development: false,
+				Sampling: &zap.SamplingConfig{
+					Initial:    100,
+					Thereafter: 100,
+				},
+				Encoding:         "json",
+				EncoderConfig:    zap.NewProductionEncoderConfig(),
+				OutputPaths:      []string{"stderr"},
+				ErrorOutputPaths: []string{"stderr"},
+			}.Build() // TODO(khassanov): handle the error
 		}
+
 		logger = logger.With(zap.String("logger", "ss"))
 		df := sources.InitDataFeed()
 		tr := trading.InitTrading()

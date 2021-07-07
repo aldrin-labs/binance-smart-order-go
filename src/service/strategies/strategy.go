@@ -56,7 +56,7 @@ type Strategy struct {
 	StateMgmt       interfaces.IStateMgmt
 	Statsd          interfaces.IStatsClient
 	Singleton       interfaces.ICreateRequest
-	Log             *zap.Logger
+	Log             interfaces.ILogger
 }
 
 func (strategy *Strategy) GetModel() *models.MongoStrategy {
@@ -91,7 +91,7 @@ func (strategy *Strategy) GetStatsd() interfaces.IStatsClient {
 	return strategy.Statsd
 }
 
-func (strategy *Strategy) GetLogger() *zap.Logger {
+func (strategy *Strategy) GetLogger() interfaces.ILogger {
 	return strategy.Log
 }
 
