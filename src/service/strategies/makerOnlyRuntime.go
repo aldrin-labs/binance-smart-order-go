@@ -8,12 +8,11 @@ import (
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies/makeronly_order"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
-	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-func RunMakerOnlyOrder(strategy *Strategy, df interfaces.IDataFeed, td trading.ITrading, keyId *primitive.ObjectID) interfaces.IStrategyRuntime {
+func RunMakerOnlyOrder(strategy *Strategy, df interfaces.IDataFeed, td interfaces.ITrading, keyId *primitive.ObjectID) interfaces.IStrategyRuntime {
 	if strategy.Model.Conditions.Leverage == 0 {
 		strategy.Model.Conditions.Leverage = 1
 	}

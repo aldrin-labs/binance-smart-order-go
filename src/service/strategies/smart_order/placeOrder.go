@@ -3,11 +3,10 @@ package smart_order
 import (
 	"context"
 	"fmt"
+	"gitlab.com/crypto_project/core/strategy_service/src/trading/orders"
 	"go.uber.org/zap"
 	"strings"
 	"time"
-
-	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 )
 
 // PlaceOrder is a procedure calculates create order request and dispatches it to trading interface.
@@ -493,9 +492,9 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 		if baseAmount == 0 || orderType == "limit" && orderPrice == 0 {
 			return
 		}
-		request := trading.CreateOrderRequest{
+		request := orders.CreateOrderRequest{
 			KeyId: sm.KeyId,
-			KeyParams: trading.Order{
+			KeyParams: orders.Order{
 				Symbol:     model.Conditions.Pair,
 				MarketType: model.Conditions.MarketType,
 				Type:       orderType,
@@ -508,7 +507,7 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 			},
 		}
 		if request.KeyParams.Type == "stop" {
-			request.KeyParams.Params = trading.OrderParams{
+			request.KeyParams.Params = orders.OrderParams{
 				Type: advancedOrderType,
 			}
 		}
@@ -524,9 +523,9 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 		if (step == TrailingEntry || isSpotTAP) && orderType != "market" && ifShouldCancelPreviousOrder && len(model.State.ExecutedOrders) > 0 {
 			count := len(model.State.ExecutedOrders)
 			existingOrderId := model.State.ExecutedOrders[count-1]
-			response := sm.ExchangeApi.CancelOrder(trading.CancelOrderRequest{
+			response := sm.ExchangeApi.CancelOrder(orders.CancelOrderRequest{
 				KeyId: sm.KeyId,
-				KeyParams: trading.CancelOrderRequestParams{
+				KeyParams: orders.CancelOrderRequestParams{
 					OrderId:    existingOrderId,
 					MarketType: model.Conditions.MarketType,
 					Pair:       model.Conditions.Pair,
@@ -558,7 +557,7 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 			zap.Float64("stopPrice", stopPrice),
 			zap.String("request", fmt.Sprint(request)),
 		)
-		var response trading.OrderResponse
+		var response orders.OrderResponse
 		if request.KeyParams.Type == "maker-only" {
 			response = sm.Strategy.GetSingleton().CreateOrder(request)
 		} else {
@@ -577,9 +576,9 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 				if len(model.State.ExecutedOrders) > 0 && step != TrailingEntry {
 					count := len(model.State.ExecutedOrders)
 					existingOrderId := model.State.ExecutedOrders[count-1]
-					sm.ExchangeApi.CancelOrder(trading.CancelOrderRequest{
+					sm.ExchangeApi.CancelOrder(orders.CancelOrderRequest{
 						KeyId: sm.KeyId,
-						KeyParams: trading.CancelOrderRequestParams{
+						KeyParams: orders.CancelOrderRequestParams{
 							OrderId:    existingOrderId,
 							MarketType: model.Conditions.MarketType,
 							Pair:       model.Conditions.Pair,

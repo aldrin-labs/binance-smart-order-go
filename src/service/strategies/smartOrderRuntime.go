@@ -7,8 +7,6 @@ import (
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies/smart_order"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
-	statsd_client "gitlab.com/crypto_project/core/strategy_service/src/statsd"
-	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
@@ -21,7 +19,7 @@ type KeyAsset struct {
 }
 
 // RunSmartOrder starts a runtime for the strategy with given interfaces to market data and trading API.
-func RunSmartOrder(strategy *Strategy, df interfaces.IDataFeed, td trading.ITrading, st *statsd_client.StatsdClient, keyId *primitive.ObjectID) interfaces.IStrategyRuntime {
+func RunSmartOrder(strategy *Strategy, df interfaces.IDataFeed, td interfaces.ITrading, st interfaces.IStatsClient, keyId *primitive.ObjectID) interfaces.IStrategyRuntime {
 	strategy.Log.Info("entry")
 	if strategy.Model.Conditions.Leverage == 0 {
 		strategy.Model.Conditions.Leverage = 1

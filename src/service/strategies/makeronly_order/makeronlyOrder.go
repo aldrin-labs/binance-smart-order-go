@@ -5,7 +5,7 @@ import (
 	"github.com/qmuntal/stateless"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
-	"gitlab.com/crypto_project/core/strategy_service/src/trading"
+	"gitlab.com/crypto_project/core/strategy_service/src/trading/orders"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"log"
 	"reflect"
@@ -33,7 +33,7 @@ type MakerOnlyOrder struct {
 	ExchangeName            string
 	KeyId                   *primitive.ObjectID
 	DataFeed                interfaces.IDataFeed
-	ExchangeApi             trading.ITrading
+	ExchangeApi             interfaces.ITrading
 	StateMgmt               interfaces.IStateMgmt
 	IsWaitingForOrder       sync.Map // TODO: this must be filled on start of SM if not first start (e.g. restore the state by checking order statuses)
 	OrdersMap               map[string]bool
@@ -48,7 +48,7 @@ type MakerOnlyOrder struct {
 	OrdersMux               sync.Mutex
 	MakerOnlyOrder          *models.MongoOrder
 
-	OrderParams trading.Order
+	OrderParams orders.Order
 }
 
 func (sm *MakerOnlyOrder) IsOrderExistsInMap(orderId string) bool {
@@ -107,9 +107,9 @@ func (sm *MakerOnlyOrder) Stop() {
 func (sm *MakerOnlyOrder) CancelEntryOrder() {
 	model := sm.Strategy.GetModel()
 	if model.State.EntryOrderId != "" {
-		response := sm.ExchangeApi.CancelOrder(trading.CancelOrderRequest{
+		response := sm.ExchangeApi.CancelOrder(orders.CancelOrderRequest{
 			KeyId: sm.KeyId,
-			KeyParams: trading.CancelOrderRequestParams{
+			KeyParams: orders.CancelOrderRequestParams{
 				OrderId:    model.State.EntryOrderId,
 				MarketType: model.Conditions.MarketType,
 				Pair:       model.Conditions.Pair,
@@ -125,7 +125,7 @@ func (sm *MakerOnlyOrder) CancelEntryOrder() {
 }
 func (sm *MakerOnlyOrder) TryCancelAllOrders(orderIds []string)             {}
 func (sm *MakerOnlyOrder) TryCancelAllOrdersConsistently(orderIds []string) {}
-func NewMakerOnlyOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed, TradingAPI trading.ITrading, keyId *primitive.ObjectID, stateMgmt interfaces.IStateMgmt) *MakerOnlyOrder {
+func NewMakerOnlyOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed, TradingAPI interfaces.ITrading, keyId *primitive.ObjectID, stateMgmt interfaces.IStateMgmt) *MakerOnlyOrder {
 	PO := &MakerOnlyOrder{Strategy: strategy, DataFeed: DataFeed, ExchangeApi: TradingAPI, KeyId: keyId, StateMgmt: stateMgmt, Lock: false, SelectedExitTarget: 0, OrdersMap: map[string]bool{}}
 	initState := PlaceOrder
 	model := strategy.GetModel()
