@@ -3,19 +3,18 @@ package strategies
 import (
 	"fmt"
 	"github.com/go-redsync/redsync/v4"
+	"gitlab.com/crypto_project/core/strategy_service/src/logging"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/redis"
 	statsd_client "gitlab.com/crypto_project/core/strategy_service/src/statsd"
-	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.uber.org/zap"
-	"os"
 	"time"
 )
 
 // GetStrategy instantiates strategy with resources created and given.
-func GetStrategy(cur *mongo.Cursor, df interfaces.IDataFeed, tr trading.ITrading, sm interfaces.IStateMgmt, createOrder interfaces.ICreateRequest, sd *statsd_client.StatsdClient) (*Strategy, error) {
+func GetStrategy(cur *mongo.Cursor, df interfaces.IDataFeed, tr interfaces.ITrading, sm interfaces.IStateMgmt, createOrder interfaces.ICreateRequest, sd *statsd_client.StatsdClient) (*Strategy, error) {
 	var model models.MongoStrategy
 	err := cur.Decode(&model)
 	rs := redis.GetRedsync()
@@ -26,12 +25,7 @@ func GetStrategy(cur *mongo.Cursor, df interfaces.IDataFeed, tr trading.ITrading
 		redsync.WithRetryDelay(1*time.Second),
 		redsync.WithExpiry(10*time.Second), // TODO(khassanov): use parameter to conform with extend call period
 	) // upsert
-	var logger *zap.Logger
-	if os.Getenv("LOCAL") == "true" {
-		logger, _ = zap.NewDevelopment()
-	} else {
-		logger, _ = zap.NewProduction() // TODO(khassanov): handle the error here and above
-	}
+	logger, _ := logging.GetZapLogger()
 	loggerName := fmt.Sprintf("sm-%v", model.ID.Hex())
 	logger = logger.With(zap.String("logger", loggerName))
 	return &Strategy{
@@ -52,7 +46,7 @@ type Strategy struct {
 	StrategyRuntime interfaces.IStrategyRuntime
 	SettlementMutex *redsync.Mutex
 	Datafeed        interfaces.IDataFeed
-	Trading         trading.ITrading
+	Trading         interfaces.ITrading
 	StateMgmt       interfaces.IStateMgmt
 	Statsd          interfaces.IStatsClient
 	Singleton       interfaces.ICreateRequest
@@ -79,7 +73,7 @@ func (strategy *Strategy) GetDatafeed() interfaces.IDataFeed {
 	return strategy.Datafeed
 }
 
-func (strategy *Strategy) GetTrading() trading.ITrading {
+func (strategy *Strategy) GetTrading() interfaces.ITrading {
 	return strategy.Trading
 }
 

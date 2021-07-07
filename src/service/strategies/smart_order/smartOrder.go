@@ -2,6 +2,7 @@ package smart_order
 
 import (
 	"context"
+	"gitlab.com/crypto_project/core/strategy_service/src/trading/orders"
 	"go.uber.org/zap"
 
 	// "go.uber.org/zap"
@@ -14,7 +15,6 @@ import (
 	"github.com/qmuntal/stateless"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
-	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -61,7 +61,7 @@ type SmartOrder struct {
 	ExchangeName            string
 	KeyId                   *primitive.ObjectID
 	DataFeed                interfaces.IDataFeed
-	ExchangeApi             trading.ITrading
+	ExchangeApi             interfaces.ITrading
 	Statsd                  interfaces.IStatsClient
 	StateMgmt               interfaces.IStateMgmt
 	IsWaitingForOrder       sync.Map // TODO: this must be filled on start of SM if not first start (e.g. restore the state by checking order statuses)
@@ -105,7 +105,7 @@ func (sm *SmartOrder) toFixed(n float64, precision int64, mode int) float64 {
 }
 
 // New instantiates new smart order with given strategy.
-func New(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed, TradingAPI trading.ITrading, Statsd interfaces.IStatsClient, keyId *primitive.ObjectID, stateMgmt interfaces.IStateMgmt) *SmartOrder {
+func New(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed, TradingAPI interfaces.ITrading, Statsd interfaces.IStatsClient, keyId *primitive.ObjectID, stateMgmt interfaces.IStateMgmt) *SmartOrder {
 
 	sm := &SmartOrder{
 		Strategy:           strategy,
@@ -705,9 +705,9 @@ func (sm *SmartOrder) IsOrderExistsInMap(orderId string) bool {
 func (sm *SmartOrder) TryCancelAllOrdersConsistently(orderIds []string) {
 	for _, orderId := range orderIds {
 		if orderId != "0" {
-			sm.ExchangeApi.CancelOrder(trading.CancelOrderRequest{
+			sm.ExchangeApi.CancelOrder(orders.CancelOrderRequest{
 				KeyId: sm.KeyId,
-				KeyParams: trading.CancelOrderRequestParams{
+				KeyParams: orders.CancelOrderRequestParams{
 					OrderId:    orderId,
 					MarketType: sm.Strategy.GetModel().Conditions.MarketType,
 					Pair:       sm.Strategy.GetModel().Conditions.Pair,
@@ -720,9 +720,9 @@ func (sm *SmartOrder) TryCancelAllOrdersConsistently(orderIds []string) {
 func (sm *SmartOrder) TryCancelAllOrders(orderIds []string) {
 	for _, orderId := range orderIds {
 		if orderId != "0" {
-			go sm.ExchangeApi.CancelOrder(trading.CancelOrderRequest{
+			go sm.ExchangeApi.CancelOrder(orders.CancelOrderRequest{
 				KeyId: sm.KeyId,
-				KeyParams: trading.CancelOrderRequestParams{
+				KeyParams: orders.CancelOrderRequestParams{
 					OrderId:    orderId,
 					MarketType: sm.Strategy.GetModel().Conditions.MarketType,
 					Pair:       sm.Strategy.GetModel().Conditions.Pair,

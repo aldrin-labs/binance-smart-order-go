@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/go-redsync/redsync/v4"
+	"gitlab.com/crypto_project/core/strategy_service/src/logging"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies/makeronly_order"
@@ -12,6 +13,8 @@ import (
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/redis"
+	"gitlab.com/crypto_project/core/strategy_service/src/trading/orders"
+	"log"
 
 	// "gitlab.com/crypto_project/core/strategy_service/src/sources/redis"
 	cpu_info "github.com/shirou/gopsutil/cpu"
@@ -33,7 +36,7 @@ import (
 type StrategyService struct {
 	pairs      map[int8]map[string]struct{} // spot and futures pairs
 	strategies map[string]*strategies.Strategy
-	trading    trading.ITrading
+	trading    interfaces.ITrading
 	dataFeed   interfaces.IDataFeed
 	dataFeedSerum   interfaces.IDataFeed
 	stateMgmt  interfaces.IStateMgmt
@@ -50,37 +53,11 @@ var once sync.Once
 // GetStrategyService returns a pointer to instantiated service singleton.
 func GetStrategyService() *StrategyService {
 	once.Do(func() {
-		var logger *zap.Logger
-		if os.Getenv("LOCAL") == "true" {
-			//logger, _ = zap.NewDevelopment()
-			logger, _ = zap.Config{
-				Level:       zap.NewAtomicLevelAt(zap.WarnLevel),
-				Development: false,
-				Sampling: &zap.SamplingConfig{
-					Initial:    100,
-					Thereafter: 100,
-				},
-				Encoding:         "json",
-				EncoderConfig:    zap.NewProductionEncoderConfig(),
-				OutputPaths:      []string{"stderr"},
-				ErrorOutputPaths: []string{"stderr"},
-			}.Build()
-		} else {
-			logger, _ = zap.Config{
-				Level:       zap.NewAtomicLevelAt(zap.WarnLevel),
-				Development: false,
-				Sampling: &zap.SamplingConfig{
-					Initial:    100,
-					Thereafter: 100,
-				},
-				Encoding:         "json",
-				EncoderConfig:    zap.NewProductionEncoderConfig(),
-				OutputPaths:      []string{"stderr"},
-				ErrorOutputPaths: []string{"stderr"},
-			}.Build() // TODO(khassanov): handle the error
+		logger, err := logging.GetZapLogger()
+		if err != nil {
+			log.Fatalf("Logger initialization failed, %s", err.Error())
+			//TODO: might want to retry/stop
 		}
-
-		logger = logger.With(zap.String("logger", "ss"))
 		df := sources.InitDataFeed()
 		tr := trading.InitTrading()
 		statsd := statsd_client.StatsdClient{}
@@ -214,15 +191,10 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 }
 
 // GetStrategy creates strategy instance with given arguments.
-func GetStrategy(strategy *models.MongoStrategy, df interfaces.IDataFeed, tr trading.ITrading, st interfaces.IStateMgmt, statsd *statsd_client.StatsdClient, ss *StrategyService) *strategies.Strategy {
+func GetStrategy(strategy *models.MongoStrategy, df interfaces.IDataFeed, tr interfaces.ITrading, st interfaces.IStateMgmt, statsd *statsd_client.StatsdClient, ss *StrategyService) *strategies.Strategy {
 	// TODO(khassanov): why we use this instead of the same from the `strategy` package?
 	// TODO(khassanov): remove code copy got from the same in the strategy package
-	var logger *zap.Logger
-	if os.Getenv("LOCAL") == "true" {
-		logger, _ = zap.NewDevelopment()
-	} else {
-		logger, _ = zap.NewProduction() // TODO(khassanov): handle the error
-	}
+	logger, _ := logging.GetZapLogger()
 	loggerName := fmt.Sprintf("sm-%v", strategy.ID.Hex())
 	logger = logger.With(zap.String("logger", loggerName))
 	rs := redis.GetRedsync()
@@ -262,7 +234,7 @@ func (ss *StrategyService) AddStrategy(strategy *models.MongoStrategy) {
 }
 
 // CreateOrder instantiates smart trade strategy with requested parameters and adds it to the service runtime.
-func (ss *StrategyService) CreateOrder(request trading.CreateOrderRequest) trading.OrderResponse {
+func (ss *StrategyService) CreateOrder(request orders.CreateOrderRequest) orders.OrderResponse {
 	t1 := time.Now()
 	ss.statsd.Inc("strategy_service.create_request")
 	id := primitive.NewObjectID()
@@ -413,9 +385,9 @@ func (ss *StrategyService) CreateOrder(request trading.CreateOrderRequest) tradi
 	}
 	go ss.AddStrategy(&strategy)
 	hex := id.Hex()
-	response := trading.OrderResponse{
+	response := orders.OrderResponse{
 		Status: "OK",
-		Data: trading.OrderResponseData{
+		Data: orders.OrderResponseData{
 			OrderId: hex,
 			Status:  "open",
 			Amount:  request.KeyParams.Amount,
@@ -432,7 +404,7 @@ func (ss *StrategyService) CreateOrder(request trading.CreateOrderRequest) tradi
 }
 
 // CancelOrder tries to cancel an order notifying state manager to update a persistent storage.
-func (ss *StrategyService) CancelOrder(request trading.CancelOrderRequest) trading.OrderResponse {
+func (ss *StrategyService) CancelOrder(request orders.CancelOrderRequest) orders.OrderResponse {
 	t1 := time.Now()
 	ss.statsd.Inc("strategy_service.cancel_request")
 	id, _ := primitive.ObjectIDFromHex(request.KeyParams.OrderId)
@@ -446,9 +418,9 @@ func (ss *StrategyService) CancelOrder(request trading.CancelOrderRequest) tradi
 	)
 
 	if order == nil {
-		return trading.OrderResponse{
+		return orders.OrderResponse{
 			Status: "ERR",
-			Data: trading.OrderResponseData{
+			Data: orders.OrderResponseData{
 				OrderId: "",
 				Msg:     "",
 				Status:  "",
@@ -494,9 +466,9 @@ func (ss *StrategyService) CancelOrder(request trading.CancelOrderRequest) tradi
 	go ss.stateMgmt.SaveOrder(updatedOrder, request.KeyId, request.KeyParams.MarketType)
 
 	ss.statsd.TimingDuration("strategy_service.cancel_order", time.Since(t1))
-	return trading.OrderResponse{
+	return orders.OrderResponse{
 		Status: "OK",
-		Data: trading.OrderResponseData{
+		Data: orders.OrderResponseData{
 			OrderId: request.KeyParams.OrderId,
 			Msg:     "",
 			Status:  "canceled",
