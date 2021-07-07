@@ -5,11 +5,13 @@ import (
 	"flag"
 	"fmt"
 	"github.com/buaazp/fasthttprouter"
+	"github.com/joho/godotenv"
 	"github.com/valyala/fasthttp"
 	"gitlab.com/crypto_project/core/strategy_service/src/service"
 	"gitlab.com/crypto_project/core/strategy_service/src/trading"
-	"sync"
 	"go.uber.org/zap"
+	"os"
+	"sync"
 )
 
 var log *zap.Logger
@@ -20,7 +22,12 @@ var (
 )
 
 func init() {
-	log, _ = zap.NewProduction()
+	_ = godotenv.Load()
+	if os.Getenv("LOCAL") == "true" {
+		log, _ = zap.NewDevelopment()
+	} else {
+		log, _ = zap.NewProduction() // TODO: handle the error
+	}
 	log = log.With(zap.String("logger", "srv"))
 }
 
@@ -49,6 +56,7 @@ func Healthz(ctx *fasthttp.RequestCtx) {
 func CreateOrder(ctx *fasthttp.RequestCtx) {
 	var createOrder trading.CreateOrderRequest
 	_ = json.Unmarshal(ctx.PostBody(), &createOrder)
+	log.Info("incoming", zap.String("request", fmt.Sprintf("%+v", createOrder)))
 	response := service.GetStrategyService().CreateOrder(createOrder)
 	jsonStr, err := json.Marshal(response)
 	if err != nil {
@@ -59,9 +67,9 @@ func CreateOrder(ctx *fasthttp.RequestCtx) {
 
 // CancelOrder is a handler to pass a request to cancel a smart trade to service instance and return a status for the attempt.
 func CancelOrder(ctx *fasthttp.RequestCtx) {
-	log.Info("cancelOrder in ss")
 	var cancelOrder trading.CancelOrderRequest
 	_ = json.Unmarshal(ctx.PostBody(), &cancelOrder)
+	log.Info("incoming", zap.String("request", fmt.Sprintf("%+v", cancelOrder)))
 	response := service.GetStrategyService().CancelOrder(cancelOrder)
 	jsonStr, err := json.Marshal(response)
 	if err != nil {

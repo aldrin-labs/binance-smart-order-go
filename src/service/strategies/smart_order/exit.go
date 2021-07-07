@@ -13,13 +13,19 @@ func (sm *SmartOrder) exit(ctx context.Context, args ...interface{}) (stateless.
 	model := sm.Strategy.GetModel()
 	amount := model.Conditions.EntryOrder.Amount
 	if model.Conditions.MarketType == 0 {
-		amount = amount * 0.99 // TODO(khassanov): why?
+		amount = amount - sm.Strategy.GetModel().State.Commission
 	}
+
+	// TODO
+	// here we should handle case when:
+	// timeout started, state went to Stoploss but TakeProfit target executed so we go to End (coz this case not handled)
+	// {"level":"info","ts":1612872344.9915164,"caller":"smart_order/exit.go:18","msg":"exiting with","logger":"sm-60227a7a7aa73b63a13a700e","smart order state":"Stoploss","model state":"TakeProfit","executed amount":0.002,"conditions entry amount":0.004,"is executed amount >= amount in exit":false}
+
 	sm.Strategy.GetLogger().Info("exiting with",
 		zap.String("smart order state", state.(string)),
 		zap.String("model state", model.State.State),
 		zap.Float64("executed amount", model.State.ExecutedAmount),
-		zap.Float64("conditions entry amount", amount),
+		zap.Float64("conditions entry amount", model.Conditions.EntryOrder.Amount),
 		zap.Bool("is executed amount >= amount in exit", model.State.ExecutedAmount >= amount),
 	)
 	if model.State.State != WaitLossHedge && model.State.ExecutedAmount >= amount { // all trades executed, nothing more to trade

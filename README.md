@@ -62,3 +62,57 @@ Some things to try:
    - Select port 5000.
    - Click "Open Browser" in the notification that appears to access the web app on this new port.
   
+## Scaling
+
+The `strategy_service` supports multiple instances running at the same time.
+Each strategy will have not more than 1 `strategy_service` instance running strategy's runtime.
+
+To consider details, at first let's define a couple of definitions.
+
+* Strategy runtime - dynamic process defined by strategy parameters values that `strategy_service` provides to let
+  a strategy change it's state and place orders. If `strategy_service` instance received strategy from database, started
+  it and sends orders it requires, means it settled strategy and holds strategy's runtime.
+* Strategy settling - a process when `strategy_service` instance checks if any other instances have a runtime running
+  for the strategy and starts it in case no other instances have it.
+* Homeless strategy - a strategy with `enabled` status we have in MongoDB, but no instance of `strategy_service` holds a
+  runtime for it.
+
+Now there are three things to consider:
+
+1. There is `MODE` environment variable defines what strategies current instance should take to settle a runtime (check
+   details below),
+2. Only one instance will settle the strategy,
+3. Instance stops strategies settling once CPU load average or RAM limit reached and settles new strategies again after
+   resources become available. NB! Current implementation does not check for homeless strategies stored in database
+   after resources became available. It only takes new strategies written to MongoDB.
+   
+### Running multiple instances at the same time
+
+No problem with multiple instances running at the same time.
+Just ensure all possible strategies covered by `MODE`s specified for current set of application instances running.
+
+### Up-scaling
+
+One can track CPU load average and RAM usage and run another instance of `strategy_service` when current instance is
+close to resources limit.
+Check StrategyService.runIsFullTracking function to find current limits used.
+
+### Downscaling
+
+While current implementation is not aware of homeless strategies already written to MongoDB, it is important to init new
+instance of `strategy_service` to settle strategies from semi-empty instances terminated. Otherwise strategies from
+terminated instances will stay homeless.
+
+## Modes
+
+Currently, there are three modes supported.
+Mode specified by `MODE` environment variable.
+
+`MODE` value | Behavior
+-------------|---------
+Not set, set to empty string "" or "All" | Instance considers all strategies for settling.
+"Bitcoin" | Strategies with `BTC` substring in pair name considered for settling. Other ignored.
+"Altcoins" | All strategies, but those have no `BTC` substring in pair name, considered for settling.
+"ADA_USDT" | Strategies with "ADA_USDT" pair considered for settling. Other ignored (handy for debugging).
+
+Any other values lead to application crash on initialization.

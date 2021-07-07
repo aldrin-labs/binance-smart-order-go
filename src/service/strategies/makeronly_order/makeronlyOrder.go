@@ -160,7 +160,7 @@ func NewMakerOnlyOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataF
 	State.Activate()
 
 	PO.State = State
-	PO.ExchangeName = "binance"
+	PO.ExchangeName = strategy.GetModel().Conditions.Exchange
 	// fmt.Printf(PO.State.ToGraph())
 	// fmt.Printf("DONE\n")
 	if model.State.ColdStart {

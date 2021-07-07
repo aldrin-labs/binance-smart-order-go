@@ -3,9 +3,9 @@ package redis
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"go.uber.org/zap"
-	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -74,7 +74,7 @@ func (rl *RedisLoop) SubscribeToPairs() {
 		}
 		go rl.UpdateOHLCV(channel, data)
 		return nil
-	}, "*:60")
+	}, "*:0:serum:60")
 	rl.SubscribeToSpread()
 }
 
@@ -82,7 +82,7 @@ func (rl *RedisLoop) UpdateOHLCV(channel string, data []byte) {
 	var ohlcvOB OrderbookOHLCV
 	_ = json.Unmarshal(data, &ohlcvOB)
 	pair := ohlcvOB.Quote + "_" + ohlcvOB.Base
-	exchange := "binance"
+	exchange := "serum"
 	ohlcv := interfaces.OHLCV{
 		Open:   ohlcvOB.Open,
 		High:   ohlcvOB.High,

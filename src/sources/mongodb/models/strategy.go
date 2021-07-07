@@ -1,6 +1,7 @@
 package models
 
 import (
+	"fmt"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"time"
 )
@@ -50,10 +51,30 @@ type MongoMarketProperties struct {
 
 type MongoMarket struct {
 	ID         *primitive.ObjectID   `json:"_id" bson:"_id"`
+	Name       string                `json:"name" bson:"name"`
+	MarketType int                   `json:"marketType" bson:"marketType"`
 	Symbol     string                `json:"symbol" bson:"symbol"`
 	BaseId     *primitive.ObjectID   `json:"baseId" bson:"baseId"`
 	QuoteId    *primitive.ObjectID   `json:"quoteId" bson:"quoteId"`
 	Properties MongoMarketProperties `json:"properties" bson:"properties"`
+}
+
+// MarketTypeString returns market type string like "spot" or "futures".
+func (mm MongoMarket) MarketTypeString() (string, error) {
+	switch mm.MarketType {
+	case 0:
+		return "spot", nil
+	case 1:
+		return "futures", nil
+	default:
+		return "", fmt.Errorf("unknown market type %v", mm.MarketType)
+	}
+}
+
+// A MongoOrderFee represents optional field of order describes fees.
+type MongoOrderFee struct {
+	Cost     *string `json:"cost" bson:"cost"`
+	Currency *string `json:"currency" bson:"currency"`
 }
 
 type MongoOrder struct {
@@ -65,6 +86,7 @@ type MongoOrder struct {
 	PostOnlyInitialOrderId string             `json:"postOnlyInitialOrderId,omitempty" bson:"postOnlyInitialOrderId"`
 	Filled                 float64            `json:"filled,omitempty" bson:"filled"`
 	Amount                 float64            `json:"amount,omitempty" bson:"amount"`
+	Fee                    MongoOrderFee      `json:"fee" bson:"fee"`
 	Average                float64            `json:"average,omitempty" bson:"average"`
 	Side                   string             `json:"side,omitempty" bson:"side"`
 	Type                   string             `json:"type,omitempty" bson:"type"`
@@ -73,6 +95,7 @@ type MongoOrder struct {
 	Price                  float64            `json:"price,omitempty" bson:"price"`
 	StopPrice              float64            `json:"stopPrice,omitempty" bson:"stopPrice"`
 	Timestamp              float64            `json:"timestamp,omitempty" bson:"timestamp"`
+	UpdatedAt              time.Time          `json:"updatedAt,omitempty" bson:"updatedAt"`
 }
 
 type MongoPosition struct {
@@ -88,7 +111,7 @@ type MongoPosition struct {
 
 // A MongoStrategy is the root of a smart trade strategy description.
 type MongoStrategy struct {
-	ID              *primitive.ObjectID     `json:"_id" bson:"_id"` // strategy unique identity
+	ID              *primitive.ObjectID     `json:"_id" bson:"_id"`             // strategy unique identity
 	Type            int64                   `json:"type,omitempty" bson:"type"` // 1 - smart order, 2 - maker only
 	Enabled         bool                    `json:"enabled,omitempty" bson:"enabled"`
 	AccountId       *primitive.ObjectID     `json:"accountId,omitempty" bson:"accountId"`
@@ -119,22 +142,28 @@ type MongoStrategyState struct {
 	Iteration    int    `json:"iteration,omitempty" bson:"iteration"`
 	// we save params to understand which was changed
 
-	EntryPointPrice      float64            `json:"entryPointPrice,omitempty" bson:"entryPointPrice"`
-	EntryPointType       string             `json:"entryPointType,omitempty" bson:"entryPointType"`
-	EntryPointSide       string             `json:"entryPointSide,omitempty" bson:"entryPointSide"`
-	EntryPointAmount     float64            `json:"entryPointAmount,omitempty" bson:"entryPointAmount"`
-	EntryPointDeviation  float64            `json:"entryPointDeviation,omitempty" bson:"entryPointDeviation"`
-	WaitForEntryIds      []string           `json:"waitForEntryIds,omitempty" bson:"waitForEntryIds"`
-	StopLoss             float64            `json:"stopLoss,omitempty" bson:"stopLoss"`
-	StopLossPrice        float64            `json:"stopLossPrice, omitempty" bson:"stopLossPrice"`
-	StopLossOrderIds     []string           `json:"stopLossOrderIds,omitempty" bson:"stopLossOrderIds"`
-	ForcedLoss           float64            `json:"forcedLoss,omitempty" bson:"forcedLoss"`
-	ForcedLossPrice      float64            `json:"forcedLossPrice, omitempty" bson:"forcedLossPrice"`
+	EntryPointPrice     float64 `json:"entryPointPrice,omitempty" bson:"entryPointPrice"`
+	EntryPointType      string  `json:"entryPointType,omitempty" bson:"entryPointType"`
+	EntryPointSide      string  `json:"entryPointSide,omitempty" bson:"entryPointSide"`
+	EntryPointAmount    float64 `json:"entryPointAmount,omitempty" bson:"entryPointAmount"`
+	EntryPointDeviation float64 `json:"entryPointDeviation,omitempty" bson:"entryPointDeviation"`
+	// Orders created by strategy to entry.
+	WaitForEntryIds []string `json:"waitForEntryIds,omitempty" bson:"waitForEntryIds"`
+	StopLoss        float64  `json:"stopLoss,omitempty" bson:"stopLoss"`
+	StopLossPrice   float64  `json:"stopLossPrice, omitempty" bson:"stopLossPrice"`
+	// Orders created by strategy for regular stop-loss.
+	StopLossOrderIds []string `json:"stopLossOrderIds,omitempty" bson:"stopLossOrderIds"`
+	ForcedLoss       float64  `json:"forcedLoss,omitempty" bson:"forcedLoss"`
+	ForcedLossPrice  float64  `json:"forcedLossPrice, omitempty" bson:"forcedLossPrice"`
+	// Orders created by strategy for forced stop-loss.
 	ForcedLossOrderIds   []string           `json:"forcedLossOrderIds,omitempty" bson:"forcedLossOrderIds"`
 	TakeProfit           []*MongoEntryPoint `json:"takeProfit,omitempty" bson:"takeProfit"`
 	TakeProfitPrice      float64            `json:"takeProfitPrice, omitempty" bson:"takeProfitPrice"`
 	TakeProfitHedgePrice float64            `json:"takeProfitHedgePrice,omitempty" bson:"takeProfitHedgePrice"`
-	TakeProfitOrderIds   []string           `json:"takeProfitOrderIds,omitempty" bson:"takeProfitOrderIds"`
+	// Orders created by strategy for take a profit.
+	TakeProfitOrderIds []string `json:"takeProfitOrderIds,omitempty" bson:"takeProfitOrderIds"`
+	// An accumulated part of amount paid for fees
+	Commission float64 `json:"commission" bson:"commission"`
 
 	TrailingEntryPrice     float64 `json:"trailingEntryPrice,omitempty" bson:"trailingEntryPrice"`
 	HedgeExitPrice         float64 `json:"hedgeExitPrice,omitempty" bson:"hedgeExitPrice"`
@@ -181,6 +210,7 @@ type MongoEntryPoint struct {
 
 // A MongoStrategyCondition is a set of static (persistent) parameters for a smart trade.
 type MongoStrategyCondition struct {
+	Exchange string               `json:"exchange,omitempty" bson:"exchange"`
 	AccountId *primitive.ObjectID `json:"accountId,omitempty" bson:"accountId"`
 
 	Hedging         bool                `json:"hedging,omitempty" bson:"hedging"`

@@ -2,34 +2,61 @@ package strategies
 
 import (
 	"fmt"
+	"github.com/go-redsync/redsync/v4"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
+	"gitlab.com/crypto_project/core/strategy_service/src/sources/redis"
 	statsd_client "gitlab.com/crypto_project/core/strategy_service/src/statsd"
 	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.uber.org/zap"
+	"os"
+	"time"
 )
 
 // GetStrategy instantiates strategy with resources created and given.
 func GetStrategy(cur *mongo.Cursor, df interfaces.IDataFeed, tr trading.ITrading, sm interfaces.IStateMgmt, createOrder interfaces.ICreateRequest, sd *statsd_client.StatsdClient) (*Strategy, error) {
 	var model models.MongoStrategy
 	err := cur.Decode(&model)
-	logger, _ := zap.NewProduction() // TODO(khassanov): handle the error here and above
+	rs := redis.GetRedsync()
+	mutexName := fmt.Sprintf("strategy:%v:%v:%v", model.Conditions.MarketType, model.Conditions.Pair,
+		model.ID.Hex())
+	mutex := rs.NewMutex(mutexName,
+		redsync.WithTries(2),
+		redsync.WithRetryDelay(1*time.Second),
+		redsync.WithExpiry(10*time.Second), // TODO(khassanov): use parameter to conform with extend call period
+	) // upsert
+	var logger *zap.Logger
+	if os.Getenv("LOCAL") == "true" {
+		logger, _ = zap.NewDevelopment()
+	} else {
+		logger, _ = zap.NewProduction() // TODO(khassanov): handle the error here and above
+	}
 	loggerName := fmt.Sprintf("sm-%v", model.ID.Hex())
 	logger = logger.With(zap.String("logger", loggerName))
-	return &Strategy{Model: &model, Datafeed: df, Trading: tr, StateMgmt: sm, Statsd: sd, Singleton: createOrder, Log: logger}, err
+	return &Strategy{
+		Model:           &model,
+		SettlementMutex: mutex,
+		Datafeed:        df,
+		Trading:         tr,
+		StateMgmt:       sm,
+		Statsd:          sd,
+		Singleton:       createOrder,
+		Log:             logger,
+	}, err
 }
 
 // A Strategy describes user defined rules to order trades and what are interfaces to execute these rules.
 type Strategy struct {
 	Model           *models.MongoStrategy
 	StrategyRuntime interfaces.IStrategyRuntime
+	SettlementMutex *redsync.Mutex
 	Datafeed        interfaces.IDataFeed
 	Trading         trading.ITrading
 	StateMgmt       interfaces.IStateMgmt
-	Statsd          *statsd_client.StatsdClient
+	Statsd          interfaces.IStatsClient
 	Singleton       interfaces.ICreateRequest
-	Log				*zap.Logger
+	Log             *zap.Logger
 }
 
 func (strategy *Strategy) GetModel() *models.MongoStrategy {
@@ -44,6 +71,10 @@ func (strategy *Strategy) GetRuntime() interfaces.IStrategyRuntime {
 	return strategy.StrategyRuntime
 }
 
+func (strategy *Strategy) GetSettlementMutex() *redsync.Mutex {
+	return strategy.SettlementMutex
+}
+
 func (strategy *Strategy) GetDatafeed() interfaces.IDataFeed {
 	return strategy.Datafeed
 }
@@ -56,7 +87,7 @@ func (strategy *Strategy) GetStateMgmt() interfaces.IStateMgmt {
 	return strategy.StateMgmt
 }
 
-func (strategy *Strategy) GetStatsd() *statsd_client.StatsdClient {
+func (strategy *Strategy) GetStatsd() interfaces.IStatsClient {
 	return strategy.Statsd
 }
 
@@ -106,4 +137,50 @@ func (strategy *Strategy) HotReload(mongoStrategy models.MongoStrategy) {
 		}
 	}
 	strategy.Statsd.Inc("strategy.hot_reload")
+}
+
+// Settle takes the strategy to work in the instance trying to set a distributed lock.
+func (strategy *Strategy) Settle() (bool, error) {
+	strategy.Log.Debug("trying to lock mutex", zap.String("name", strategy.SettlementMutex.Name()))
+	if err := strategy.SettlementMutex.Lock(); err != nil {
+		strategy.Log.Debug("mutex lock failed",
+			zap.String("name", strategy.SettlementMutex.Name()),
+			zap.Error(err),
+		)
+		if err == redsync.ErrFailed {
+			return false, nil // already locked
+		}
+		return false, err // unexpected error
+	}
+	strategy.Log.Info("mutex locked", zap.String("name", strategy.SettlementMutex.Name()))
+	// extend settlement
+	go func() {
+		for {
+			time.Sleep(3 * time.Second) // TODO(khassanov): connect this with watchdog time
+			strategy.Log.Debug("extending settlement", zap.String("name", strategy.SettlementMutex.Name()))
+			success, err := strategy.SettlementMutex.Extend()
+			if !success || err != nil {
+				strategy.Log.Error("settlement mutex extension",
+					zap.Bool("success", success),
+					zap.String("name", strategy.SettlementMutex.Name()),
+					zap.Error(err),
+				)
+				return
+			}
+			if !strategy.Model.Enabled {
+				strategy.Log.Info("disable settlement mutex extension",
+					zap.String("name", strategy.SettlementMutex.Name()),
+					zap.Bool("strategy.Model.Enabled", strategy.Model.Enabled),
+					zap.String("strategy.Model.State.State", strategy.Model.State.State),
+				)
+				return
+			}
+		}
+	}()
+	return true, nil
+}
+
+func (strategy *Strategy) Relieve() error {
+	// TODO(khassanov)
+	return nil
 }

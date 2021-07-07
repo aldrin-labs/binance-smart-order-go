@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"github.com/joho/godotenv"
 	"go.uber.org/zap"
+	"io/ioutil"
 	"math"
 	"net/http"
 	"os"
@@ -64,7 +65,12 @@ type Trading struct {
 var log *zap.Logger
 
 func init() {
-	log, _ = zap.NewProduction()
+	_ = godotenv.Load()
+	if os.Getenv("LOCAL") == "true" {
+		log, _ = zap.NewDevelopment()
+	} else {
+		log, _ = zap.NewProduction()
+	}
 	log = log.With(zap.String("logger", "trading"))
 }
 
@@ -75,25 +81,42 @@ func InitTrading() ITrading {
 }
 
 // Request encodes data to JSON, sends it to exchange service and returns decoded response.
+//
+// A note on retries policy.
+// This function blocks until HTTP client call returns no error. In case of networking error it may block forever. This
+// behavior is ordered to implement while I am (Alisher Khassanov) against it because the request may become obsolete
+// and it may produce unwanted behavior. A client code can't control current retry implementation and possible
+// connectivity problem that may affect strategy logic does not escalated to the right level of decision making here.
 func Request(method string, data interface{}) interface{} {
 	url := "http://" + os.Getenv("EXCHANGESERVICE") + "/" + method
-	log.Info("request", zap.String("url", url))
+	log.Info("request", zap.String("url", url), zap.String("data", fmt.Sprintf("%+v", data)))
 
 	var jsonStr, err = json.Marshal(data)
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		retryDelay := time.Duration(200)
-		log.Error("request not successful",
-			zap.String("url", url),
-			// zap.Error(err),
-			zap.String("retry in ms", retryDelay.String()),
-		)
-		time.Sleep(retryDelay * time.Millisecond)
-		return Request(method, data)
+	client := &http.Client{Timeout: 30 * time.Second}
+	var resp *http.Response
+	var attempt int
+	firstAttemtAt := time.Now()
+	for {
+		attempt += 1
+		resp, err = client.Do(req)
+		if err != nil {
+			retryDelay := 1 * time.Second
+			log.Error("request not successful",
+				zap.String("url", url),
+				zap.Error(err),
+				zap.Duration("retry in, seconds", retryDelay),
+				zap.String("request", fmt.Sprintf("%+v", req)),
+				zap.String("data", fmt.Sprintf("%+v", data)),
+				zap.Int("attempts made", attempt),
+				zap.Duration("time since first attempt", time.Since(firstAttemtAt)),
+			)
+			time.Sleep(retryDelay)
+			continue
+		}
+		break
 	}
 	defer resp.Body.Close()
 	body, _ := ioutil.ReadAll(resp.Body)
@@ -211,7 +234,15 @@ func (t *Trading) CreateOrder(order CreateOrderRequest) OrderResponse {
 		order.KeyParams.TimeInForce = "GTC"
 	}
 	if strings.Contains(order.KeyParams.Type, "market") || strings.Contains(order.KeyParams.Params.Type, "market") {
+		// TODO: figure out
+		// somehow set price to 0 here or at placeOrder
+		// "request body":"{\"keyId\":\"5e9d948f15a68aaf7a6aa55d\",\"keyParams\":{\"symbol\":\"ETH_USDT\",\"marketType\":1,\"side\":\"sell\",\"amount\":0.007,\"filled\":0,\"average\":0,\"reduceOnly\":true,\"timeInForce\":\"GTC\",\"type\":\"stop\",\"stopPrice\":1730.76,\"positionSide\":\"BOTH\",\"params\":{\"type\":\"stop-limit\",\"update\":true},\"frequency\":0}}","response body":"{\"status\":\"ERR\",\"data\":{\"msg\":\"Error code: -1102 Message: A mandatory parameter was not sent, was empty/null, or malformed.\"}}"}
 		order.KeyParams.Price = 0.0
+		log.Info(
+			"set order.KeyParams.Price to zero",
+			zap.String("order.KeyParams.Type", order.KeyParams.Type),
+			zap.String("order.KeyParams.Params.Type", order.KeyParams.Params.Type),
+		)
 	}
 	if order.KeyParams.ReduceOnly != nil && *order.KeyParams.ReduceOnly == false {
 		order.KeyParams.ReduceOnly = nil

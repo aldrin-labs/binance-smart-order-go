@@ -3,6 +3,7 @@ package smart_order
 import (
 	"context"
 	"fmt"
+	"github.com/go-redsync/redsync/v4"
 	"log"
 	"testing"
 	"time"
@@ -56,11 +57,15 @@ func TestSmartOrderTrailingEntryAndThenActivateTrailingWithHighLeverage(t *testi
 	keyId := primitive.NewObjectID()
 	//sm := mongodb.StateMgmt{}
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
+	logger, stats := tests.GetLoggerStatsd()
 	strategy := strategies.Strategy{
 		Model:     &smartOrderModel,
 		StateMgmt: &sm,
+		Log: logger,
+		Statsd: stats,
+		SettlementMutex: &redsync.Mutex{},
 	}
-	smartOrder := smart_order.NewSmartOrder(&strategy, df, sm.Trading, strategy.Statsd, &keyId, &sm)
+	smartOrder := smart_order.New(&strategy, df, sm.Trading, strategy.Statsd, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
@@ -106,30 +111,43 @@ func TestSmartOrderTrailingEntryAndTrailingExitWithHighLeverage(t *testing.T) {
 			Low:    6970,
 			Close:  6970,
 			Volume: 30,
+		}, { // It goes up..
+			Open:   6967.5,
+			High:   6967.5,
+			Low:    6967.5,
+			Close:  6999.5,
+			Volume: 30,
 		}, { // Spiked down, ok, up trend is over, we are taking profits now
 			Open:   6967.5,
 			High:   6967.5,
 			Low:    6967.5,
-			Close:  6967.5,
+			Close:  6980.5,
 			Volume: 30,
 		}}
 	smartOrderModel := GetTestSmartOrderStrategy("trailingEntryExitLeverage")
 	df := tests.NewMockedDataFeed(fakeDataStream)
+	df.WaitForOrderInitialization = 3000
+	df.WaitBetweenTicks = 1500
+	df.CycleLastNEntries = 4
 	tradingApi := tests.NewMockedTradingAPI()
-	tradingApi.BuyDelay = 100
-	tradingApi.SellDelay = 100
+	tradingApi.BuyDelay = 300
+	tradingApi.SellDelay = 300
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
+	logger, stats := tests.GetLoggerStatsd()
 	strategy := strategies.Strategy{
 		Model:     &smartOrderModel,
 		StateMgmt: &sm,
+		Log: logger,
+		Statsd: stats,
+		SettlementMutex: &redsync.Mutex{},
 	}
-	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
+	smartOrder := smart_order.New(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
 	go smartOrder.Start()
-	time.Sleep(5 * time.Second)
+	time.Sleep(25 * time.Second)
 	isInState, _ := smartOrder.State.IsInState(smart_order.End)
 	if !isInState {
 		state, _ := smartOrder.State.State(context.Background())
@@ -193,12 +211,16 @@ func TestSmartOrderTrailingEntryAndFollowTrailingMaximumsWithoutEarlyExitWithHig
 	tradingApi.SellDelay = 20100
 	//sm := mongodb.StateMgmt{}
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
+	logger, stats := tests.GetLoggerStatsd()
 	strategy := strategies.Strategy{
 		Model: &smartOrderModel,
 		StateMgmt: &sm,
+		Log: logger,
+		Statsd: stats,
+		SettlementMutex: &redsync.Mutex{},
 	}
 	keyId := primitive.NewObjectID()
-	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
+	smartOrder := smart_order.New(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
