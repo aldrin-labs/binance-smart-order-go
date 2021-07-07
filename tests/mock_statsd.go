@@ -2,13 +2,13 @@ package tests
 
 import (
 	"github.com/cactus/go-statsd-client/statsd"
-	"go.uber.org/zap"
+	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"time"
 )
 
 type MockStatsdClient struct {
 	Client *statsd.Statter
-	Log    *zap.Logger
+	Log    interfaces.ILogger
 }
 
 type MockStatsdStatter struct {

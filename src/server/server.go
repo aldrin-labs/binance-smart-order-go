@@ -5,16 +5,16 @@ import (
 	"flag"
 	"fmt"
 	"github.com/buaazp/fasthttprouter"
-	"github.com/joho/godotenv"
 	"github.com/valyala/fasthttp"
+	"gitlab.com/crypto_project/core/strategy_service/src/logging"
 	"gitlab.com/crypto_project/core/strategy_service/src/service"
-	"gitlab.com/crypto_project/core/strategy_service/src/trading"
+	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
+	"gitlab.com/crypto_project/core/strategy_service/src/trading/orders"
 	"go.uber.org/zap"
-	"os"
 	"sync"
 )
 
-var log *zap.Logger
+var log interfaces.ILogger
 
 var (
 	addr     = flag.String("addr", ":8080", "TCP address to listen to")
@@ -22,13 +22,9 @@ var (
 )
 
 func init() {
-	_ = godotenv.Load()
-	if os.Getenv("LOCAL") == "true" {
-		log, _ = zap.NewDevelopment()
-	} else {
-		log, _ = zap.NewProduction() // TODO: handle the error
-	}
-	log = log.With(zap.String("logger", "srv"))
+	logger, _ := logging.GetZapLogger()
+	//TODO: handle error
+	log = logger.With(zap.String("logger", "srv"))
 }
 
 // RunServer starts HTTP server serves API to create or cancel a smart trade.
@@ -54,7 +50,7 @@ func Healthz(ctx *fasthttp.RequestCtx) {
 
 // CreateOrder is a handler to pass a request to create a smart trade to service instance and return a status for the attempt.
 func CreateOrder(ctx *fasthttp.RequestCtx) {
-	var createOrder trading.CreateOrderRequest
+	var createOrder orders.CreateOrderRequest
 	_ = json.Unmarshal(ctx.PostBody(), &createOrder)
 	log.Info("incoming", zap.String("request", fmt.Sprintf("%+v", createOrder)))
 	response := service.GetStrategyService().CreateOrder(createOrder)
@@ -67,7 +63,7 @@ func CreateOrder(ctx *fasthttp.RequestCtx) {
 
 // CancelOrder is a handler to pass a request to cancel a smart trade to service instance and return a status for the attempt.
 func CancelOrder(ctx *fasthttp.RequestCtx) {
-	var cancelOrder trading.CancelOrderRequest
+	var cancelOrder orders.CancelOrderRequest
 	_ = json.Unmarshal(ctx.PostBody(), &cancelOrder)
 	log.Info("incoming", zap.String("request", fmt.Sprintf("%+v", cancelOrder)))
 	response := service.GetStrategyService().CancelOrder(cancelOrder)

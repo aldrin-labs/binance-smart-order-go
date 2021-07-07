@@ -3,6 +3,8 @@ package statsd_client
 import (
 	"fmt"
 	"github.com/cactus/go-statsd-client/statsd"
+	"gitlab.com/crypto_project/core/strategy_service/src/logging"
+	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"go.uber.org/zap"
 	"os"
 	"sync"
@@ -12,18 +14,15 @@ import (
 
 type StatsdClient struct {
 	Client *statsd.Statter
-	Log    *zap.Logger
+	Log    interfaces.ILogger
 }
 
 var once sync.Once
 
 func (sd *StatsdClient) Init() {
-	if os.Getenv("LOCAL") == "true" {
-		sd.Log, _ = zap.NewDevelopment()
-	} else {
-		sd.Log, _ = zap.NewProduction()
-	}
-	sd.Log = sd.Log.With(zap.String("logger", "statsd"))
+	logger, _ := logging.GetZapLogger()
+	// TODO: handle the error
+	sd.Log = logger.With(zap.String("logger", "statsd"))
 	host := os.Getenv("STATSD_HOST")
 	if host == "" {
 		host = "statsd.infra"
