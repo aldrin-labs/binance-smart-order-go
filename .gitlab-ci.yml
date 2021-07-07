@@ -65,7 +65,7 @@ build:
 
 test:
   stage: test
-  image: golang:1.12.6
+  image: golang:1.16.5
   allow_failure: true
   before_script:
     - mkdir -p /go/src/gitlab.com/crypto_project /go/src/_/builds
