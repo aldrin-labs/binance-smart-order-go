@@ -1,7 +1,7 @@
 package makeronly_order
 
 import (
-	"gitlab.com/crypto_project/core/strategy_service/src/trading"
+	"gitlab.com/crypto_project/core/strategy_service/src/trading/orders"
 	"log"
 	"strings"
 	"time"
@@ -31,7 +31,7 @@ func (mo *MakerOnlyOrder) PlaceOrder(anything, amount float64, step string) {
 			}
 		}
 		postOnly := true
-		order := trading.Order{
+		order := orders.Order{
 			Side:         model.Conditions.EntryOrder.Side,
 			Price:        price,
 			Amount:       model.Conditions.EntryOrder.Amount,
@@ -50,7 +50,7 @@ func (mo *MakerOnlyOrder) PlaceOrder(anything, amount float64, step string) {
 			order.Params.RetryTimeout = 1000
 			order.Params.RetryCount = 5
 		}
-		response := mo.ExchangeApi.CreateOrder(trading.CreateOrderRequest{
+		response := mo.ExchangeApi.CreateOrder(orders.CreateOrderRequest{
 			KeyId:     model.AccountId,
 			KeyParams: order,
 		})
