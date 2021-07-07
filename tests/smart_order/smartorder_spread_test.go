@@ -3,6 +3,7 @@ package smart_order
 import (
 	"context"
 	"fmt"
+	"github.com/go-redsync/redsync/v4"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies/smart_order"
@@ -31,20 +32,20 @@ func TestSmartOrderEntryBySpread(t *testing.T) {
 		Open:   7950,
 		High:   7305,
 		Low:    7950,
-		Close:  7090,
+		Close:  6990,
 		Volume: 30,
 	}, { // Hit entry
 		Open:   7950,
 		High:   7305,
 		Low:    7950,
-		Close:  6990,
+		Close:  5790,
 		Volume: 30,
 	}}
 
 	fakeDataStream := []interfaces.SpreadData{{
 		BestAsk: 7006,
 		BestBid: 6000,
-		Close:   7005,
+		Close:   6990,
 	}, {
 		BestAsk: 7006,
 		BestBid: 6000,
@@ -59,13 +60,17 @@ func TestSmartOrderEntryBySpread(t *testing.T) {
 	tradingApi := *tests.NewMockedTradingAPI()
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(&tradingApi, df)
+	logger, stats := tests.GetLoggerStatsd()
 	strategy := strategies.Strategy{
 		Model:     &smartOrderModel,
 		StateMgmt: &sm,
+		Log: logger,
+		Statsd: stats,
+		SettlementMutex: &redsync.Mutex{},
 	}
-	smartOrder := smart_order.NewSmartOrder(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
+	smartOrder := smart_order.New(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
 	go smartOrder.Start()
-	time.Sleep(1800 * time.Millisecond)
+	time.Sleep(7000 * time.Millisecond)
 	isInState, _ := smartOrder.State.IsInState(smart_order.InEntry)
 	if !isInState {
 		state, _ := smartOrder.State.State(context.Background())

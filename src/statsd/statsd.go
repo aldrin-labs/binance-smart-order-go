@@ -5,9 +5,10 @@ import (
 	"github.com/cactus/go-statsd-client/statsd"
 	"go.uber.org/zap"
 	"os"
-	"time"
 	"sync"
+	"time"
 )
+
 
 type StatsdClient struct {
 	Client *statsd.Statter
@@ -17,11 +18,15 @@ type StatsdClient struct {
 var once sync.Once
 
 func (sd *StatsdClient) Init() {
-	sd.Log, _ = zap.NewProduction()
+	if os.Getenv("LOCAL") == "true" {
+		sd.Log, _ = zap.NewDevelopment()
+	} else {
+		sd.Log, _ = zap.NewProduction()
+	}
 	sd.Log = sd.Log.With(zap.String("logger", "statsd"))
 	host := os.Getenv("STATSD_HOST")
 	if host == "" {
-		host = "graphite.infra"
+		host = "statsd.infra"
 	}
 	// port := os.Getenv("STATSD_PORT")
 	port := "8125"

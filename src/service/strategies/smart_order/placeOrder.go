@@ -2,6 +2,7 @@ package smart_order
 
 import (
 	"context"
+	"fmt"
 	"go.uber.org/zap"
 	"strings"
 	"time"
@@ -9,7 +10,13 @@ import (
 	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 )
 
+// PlaceOrder is a procedure calculates create order request and dispatches it to trading interface.
 func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
+	sm.Strategy.GetLogger().Debug("place order",
+		zap.Float64("price", price),
+		zap.Float64("amount", amount),
+		zap.String("step", step),
+	)
 	baseAmount := 0.0
 	orderType := "market"
 	stopPrice := 0.0
@@ -35,6 +42,8 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 	if isSpot || leverage == 0 {
 		leverage = 1
 	}
+
+	// Calculate request
 	switch step {
 	case TrailingEntry:
 		sm.Strategy.GetLogger().Info("trailing entry order placing")
@@ -299,6 +308,10 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 		prefix := "take-profit-"
 		reduceOnly = true
 		if sm.SelectedExitTarget >= len(model.Conditions.ExitLevels) {
+			sm.Strategy.GetLogger().Debug("don't place order",
+				zap.Int("SelectedExitTarget", sm.SelectedExitTarget),
+				zap.Int("len(model.Conditions.ExitLevels)", len(model.Conditions.ExitLevels)),
+			)
 			return
 		}
 		target := model.Conditions.ExitLevels[sm.SelectedExitTarget]
@@ -318,9 +331,17 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 
 		if price == 0 && isTrailingTarget {
 			// trailing exit, we cant place exit order now
+			sm.Strategy.GetLogger().Debug("don't place order",
+				zap.Float64("price", price),
+				zap.Bool("isTrailingTarget", isTrailingTarget),
+			)
 			return
 		}
 		if price > 0 && !isSpotMarketOrder {
+			sm.Strategy.GetLogger().Debug("don't place order",
+				zap.Float64("price", price),
+				zap.Bool("!isSpotMarketOrder", !isSpotMarketOrder),
+			)
 			return // order was placed before, exit
 		}
 
@@ -347,6 +368,12 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 					orderType = prefix + target.OrderType
 					recursiveCall = true
 				} else {
+					sm.Strategy.GetLogger().Debug("don't place order",
+						zap.Bool("isFutures", isFutures),
+						zap.String("target.OrderType", target.OrderType),
+						zap.Bool("!isTrailingTarget", !isTrailingTarget),
+						zap.Float64("price", price),
+					)
 					return // we cant place market order on spot at exists before it happened, because there is no stop markets
 				}
 			} else {
@@ -373,6 +400,12 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 			if isFutures {
 				orderType = prefix + target.OrderType
 			} else if price == 0 {
+				sm.Strategy.GetLogger().Debug("don't place order",
+					zap.Float64("price", price),
+					zap.Bool("isFutures", isFutures),
+					zap.Bool("isTrailingTarget", isTrailingTarget),
+					zap.Bool("isNewTrailingMaximum", isNewTrailingMaximum),
+				)
 				return // we cant place stop-market orders on spot so we'll wait for exact price
 			}
 			if side == "sell" {
@@ -380,7 +413,7 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 			} else {
 				orderPrice = model.State.TrailingEntryPrice * (1 + target.EntryDeviation/100/leverage)
 			}
-			if model.Conditions.TakeProfitExternal {
+			if model.Conditions.TakeProfitExternal { // TV alert?
 				orderPrice = model.Conditions.TrailingExitPrice
 			}
 		}
@@ -424,14 +457,38 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 		}
 		break
 	}
-	baseAmount = sm.toFixed(baseAmount, sm.QuantityAmountPrecision)
-	orderPrice = sm.toFixed(orderPrice, sm.QuantityPricePrecision)
+
+	// Respect fees paid
+	// TODO: reset commission if PlaceEntryAfterTAP set and TakeProfit executes
+	if side == "sell" && isSpot {
+		if step == TakeProfit && len(sm.Strategy.GetModel().Conditions.ExitLevels) > 1 { // split targets
+			baseAmount = baseAmount - sm.Strategy.GetModel().State.Commission*
+				sm.Strategy.GetModel().Conditions.ExitLevels[sm.SelectedExitTarget].Amount/100.0
+		} else {
+			baseAmount = baseAmount - sm.Strategy.GetModel().State.Commission
+		}
+	}
+
+	// Respect exchange rules on values precision
+	sm.Strategy.GetLogger().Info("before rounding",
+		zap.Float64("baseAmount", baseAmount),
+		zap.Float64("orderPrice", orderPrice),
+		zap.String("step", step),
+	)
+	baseAmount = sm.toFixed(baseAmount, sm.QuantityAmountPrecision, Floor)
+	orderPrice = sm.toFixed(orderPrice, sm.QuantityPricePrecision, Nearest)
+	sm.Strategy.GetLogger().Info("after rounding",
+		zap.Float64("baseAmount", baseAmount),
+		zap.Float64("orderPrice", orderPrice),
+	)
 
 	advancedOrderType := orderType
 	if strings.Contains(orderType, "stop") || strings.Contains(orderType, "take-profit") {
 		orderType = "stop"
 		stopPrice = orderPrice
 	}
+
+	// Call trading API with retries
 	for {
 		if baseAmount == 0 || orderType == "limit" && orderPrice == 0 {
 			return
@@ -456,7 +513,9 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 			}
 		}
 		if isSpot {
-			request.KeyParams.Params.MaxIfNotEnough = 1
+			// if SM wants to exit in a short period after entry executed, ES may have no balance updated and set
+			// exit order amount to zero. That's why we should not use MaxIfNotEnough option here.
+			request.KeyParams.Params.MaxIfNotEnough = 0
 			request.KeyParams.Params.Retry = true
 			request.KeyParams.Params.RetryTimeout = 1000
 			request.KeyParams.Params.RetryCount = 5
@@ -487,20 +546,30 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 		} else {
 			request.KeyParams.PositionSide = "BOTH"
 		}
-		sm.Strategy.GetLogger().Info("create order strategyId",
-			zap.String("step", step),
-			zap.Float64("amount", baseAmount),
-		)
 		if step == WaitForEntry {
 			sm.IsEntryOrderPlaced = true
 			sm.IsWaitingForOrder.Store(step, true)
 		}
+
+		sm.Strategy.GetLogger().Info("create order",
+			zap.String("step", step),
+			zap.Float64("amount", baseAmount),
+			zap.Float64("price", orderPrice),
+			zap.Float64("stopPrice", stopPrice),
+			zap.String("request", fmt.Sprint(request)),
+		)
 		var response trading.OrderResponse
 		if request.KeyParams.Type == "maker-only" {
 			response = sm.Strategy.GetSingleton().CreateOrder(request)
 		} else {
 			response = sm.ExchangeApi.CreateOrder(request)
 		}
+
+		// Update state with order attempt results
+		sm.Strategy.GetLogger().Info("got response",
+			zap.String("status", response.Status),
+			zap.String("orderId", response.Data.OrderId),
+		)
 		if response.Status == "OK" && response.Data.OrderId != "0" && response.Data.OrderId != "" {
 			sm.IsWaitingForOrder.Store(step, true)
 			if ifShouldCancelPreviousOrder {
@@ -549,10 +618,6 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 			}
 			break
 		} else {
-			sm.Strategy.GetLogger().Info("got response",
-				zap.String("status", response.Status),
-			)
-
 			// if error
 			if len(response.Data.Msg) > 0 {
 				// TODO

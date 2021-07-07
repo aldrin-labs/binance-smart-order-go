@@ -2,15 +2,14 @@ package smart_order
 
 import (
 	"context"
-	statsd_client "gitlab.com/crypto_project/core/strategy_service/src/statsd"
 	"go.uber.org/zap"
 
 	// "go.uber.org/zap"
+	"fmt"
 	"math"
 	"reflect"
 	"sync"
 	"time"
-	"fmt"
 
 	"github.com/qmuntal/stateless"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
@@ -41,6 +40,7 @@ const (
 const (
 	TriggerTrade             = "Trade"
 	TriggerSpread            = "Spread"
+	TriggerAveragingEntryOrderExecuted = "TriggerAveragingEntryOrderExecuted"
 	TriggerOrderExecuted     = "TriggerOrderExecuted"
 	CheckExistingOrders      = "CheckExistingOrders"
 	CheckHedgeLoss           = "CheckHedgeLoss"
@@ -54,7 +54,7 @@ const (
 	TriggerTimeout           = "TriggerTimeout"
 )
 
-// A SmartOrder takes strategy to execute with context by the service runtime
+// A SmartOrder takes strategy to execute with context by the service runtime.
 type SmartOrder struct {
 	Strategy                interfaces.IStrategy // TODO(khassanov): can we use type instead of the interface here?
 	State                   *stateless.StateMachine
@@ -62,7 +62,7 @@ type SmartOrder struct {
 	KeyId                   *primitive.ObjectID
 	DataFeed                interfaces.IDataFeed
 	ExchangeApi             trading.ITrading
-	Statsd                  *statsd_client.StatsdClient
+	Statsd                  interfaces.IStatsClient
 	StateMgmt               interfaces.IStateMgmt
 	IsWaitingForOrder       sync.Map // TODO: this must be filled on start of SM if not first start (e.g. restore the state by checking order statuses)
 	IsEntryOrderPlaced      bool     // we need it for case when response from createOrder was returned after entryTimeout was executed
@@ -73,34 +73,50 @@ type SmartOrder struct {
 	Lock                    bool
 	StopLock                bool
 	LastTrailingTimestamp   int64
-	SelectedExitTarget      int
-	SelectedEntryTarget     int
+	SelectedExitTarget      int // number of current order
+	SelectedEntryTarget     int // represents what amount of targets executed for the SM by averaging
 	OrdersMux               sync.Mutex
 	StopMux                 sync.Mutex
 }
+
+const (
+	Nearest = iota
+	Floor
+	Ceil
+)
 
 func round(num float64) int {
 	return int(num + math.Copysign(0.5, num))
 }
 
-func (sm *SmartOrder) toFixed(num float64, precision int64) float64 {
-	output := math.Pow(10, float64(precision))
-	return float64(round(num*output)) / output
+// toFixed returns floating point number rounded to precision given to nearest, floor or ceil function.
+func (sm *SmartOrder) toFixed(n float64, precision int64, mode int) float64 {
+	rank := math.Pow(10, float64(precision))
+	switch mode {
+	case Ceil:
+		return math.Ceil(n*rank) / rank
+	case Nearest:
+		return float64(round(n*rank)) / rank
+	case Floor:
+		return math.Floor(n*rank) / rank
+	default:
+		return n
+	}
 }
 
-// NewSmartOrder instantiates new smart order with given strategy.
-func NewSmartOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed, TradingAPI trading.ITrading, Statsd *statsd_client.StatsdClient, keyId *primitive.ObjectID, stateMgmt interfaces.IStateMgmt) *SmartOrder {
+// New instantiates new smart order with given strategy.
+func New(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed, TradingAPI trading.ITrading, Statsd interfaces.IStatsClient, keyId *primitive.ObjectID, stateMgmt interfaces.IStateMgmt) *SmartOrder {
 
 	sm := &SmartOrder{
-		Strategy: strategy,
-		DataFeed: DataFeed,
-		ExchangeApi: TradingAPI,
-		Statsd: Statsd,
-		KeyId: keyId,
-		StateMgmt: stateMgmt,
-		Lock: false,
+		Strategy:           strategy,
+		DataFeed:           DataFeed,
+		ExchangeApi:        TradingAPI,
+		Statsd:             Statsd,
+		KeyId:              keyId,
+		StateMgmt:          stateMgmt,
+		Lock:               false,
 		SelectedExitTarget: 0,
-		OrdersMap: map[string]bool{},
+		OrdersMap:          map[string]bool{},
 	}
 
 	initState := WaitForEntry
@@ -135,57 +151,76 @@ func NewSmartOrder(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed,
 			5) so we'll wait for any target or trailing target
 			6) or stop-loss
 	*/
-	State.Configure(WaitForEntry).PermitDynamic(TriggerTrade, sm.exitWaitEntry,
-		sm.checkWaitEntry).PermitDynamic(TriggerSpread, sm.exitWaitEntry,
-		sm.checkSpreadEntry).PermitDynamic(CheckExistingOrders, sm.exitWaitEntry,
-		sm.checkExistingOrders).Permit(TriggerTimeout, Timeout).OnEntry(sm.onStart)
 
-	State.Configure(TrailingEntry).Permit(TriggerTrade, InEntry,
-		sm.checkTrailingEntry).Permit(CheckExistingOrders, InEntry,
-		sm.checkExistingOrders).OnEntry(sm.enterTrailingEntry)
+	State.Configure(WaitForEntry).
+		PermitDynamic(TriggerTrade, sm.exitWaitEntry, sm.checkWaitEntry).
+		PermitDynamic(TriggerSpread, sm.exitWaitEntry, sm.checkSpreadEntry).
+		PermitDynamic(CheckExistingOrders, sm.exitWaitEntry, sm.checkExistingOrders).
+		Permit(TriggerTimeout, Timeout).
+		OnEntry(sm.onStart)
 
-	State.Configure(InEntry).PermitDynamic(CheckProfitTrade, sm.exit,
-		sm.checkProfit).PermitDynamic(CheckTrailingProfitTrade, sm.exit,
-		sm.checkTrailingProfit).PermitDynamic(CheckLossTrade, sm.exit,
-		sm.checkLoss).PermitDynamic(CheckExistingOrders, sm.exit,
-		sm.checkExistingOrders).PermitDynamic(CheckHedgeLoss, sm.exit,
-		sm.checkLossHedge).OnEntry(sm.enterEntry)
+	State.Configure(TrailingEntry).
+		Permit(TriggerTrade, InEntry, sm.checkTrailingEntry).
+		Permit(CheckExistingOrders, InEntry, sm.checkExistingOrders).
+		OnEntry(sm.enterTrailingEntry)
 
-	State.Configure(InMultiEntry).PermitDynamic(CheckExistingOrders, sm.exit,
-		sm.checkExistingOrders).PermitReentry(CheckExistingOrders,
-		sm.checkExistingOrders).OnEntry(sm.entryMultiEntry)
+	State.Configure(InEntry).
+		PermitDynamic(CheckProfitTrade, sm.exit, sm.checkProfit).
+		PermitDynamic(CheckTrailingProfitTrade, sm.exit, sm.checkTrailingProfit).
+		PermitDynamic(CheckLossTrade, sm.exit, sm.checkLoss).
+		PermitDynamic(CheckExistingOrders, sm.exit, sm.checkExistingOrders).
+		PermitDynamic(CheckHedgeLoss, sm.exit, sm.checkLossHedge).
+		OnEntry(sm.enterEntry)
 
-	State.Configure(WaitLossHedge).PermitDynamic(CheckHedgeLoss, sm.exit,
-		sm.checkLossHedge).OnEntry(sm.enterWaitLossHedge)
+	State.Configure(InMultiEntry).
+		PermitDynamic(CheckExistingOrders, sm.exit, sm.checkExistingOrders).
+		PermitDynamic(TriggerAveragingEntryOrderExecuted, sm.enterMultiEntry)
 
-	State.Configure(TakeProfit).PermitDynamic(CheckProfitTrade, sm.exit,
-		sm.checkProfit).PermitDynamic(CheckTrailingProfitTrade, sm.exit,
-		sm.checkTrailingProfit).PermitDynamic(CheckLossTrade, sm.exit,
-		sm.checkLoss).PermitDynamic(CheckExistingOrders, sm.exit,
-		sm.checkExistingOrders).PermitDynamic(CheckHedgeLoss, sm.exit,
-		sm.checkLossHedge).OnEntry(sm.enterTakeProfit)
+	State.Configure(WaitLossHedge).
+		PermitDynamic(CheckHedgeLoss, sm.exit, sm.checkLossHedge).
+		OnEntry(sm.enterWaitLossHedge)
 
-	State.Configure(Stoploss).PermitDynamic(CheckProfitTrade, sm.exit,
-		sm.checkProfit).PermitDynamic(CheckTrailingProfitTrade, sm.exit,
-		sm.checkTrailingProfit).PermitDynamic(CheckLossTrade, sm.exit,
-		sm.checkLoss).PermitDynamic(CheckExistingOrders, sm.exit,
-		sm.checkExistingOrders).PermitDynamic(CheckHedgeLoss, sm.exit,
-		sm.checkLossHedge).OnEntry(sm.enterStopLoss)
+	State.Configure(TakeProfit).
+		PermitDynamic(CheckProfitTrade, sm.exit, sm.checkProfit).
+		PermitDynamic(CheckTrailingProfitTrade, sm.exit, sm.checkTrailingProfit).
+		PermitDynamic(CheckLossTrade, sm.exit, sm.checkLoss).
+		PermitDynamic(CheckExistingOrders, sm.exit, sm.checkExistingOrders).
+		PermitDynamic(CheckHedgeLoss, sm.exit, sm.checkLossHedge).
+		OnEntry(sm.enterTakeProfit)
 
-	State.Configure(HedgeLoss).PermitDynamic(CheckTrailingLossTrade, sm.exit,
-		sm.checkTrailingHedgeLoss).PermitDynamic(CheckExistingOrders, sm.exit,
-		sm.checkExistingOrders)
+	State.Configure(Stoploss).
+		PermitDynamic(CheckProfitTrade, sm.exit, sm.checkProfit).
+		PermitDynamic(CheckTrailingProfitTrade, sm.exit, sm.checkTrailingProfit).
+		PermitDynamic(CheckLossTrade, sm.exit, sm.checkLoss).
+		PermitDynamic(CheckExistingOrders, sm.exit, sm.checkExistingOrders).
+		PermitDynamic(CheckHedgeLoss, sm.exit, sm.checkLossHedge).
+		OnEntry(sm.enterStopLoss)
 
-	State.Configure(Timeout).Permit(Restart, WaitForEntry)
+	State.Configure(HedgeLoss).
+		PermitDynamic(CheckTrailingLossTrade, sm.exit, sm.checkTrailingHedgeLoss).
+		PermitDynamic(CheckExistingOrders, sm.exit, sm.checkExistingOrders)
 
-	State.Configure(End).PermitReentry(CheckExistingOrders, sm.checkExistingOrders).OnEntry(sm.enterEnd)
+	State.Configure(Timeout).
+		Permit(Restart, WaitForEntry)
+
+	State.Configure(End).
+		PermitReentry(CheckExistingOrders, sm.checkExistingOrders).
+		OnEntry(sm.enterEnd)
 
 	_ = State.Activate()
 
 	sm.State = State
-	sm.ExchangeName = "binance"
+	sm.ExchangeName = sm.Strategy.GetModel().Conditions.Exchange
+	// The following piece commented creates a file at ./graph.dot with graphviz formatted state chart and also prints
+	// the same to stdout. Unfortunately I see it does not show PermitDymanic connections at least here at start.
 	// fmt.Printf(sm.State.ToGraph())
-	// fmt.Printf("DONE\n")
+	// graph := sm.State.ToGraph()
+	// fd, _ := os.Create("./graph.dot")
+	// writer := bufio.NewWriter(fd)
+	// writer.WriteString(graph)
+	// writer.Flush()
+	// fmt.Println("State chart graph written to ./graph.dot")
+	// os.Exit(0)
 	_ = sm.onStart(nil)
 	return sm
 }
@@ -214,7 +249,9 @@ func (sm *SmartOrder) checkIfPlaceOrderInstantlyOnStart() {
 	isMultiEntry := len(model.Conditions.EntryLevels) > 0
 	isFirstRunSoStateIsEmpty := model.State.State == "" ||
 		(model.State.State == WaitForEntry && model.Conditions.ContinueIfEnded && model.Conditions.WaitingEntryTimeout > 0)
-	if isFirstRunSoStateIsEmpty && model.Enabled &&
+	isFirstRunSoOrdersListsAreEmpty := (len(sm.Strategy.GetModel().State.Orders) +
+		len(sm.Strategy.GetModel().State.ExecutedOrders)) == 0
+	if isFirstRunSoStateIsEmpty && isFirstRunSoOrdersListsAreEmpty && model.Enabled &&
 		!model.Conditions.EntrySpreadHunter && !isMultiEntry {
 		entryIsNotTrailing := model.Conditions.EntryOrder.ActivatePrice == 0
 		if entryIsNotTrailing { // then we must know exact price
@@ -227,6 +264,7 @@ func (sm *SmartOrder) checkIfPlaceOrderInstantlyOnStart() {
 	}
 }
 
+// getLastTargetAmount returns an amount for latest take a profit order.
 func (sm *SmartOrder) getLastTargetAmount() float64 {
 	sumAmount := 0.0
 	length := len(sm.Strategy.GetModel().Conditions.ExitLevels)
@@ -239,11 +277,18 @@ func (sm *SmartOrder) getLastTargetAmount() float64 {
 				}
 				baseAmount = sm.Strategy.GetModel().Conditions.EntryOrder.Amount * (baseAmount / 100)
 			}
-			baseAmount = sm.toFixed(baseAmount, sm.QuantityAmountPrecision)
+			baseAmount = sm.toFixed(baseAmount, sm.QuantityAmountPrecision, Floor)
 			sumAmount += baseAmount
 		}
 	}
 	endTargetAmount := sm.Strategy.GetModel().Conditions.EntryOrder.Amount - sumAmount
+
+	// This rounding is important due to limited IEEE-754 floating point arithmetics precision.
+	// For instance if `endTargetAmount = 219.2 - 21.9`, you will get `197.29999999999998` instead of `197.3`.
+	// Bug report related: https://cryptocurrenciesai.slack.com/archives/CCSQNTQ4W/p1615040296128100
+	// We use Nearest because subtraction result may be slightly smaller or slightly bigger then true value.
+	endTargetAmount = sm.toFixed(endTargetAmount, sm.QuantityAmountPrecision, Nearest)
+
 	return endTargetAmount
 }
 
@@ -694,8 +739,19 @@ func (sm *SmartOrder) Start() {
 	state, _ := sm.State.State(context.Background())
 	localState := sm.Strategy.GetModel().State.State
 	sm.Statsd.Inc("smart_order.start")
+	var lastValidityCheckAt = time.Now().Add(-1 * time.Second)
 	for state != End && localState != End && state != Canceled && state != Timeout {
-		cycle_started_at := time.Now()
+		if time.Since(lastValidityCheckAt) > 2*time.Second { // TODO: remove magic number
+			sm.Strategy.GetLogger().Debug("settlement mutex validity check")
+			if valid, err := sm.Strategy.GetSettlementMutex().Valid(); !valid || err != nil {
+				sm.Strategy.GetLogger().Error("invalid settlement mutex, breaking event loop",
+					zap.Bool("mutex valid", valid),
+					zap.Error(err),
+				)
+				break
+			}
+			lastValidityCheckAt = time.Now()
+		}
 		if sm.Strategy.GetModel().Enabled == false {
 			state, _ = sm.State.State(ctx)
 			break
@@ -710,16 +766,6 @@ func (sm *SmartOrder) Start() {
 		time.Sleep(60 * time.Millisecond)
 		state, _ = sm.State.State(ctx)
 		localState = sm.Strategy.GetModel().State.State
-
-		// 0.0625 means once in a second for ~60ms loop cycle
-		dt := time.Since(cycle_started_at)
-		sm.Statsd.TimingDurationRated("smart_order.cycle_time", dt, 0.0625)
-		if dt > 1 * time.Second { // TODO(khassanov): check it does not harm us
-			sm.Statsd.TimingDurationRated("smart_order.cycle_time", dt, 1.0)
-			sm.Strategy.GetLogger().Warn("sm loop cycle too long",
-				zap.Durationp("cycle time", &dt),
-			)
-		}
 	}
 	sm.Stop()
 	sm.Strategy.GetLogger().Info("stopped smart order",
@@ -760,8 +806,15 @@ func (sm *SmartOrder) Stop() {
 	// TODO: we should get rid of it, it should not work like this
 	StateS := model.State.State
 
-	if state != End && StateS != Timeout &&
-		!model.Conditions.EntrySpreadHunter && model.Conditions.WaitingEntryTimeout > 0 {
+	if state != End && StateS != Timeout && sm.Strategy.GetModel().Conditions.EntrySpreadHunter == false {
+		sm.Statsd.Inc("strategy_service.ended_with_not_end_status")
+		sm.PlaceOrder(0, 0.0, Canceled)
+	}
+
+	if state != End && StateS != Timeout && !model.Conditions.EntrySpreadHunter {
+		sm.Statsd.Inc("strategy_service.ended_with_not_end_status")
+		sm.PlaceOrder(0, 0.0, Canceled)
+
 		// we should check after some time if we have opened order and this one got executed before been canceled
 		go func() {
 			sm.Statsd.Inc("smart_order.place_cancel_order_in_stop_func_attempt")

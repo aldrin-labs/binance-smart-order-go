@@ -13,7 +13,11 @@ type MockStateMgmt struct {
 	StateMap      sync.Map
 	ConditionsMap sync.Map
 	Trading       *MockTrading
-	DataFeed      *MockDataFeed
+	DataFeed      IDataFeed
+	pair          string
+	exchange      string
+	marketType    int64
+
 }
 
 func (sm *MockStateMgmt) UpdateStrategyState(strategyId *primitive.ObjectID, state *models.MongoStrategyState) {
@@ -43,10 +47,25 @@ func (sm *MockStateMgmt) GetOrderById(orderId *primitive.ObjectID) *models.Mongo
 	panic("implement me")
 }
 
-func NewMockedStateMgmt(trading *MockTrading, dataFeed *MockDataFeed) MockStateMgmt {
+func NewMockedStateMgmt(trading *MockTrading, dataFeed IDataFeed) MockStateMgmt {
 	stateMgmt := MockStateMgmt{
 		Trading:  trading,
 		DataFeed: dataFeed,
+		pair: "BTC_USDT",
+		exchange: "binance",
+		marketType: 1,
+	}
+
+	return stateMgmt
+}
+
+func NewMockedStateMgmtWithOpts(trading *MockTrading, dataFeed IDataFeed, pair string, exchange string, marketType int64 ) MockStateMgmt {
+	stateMgmt := MockStateMgmt{
+		Trading:  trading,
+		DataFeed: dataFeed,
+		pair: pair,
+		exchange: exchange,
+		marketType: marketType,
 	}
 
 	return stateMgmt
@@ -62,6 +81,10 @@ func (sm *MockStateMgmt) GetMarketPrecision(pair string, marketType int64) (int6
 }
 
 func (sm *MockStateMgmt) SubscribeToOrder(orderId string, onOrderStatusUpdate func(order *models.MongoOrder)) error {
+	return sm.SubscribeToOrderOpts(orderId, sm.pair, sm.exchange, sm.marketType, onOrderStatusUpdate)
+}
+
+func (sm *MockStateMgmt) SubscribeToOrderOpts(orderId string, pair string, exchange string, marketType int64, onOrderStatusUpdate func(order *models.MongoOrder)) error {
 	//panic("implement me")
 	go func() {
 		for {
@@ -75,10 +98,11 @@ func (sm *MockStateMgmt) SubscribeToOrder(orderId string, onOrderStatusUpdate fu
 				if order.Status == "canceled" {
 					break
 				}
+
 				time.Sleep(time.Duration(delay) * time.Millisecond)
 				isStopOrder := strings.Contains(order.Type, "stop")
 				isTapOrder := strings.Contains(order.Type, "take")
-				currentPrice := sm.DataFeed.GetPriceForPairAtExchange("BTC_USDT", "binance", 1).Close
+				currentPrice := sm.DataFeed.GetPriceForPairAtExchange(pair, exchange, marketType).Close
 				if order.Type == "market" ||
 					order.Side == "sell" && order.Average <= currentPrice && (order.Type == "limit" || isTapOrder) ||
 					order.Side == "buy" && order.Average >= currentPrice && (order.Type == "limit" || isTapOrder) ||

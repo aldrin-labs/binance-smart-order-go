@@ -17,8 +17,9 @@ func GetTestMakerOnlyOrderStrategy(scenario string) models.MongoStrategy {
 		Enabled:     true,
 	}
 
-	switch scenario {
-	case "entryLong":
-		makerOnly.Conditions.Pair
-	}
+	//switch scenario {
+	//case "entryLong":
+	// 	 makerOnly.Conditions.Pair
+	//}
+	return makerOnly
 }

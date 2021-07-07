@@ -2,13 +2,10 @@ package mongodb
 
 import (
 	"context"
-	"go.uber.org/zap"
 	"fmt"
-	"os"
-	"sync"
-	"time"
-	statsd_client "gitlab.com/crypto_project/core/strategy_service/src/statsd"
+	"github.com/joho/godotenv"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
+	statsd_client "gitlab.com/crypto_project/core/strategy_service/src/statsd"
 	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -16,13 +13,22 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
 	"go.mongodb.org/mongo-driver/mongo/writeconcern"
+	"go.uber.org/zap"
+	"os"
+	"sync"
+	"time"
 )
 
 var mongoClient *mongo.Client
 var log *zap.Logger
 
 func init() {
-	log, _ = zap.NewProduction()
+	_ = godotenv.Load()
+	if os.Getenv("LOCAL") == "true" {
+		log, _ = zap.NewDevelopment()
+	} else {
+		log, _ = zap.NewProduction() // TODO: handle the error
+	}
 	log = log.With(zap.String("logger", "srcMongo"))
 }
 
@@ -37,7 +43,7 @@ func GetMongoClientInstance() *mongo.Client {
 		isLocalBuild := os.Getenv("LOCAL") == "true"
 		timeout := 10 * time.Second
 		ctx, _ := context.WithTimeout(context.Background(), timeout)
-		client, _ := mongo.Connect(ctx, options.Client().SetDirect(isLocalBuild).
+		client, err := mongo.Connect(ctx, options.Client().SetDirect(isLocalBuild).
 			//client, _ := mongo.Connect(ctx, options.Client().SetDirect(false).
 			SetReadPreference(readpref.Primary()).
 			SetWriteConcern(writeconcern.New(writeconcern.WMajority())).
@@ -45,6 +51,9 @@ func GetMongoClientInstance() *mongo.Client {
 			SetReplicaSet("rs0").
 			SetConnectTimeout(timeout).ApplyURI(url))
 		mongoClient = client
+		if err != nil {
+			log.Panic("mongodb connection failure", zap.Error(err))
+		}
 	}
 	return mongoClient
 }
@@ -70,6 +79,7 @@ type StateMgmt struct {
 
 // InitOrdersWatch subscribes to orders updates and invokes StateMgnt callback on `filled` and `canceled` orders update event received.
 func (sm *StateMgmt) InitOrdersWatch() {
+	log.Info("watching for new orders in the storage")
 	sm.OrderCallbacks = &sync.Map{}
 	CollName := "core_orders"
 	ctx := context.Background()
@@ -94,7 +104,10 @@ func (sm *StateMgmt) InitOrdersWatch() {
 		// log.Print(data)
 		//		err := json.Unmarshal([]byte(data), &event)
 		if err != nil {
-			log.Error("event decode", zap.Error(err))
+			log.Error("event decode",
+				zap.Error(err),
+				zap.String("orderRaw", fmt.Sprintf("%+v", cs.Current)),
+			)
 		}
 		go func(event models.MongoOrderUpdateEvent) {
 			if event.FullDocument.Status == "filled" || event.FullDocument.Status == "canceled" {
@@ -102,20 +115,24 @@ func (sm *StateMgmt) InitOrdersWatch() {
 				if event.FullDocument.PostOnlyInitialOrderId != "" {
 					orderId = event.FullDocument.PostOnlyInitialOrderId
 				}
-
-				log.Info("",
+				log.Info("order",
 					zap.String("orderId", orderId),
 					zap.String("status", event.FullDocument.Status),
+					zap.Time("event.FullDocument.UpdatedAt", event.FullDocument.UpdatedAt),
 				)
 				getCallBackRaw, ok := sm.OrderCallbacks.Load(orderId)
 				if ok {
+					log.Debug("callback found",
+						zap.String("orderId", orderId),
+						zap.String("fullDocument", fmt.Sprintf("%+v", event.FullDocument)),
+					)
 					callback := getCallBackRaw.(func(order *models.MongoOrder))
 					callback(&event.FullDocument)
 				}
 			}
 		}(eventDecoded)
 	}
-	log.Info("InitOrdersWatch End")
+	log.Fatal("new orders watch")
 }
 
 func (sm *StateMgmt) EnableStrategy(strategyId *primitive.ObjectID) {
@@ -193,7 +210,7 @@ func (sm *StateMgmt) SubscribeToOrder(orderId string, onOrderStatusUpdate func(o
 	log.Info("subscribing to order",
 		zap.Bool("executedOrder is nil", executedOrder == nil),
 	)
-	if executedOrder != nil {
+	if executedOrder != nil { // looks like if this is true, we store a callback above forever, no?
 		onOrderStatusUpdate(executedOrder)
 	}
 	return nil
@@ -313,6 +330,7 @@ func (sm *StateMgmt) SubscribeToHedge(strategyId *primitive.ObjectID, onStrategy
 		}
 		onStrategyUpdate(&event.FullDocument)
 	}
+	log.Fatal("strategies update watch")
 	return nil
 }
 
@@ -448,8 +466,14 @@ func (sm *StateMgmt) GetMarketPrecision(pair string, marketType int64) (int64, i
 	var market *models.MongoMarket
 	err := coll.FindOne(ctx, request).Decode(&market)
 	if err != nil {
-		log.Error("", zap.Error(err))
+		log.Error("read market precision", zap.Error(err))
 	}
+	log.Info("got market precision",
+		zap.String("pair", pair),
+		zap.Int64("marketType", marketType),
+		zap.Int64("PricePrecision", market.Properties.Binance.PricePrecision),
+		zap.Int64("QuantityPrecision", market.Properties.Binance.QuantityPrecision),
+	)
 	sm.Statsd.TimingDuration("state_mgmt.get_market_precision", time.Since(t1))
 	return market.Properties.Binance.PricePrecision, market.Properties.Binance.QuantityPrecision
 }
@@ -478,6 +502,7 @@ func (sm *StateMgmt) UpdateConditions(strategyId *primitive.ObjectID, state *mod
 	sm.Statsd.TimingDuration("state_mgmt.update_conditions", time.Since(t1))
 	// log.Print(res)
 }
+
 func (sm *StateMgmt) UpdateState(strategyId *primitive.ObjectID, state *models.MongoStrategyState) {
 	t1 := time.Now()
 	col := GetCollection("core_strategies")
@@ -524,9 +549,6 @@ func (sm *StateMgmt) UpdateStrategyState(strategyId *primitive.ObjectID, state *
 			"state", state,
 		},
 	}
-	if len(state.Msg) > 0 {
-		updates = append(updates, bson.E{Key: "state.msg", Value: state.Msg})
-	}
 	update = bson.D{
 		{
 			"$set", updates,
@@ -534,7 +556,11 @@ func (sm *StateMgmt) UpdateStrategyState(strategyId *primitive.ObjectID, state *
 	}
 	updated, err := col.UpdateOne(context.TODO(), request, update)
 	if err != nil {
-		log.Error("error in arg", zap.Error(err))
+		log.Error("error in arg",
+			zap.Error(err),
+			zap.String("filter", fmt.Sprint(request)),
+			zap.String("update", fmt.Sprint(update)),
+		)
 		return
 	}
 	log.Info("updated state of strategy",
@@ -582,41 +608,63 @@ func (sm *StateMgmt) UpdateExecutedAmount(strategyId *primitive.ObjectID, state 
 	)
 	sm.Statsd.TimingDuration("state_mgmt.update_executed_amount", time.Since(t1))
 }
+
+// UpdateOrders tries to save new order IDs stored in a state provided into a strategy document specified by ID.
 func (sm *StateMgmt) UpdateOrders(strategyId *primitive.ObjectID, state *models.MongoStrategyState) {
 	t1 := time.Now()
+	// log.Debug("update orders",
+	// 	zap.String("strategy", strategyId.Hex()),
+	// 	zap.String("orders", fmt.Sprintf("%v", state.Orders)),
+	// )
+	if (state.Orders == nil && state.ExecutedOrders == nil) || ((len(state.Orders) + len(state.ExecutedOrders)) == 0) {
+		return
+	}
 	col := GetCollection("core_strategies")
 	var request bson.D
 	request = bson.D{
 		{"_id", strategyId},
 	}
-	if len(state.ExecutedOrders) == 0 || state.ExecutedOrders == nil {
-		return
-	}
 	var update bson.D
-	update = bson.D{
-		{
-			"$addToSet", bson.D{
-				{
-					"state.executedOrders", bson.D{
-						{
-							"$each", state.ExecutedOrders,
-						},
-					},
-				},
-				{
-					"state.orders", bson.D{
-						{
-							"$each", state.Orders,
-						},
-					},
-				},
-			},
-		},
+	update = bson.D{{"$addToSet", bson.D{}}}
+	if state.Orders != nil && len(state.Orders) > 0 {
+		var ordersUpdate bson.E
+		ordersUpdate = bson.E{
+			Key: "state.orders",
+			Value: bson.D{{"$each", state.Orders}},
+		}
+		update[0].Value = append(update[0].Value.(bson.D), ordersUpdate)
 	}
+	if state.ExecutedOrders != nil && len(state.ExecutedOrders) > 0 {
+		var executedOrdersUpdate bson.E
+		executedOrdersUpdate = bson.E{
+			Key: "state.executedOrders",
+			Value: bson.D{{"$each", state.ExecutedOrders}},
+		}
+		update[0].Value = append(update[0].Value.(bson.D), executedOrdersUpdate)
+	}
+	// log.Debug("sending update order request",
+	// 	zap.Any("request", request),
+	// 	zap.Any("update", update),
+	// )
 	updated, err := col.UpdateOne(context.TODO(), request, update)
 	if err != nil {
-		log.Error("error in arg", zap.Error(err))
-		return
+		// If state.orders or state.executedOrders is null, set it to empty list and retry.
+		log.Warn("can't update order, trying to replace null fields with empty arrays", zap.Error(err))
+		col.UpdateOne(context.TODO(),
+			// bson.M{"_id": strategyId, "state.orders": nil},
+			bson.M{"_id": strategyId},
+			bson.M{"$set": bson.M{"state.orders": bson.A{}}},
+		)
+		col.UpdateOne(context.TODO(),
+			bson.M{"_id": strategyId, "state.executedOrders": nil},
+			bson.M{"$set": bson.M{"state.executedOrders": bson.A{}}},
+		)
+		updated, err = col.UpdateOne(context.TODO(), request, update)
+		// If it does not help, report on error.
+		if err != nil {
+			log.Error("update order", zap.Error(err))
+			return
+		}
 	}
 	log.Info("updated order state",
 		zap.Int64("count", updated.ModifiedCount),
