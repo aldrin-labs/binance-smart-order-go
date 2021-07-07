@@ -2,7 +2,7 @@ package smart_order
 
 import (
 	"context"
-	"gitlab.com/crypto_project/core/strategy_service/src/trading"
+	"gitlab.com/crypto_project/core/strategy_service/src/trading/orders"
 	"go.uber.org/zap"
 	"time"
 )
@@ -111,21 +111,21 @@ func (sm *SmartOrder) checkTimeouts() {
 
 }
 
-func (sm *SmartOrder) tryCancelEntryOrder() trading.OrderResponse {
+func (sm *SmartOrder) tryCancelEntryOrder() orders.OrderResponse {
 	orderId := sm.Strategy.GetModel().State.Orders[0]
 	sm.Strategy.GetLogger().Info("orderId in check timeout")
-	var res trading.OrderResponse
+	var res orders.OrderResponse
 	if orderId != "0" {
-		res = sm.ExchangeApi.CancelOrder(trading.CancelOrderRequest{
+		res = sm.ExchangeApi.CancelOrder(orders.CancelOrderRequest{
 			KeyId: sm.KeyId,
-			KeyParams: trading.CancelOrderRequestParams{
+			KeyParams: orders.CancelOrderRequestParams{
 				OrderId:    orderId,
 				MarketType: sm.Strategy.GetModel().Conditions.MarketType,
 				Pair:       sm.Strategy.GetModel().Conditions.Pair,
 			},
 		})
 	} else {
-		res = trading.OrderResponse{
+		res = orders.OrderResponse{
 			Status: "ERR",
 		}
 	}

@@ -3,10 +3,10 @@ package mongodb
 import (
 	"context"
 	"fmt"
-	"github.com/joho/godotenv"
+	"gitlab.com/crypto_project/core/strategy_service/src/logging"
+	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
 	statsd_client "gitlab.com/crypto_project/core/strategy_service/src/statsd"
-	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -20,16 +20,11 @@ import (
 )
 
 var mongoClient *mongo.Client
-var log *zap.Logger
+var log interfaces.ILogger
 
 func init() {
-	_ = godotenv.Load()
-	if os.Getenv("LOCAL") == "true" {
-		log, _ = zap.NewDevelopment()
-	} else {
-		log, _ = zap.NewProduction() // TODO: handle the error
-	}
-	log = log.With(zap.String("logger", "srcMongo"))
+	logger, _:= logging.GetZapLogger()
+	log = logger.With(zap.String("logger", "srcMongo"))
 }
 
 func GetCollection(colName string) *mongo.Collection {
@@ -707,7 +702,7 @@ func (sm *StateMgmt) UpdateEntryPrice(strategyId *primitive.ObjectID, state *mod
 	sm.Statsd.TimingDuration("state_mgmt.update_entry_price", time.Since(t1))
 }
 
-func (sm *StateMgmt) SwitchToHedgeMode(keyId *primitive.ObjectID, trading trading.ITrading) {
+func (sm *StateMgmt) SwitchToHedgeMode(keyId *primitive.ObjectID, trading interfaces.ITrading) {
 	t1 := time.Now()
 	col := GetCollection("core_keys")
 	var request bson.D

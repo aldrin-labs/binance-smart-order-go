@@ -6,7 +6,8 @@ import (
 	redsyncredis "github.com/go-redsync/redsync/v4/redis"
 	redsyncredigo "github.com/go-redsync/redsync/v4/redis/redigo"
 	"github.com/gomodule/redigo/redis"
-	"github.com/joho/godotenv"
+	"gitlab.com/crypto_project/core/strategy_service/src/logging"
+	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"go.uber.org/zap"
 	"os"
 	"time"
@@ -17,16 +18,12 @@ var pubsubredisPool *redis.Pool
 var redisDLMPool *redis.Pool
 var redsyncDLMPool redsyncredis.Pool
 var redsyncToDLM *redsync.Redsync
-var log *zap.Logger
+var log interfaces.ILogger
 
 func init() {
-	_ = godotenv.Load()
-	if os.Getenv("LOCAL") == "true" {
-		log, _ = zap.NewDevelopment()
-	} else {
-		log, _ = zap.NewProduction() // TODO: handle the error
-	}
-	log = log.With(zap.String("logger", "srcRedis"))
+	logger, _ := logging.GetZapLogger()
+	// TODO: handle the error
+	log = logger.With(zap.String("logger", "srcRedis"))
 }
 
 func GetRedisPubsub() (*redis.PubSubConn, redis.Conn) {

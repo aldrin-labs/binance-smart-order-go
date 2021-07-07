@@ -1,7 +1,7 @@
 package makeronly_order
 
 import (
-	"gitlab.com/crypto_project/core/strategy_service/src/trading"
+	"gitlab.com/crypto_project/core/strategy_service/src/trading/orders"
 	"log"
 )
 
@@ -17,7 +17,7 @@ func (po *MakerOnlyOrder) run() {
 	}
 
 	po.OrderParams.Price = price
-	response := po.ExchangeApi.CreateOrder(trading.CreateOrderRequest{
+	response := po.ExchangeApi.CreateOrder(orders.CreateOrderRequest{
 		KeyId:     po.KeyId,
 		KeyParams: po.OrderParams,
 	})
