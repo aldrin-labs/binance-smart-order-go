@@ -76,7 +76,8 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 	if !ok {
 		return false
 	}
-	sm.Strategy.GetLogger().Info("",
+
+	sm.Strategy.GetLogger().Info("checkExistingOrders",
 		zap.String("orderStatus", orderStatus),
 		zap.String("step", step.(string)),
 	)
@@ -135,6 +136,15 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 				} else {
 					model.State.EntryPrice = order.Average
 				}
+
+				err := sm.State.Fire(TriggerAveragingEntryOrderExecuted)
+				if err != nil {
+					sm.Strategy.GetLogger().Error("TriggerAveragingEntryOrderExecuted error",
+						zap.Error(err),
+					)
+				}
+
+				return false
 			} else { // not avg
 				model.State.EntryPrice = order.Average
 				model.State.State = InEntry
