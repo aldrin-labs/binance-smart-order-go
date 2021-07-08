@@ -3,12 +3,12 @@ package tests
 import (
 	"container/list"
 	"fmt"
+	"gitlab.com/crypto_project/core/strategy_service/src/trading/orders"
 	"log"
 	"strconv"
 	"sync"
 
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
-	"gitlab.com/crypto_project/core/strategy_service/src/trading"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -24,7 +24,7 @@ type MockTrading struct {
 	SellDelay           int
 }
 
-func (mt MockTrading) UpdateLeverage(keyId *primitive.ObjectID, leverage float64, symbol string) trading.UpdateLeverageResponse {
+func (mt MockTrading) UpdateLeverage(keyId *primitive.ObjectID, leverage float64, symbol string) orders.UpdateLeverageResponse {
 	panic("implement me")
 }
 
@@ -57,7 +57,7 @@ func NewMockedTradingAPIWithMarketAccess(feed *MockDataFeed) *MockTrading {
 	return &mockTrading
 }
 
-func (mt MockTrading) CreateOrder(req trading.CreateOrderRequest) trading.OrderResponse {
+func (mt MockTrading) CreateOrder(req orders.CreateOrderRequest) orders.OrderResponse {
 	fmt.Printf("Create Order Request: %v %f \n", req, req.KeyParams.Amount)
 
 	callCount, _ := mt.CallCount.LoadOrStore(req.KeyParams.Side, 0)
@@ -108,7 +108,7 @@ func (mt MockTrading) CreateOrder(req trading.CreateOrderRequest) trading.OrderR
 	//if req.KeyParams.Type != "market" {
 	//	filled = 0
 	//}
-	return trading.OrderResponse{Status: "OK", Data: trading.OrderResponseData{
+	return orders.OrderResponse{Status: "OK", Data: orders.OrderResponseData{
 		OrderId: orderId,
 		Status:  "open",
 		Price:   0,
@@ -117,13 +117,13 @@ func (mt MockTrading) CreateOrder(req trading.CreateOrderRequest) trading.OrderR
 	}}
 }
 
-func (mt MockTrading) CancelOrder(req trading.CancelOrderRequest) trading.OrderResponse {
+func (mt MockTrading) CancelOrder(req orders.CancelOrderRequest) orders.OrderResponse {
 	fmt.Printf("Cancel Order Request: %v %f \n", req, req.KeyParams.Pair)
 	callCount, callOk := mt.CallCount.Load(req.KeyParams.Pair)
 
 	log.Print("callOk ", callOk)
 	if !callOk {
-		response := trading.OrderResponse{
+		response := orders.OrderResponse{
 			Status: "ERR",
 		}
 		return response
@@ -150,22 +150,22 @@ func (mt MockTrading) CancelOrder(req trading.CancelOrderRequest) trading.OrderR
 	}
 
 	mt.OrdersMap.Store(orderId, order)
-	response := trading.OrderResponse{
+	response := orders.OrderResponse{
 		Status: "OK",
 	}
 	return response
 }
 
-func (mt MockTrading) PlaceHedge(parentSmarOrder *models.MongoStrategy) trading.OrderResponse {
+func (mt MockTrading) PlaceHedge(parentSmarOrder *models.MongoStrategy) orders.OrderResponse {
 	panic("implement me")
 }
 
-func (mt MockTrading) Transfer(request trading.TransferRequest) trading.OrderResponse {
+func (mt MockTrading) Transfer(request orders.TransferRequest) orders.OrderResponse {
 	panic("implement me")
 }
 
-func (mt MockTrading) SetHedgeMode(keyId *primitive.ObjectID, hedgeMode bool) trading.OrderResponse {
-	response := trading.OrderResponse{
+func (mt MockTrading) SetHedgeMode(keyId *primitive.ObjectID, hedgeMode bool) orders.OrderResponse {
+	response := orders.OrderResponse{
 		Status: "OK",
 	}
 	return response
