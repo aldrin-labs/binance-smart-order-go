@@ -23,13 +23,12 @@ func (sm *SmartOrder) placeMultiEntryOrders(stopLoss bool) {
 	sumTotal := 0.0
 
 	// here we should place all entry orders
-	for _, target := range model.Conditions.EntryLevels {
+	for i, target := range model.Conditions.EntryLevels {
 		currentAmount := 0.0
 
 		if target.Type == 0 {
 			currentAmount = target.Amount
 			currentPrice = target.Price
-			go sm.PlaceOrder(currentPrice, currentAmount, WaitForEntry)
 		} else {
 			currentAmount = model.Conditions.EntryOrder.Amount / 100 * target.Amount
 			if model.Conditions.EntryOrder.Side == "buy" {
@@ -37,8 +36,14 @@ func (sm *SmartOrder) placeMultiEntryOrders(stopLoss bool) {
 			} else {
 				currentPrice = currentPrice * (100 + target.Price/model.Conditions.Leverage) / 100
 			}
-			go sm.PlaceOrder(currentPrice, currentAmount, WaitForEntry)
 		}
+
+		if i == len(model.Conditions.EntryLevels) - 1 {
+			currentAmount = model.Conditions.EntryOrder.Amount - sumAmount
+		}
+		currentAmount = sm.toFixed(currentAmount, sm.QuantityAmountPrecision, Floor)
+
+		go sm.PlaceOrder(currentPrice, currentAmount, WaitForEntry)
 
 		sumAmount += currentAmount
 		sumTotal += currentAmount * currentPrice

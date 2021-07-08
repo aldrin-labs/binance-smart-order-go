@@ -53,7 +53,7 @@ func (sm *SmartOrder) orderCallback(order *models.MongoOrder) {
 	//	sm.StateMgmt.UpdateExecutedAmount(model.ID, model.State)
 	//}
 	if err != nil {
-		sm.Strategy.GetLogger().Error("fire state error",
+		sm.Strategy.GetLogger().Warn("fire state error",
 			zap.String("err", err.Error()),
 		)
 	}
@@ -139,7 +139,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 
 				err := sm.State.Fire(TriggerAveragingEntryOrderExecuted)
 				if err != nil {
-					sm.Strategy.GetLogger().Error("TriggerAveragingEntryOrderExecuted error",
+					sm.Strategy.GetLogger().Warn("TriggerAveragingEntryOrderExecuted error",
 						zap.Error(err),
 					)
 				}
