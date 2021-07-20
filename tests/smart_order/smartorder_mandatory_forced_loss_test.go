@@ -59,7 +59,7 @@ func TestSmartOrderMandatoryForcedLoss(t *testing.T) {
 		SettlementMutex: &redsync.Mutex{},
 	}
 	smartOrder := smart_order.New(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
-	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
+	smartOrder.GetStateMachine().OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
 	go smartOrder.Start()

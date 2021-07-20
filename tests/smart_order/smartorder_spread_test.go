@@ -71,9 +71,9 @@ func TestSmartOrderEntryBySpread(t *testing.T) {
 	smartOrder := smart_order.New(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
 	go smartOrder.Start()
 	time.Sleep(7000 * time.Millisecond)
-	isInState, _ := smartOrder.State.IsInState(smart_order.InEntry)
+	isInState, _ := smartOrder.GetStateMachine().IsInState(smart_order.InEntry)
 	if !isInState {
-		state, _ := smartOrder.State.State(context.Background())
+		state, _ := smartOrder.GetStateMachine().State(context.Background())
 		stateStr := fmt.Sprintf("%v", state)
 		t.Error("SmartOrder state is not InEntry (State: " + stateStr + ")")
 	}

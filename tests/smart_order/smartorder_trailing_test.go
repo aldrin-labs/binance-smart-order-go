@@ -66,14 +66,14 @@ func TestSmartOrderTrailingEntryAndThenActivateTrailingWithHighLeverage(t *testi
 		SettlementMutex: &redsync.Mutex{},
 	}
 	smartOrder := smart_order.New(&strategy, df, sm.Trading, strategy.Statsd, &keyId, &sm)
-	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
+	smartOrder.GetStateMachine().OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
 	go smartOrder.Start()
 	time.Sleep(10 * time.Second)
-	isInState, _ := smartOrder.State.IsInState(smart_order.InEntry)
+	isInState, _ := smartOrder.GetStateMachine().IsInState(smart_order.InEntry)
 	if !isInState {
-		state, _ := smartOrder.State.State(context.Background())
+		state, _ := smartOrder.GetStateMachine().State(context.Background())
 		stateStr := fmt.Sprintf("%v", state)
 		t.Error("SmartOrder state is not InEntry (State: " + stateStr + ")")
 	}
@@ -143,14 +143,14 @@ func TestSmartOrderTrailingEntryAndTrailingExitWithHighLeverage(t *testing.T) {
 		SettlementMutex: &redsync.Mutex{},
 	}
 	smartOrder := smart_order.New(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
-	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
+	smartOrder.GetStateMachine().OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
 	go smartOrder.Start()
 	time.Sleep(25 * time.Second)
-	isInState, _ := smartOrder.State.IsInState(smart_order.End)
+	isInState, _ := smartOrder.GetStateMachine().IsInState(smart_order.End)
 	if !isInState {
-		state, _ := smartOrder.State.State(context.Background())
+		state, _ := smartOrder.GetStateMachine().State(context.Background())
 		stateStr := fmt.Sprintf("%v", state)
 		t.Error("SmartOrder state is not End (State: " + stateStr + ")")
 	}
@@ -221,16 +221,16 @@ func TestSmartOrderTrailingEntryAndFollowTrailingMaximumsWithoutEarlyExitWithHig
 	}
 	keyId := primitive.NewObjectID()
 	smartOrder := smart_order.New(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
-	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
+	smartOrder.GetStateMachine().OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
 
 	go smartOrder.Start()
 	time.Sleep(7 * time.Second)
 	// Check if we got in entry, and follow trailing maximum
-	isInState, _ := smartOrder.State.IsInState(smart_order.InEntry)
+	isInState, _ := smartOrder.GetStateMachine().IsInState(smart_order.InEntry)
 	if !isInState {
-		state, _ := smartOrder.State.State(context.Background())
+		state, _ := smartOrder.GetStateMachine().State(context.Background())
 		stateStr := fmt.Sprintf("%v", state)
 		t.Error("SmartOrder state is not InEntry (State: " + stateStr + ")")
 	}

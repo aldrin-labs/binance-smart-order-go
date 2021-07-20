@@ -234,6 +234,10 @@ func (sm *SmartOrder) GetState(ctx context.Context) (stateless.State, error) {
 	return sm.stateMachine.State(ctx)
 }
 
+func (sm *SmartOrder) GetStateMachine() *stateless.StateMachine {
+	return sm.stateMachine
+}
+
 func (sm *SmartOrder) checkIfShouldCancelIfAnyActive() {
 	model := sm.Strategy.GetModel()
 

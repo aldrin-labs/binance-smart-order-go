@@ -58,7 +58,7 @@ func TestSmartOrderMultiEntryPlacing(t *testing.T) {
 		SettlementMutex: &redsync.Mutex{},
 	}
 	smartOrder := smart_order.New(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
-	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
+	smartOrder.GetStateMachine().OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
 	go smartOrder.Start()
@@ -119,17 +119,17 @@ func TestSmartOrderMultiEntryStopLoss(t *testing.T) {
 		SettlementMutex: &redsync.Mutex{},
 	}
 	smartOrder := smart_order.New(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
-	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
+	smartOrder.GetStateMachine().OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
 	go smartOrder.Start()
 	time.Sleep(15000 * time.Millisecond)
 
-	isInState, _ := smartOrder.State.IsInState(smart_order.End)
+	isInState, _ := smartOrder.GetStateMachine().IsInState(smart_order.End)
 	if isInState {
 		log.Print("Multi-Entry was closed by SL")
 	} else {
-		state, _ := smartOrder.State.State(context.TODO())
+		state, _ := smartOrder.GetStateMachine().State(context.TODO())
 		t.Error("State is not End, currentState: ", state)
 	}
 }
@@ -331,13 +331,13 @@ func TestSmartOrderMultiEntryTAP(t *testing.T) {
 		SettlementMutex: &redsync.Mutex{},
 	}
 	smartOrder := smart_order.New(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
-	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
+	smartOrder.GetStateMachine().OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
 	go smartOrder.Start()
 	time.Sleep(5000 * time.Millisecond)
 
-	isInState, _ := smartOrder.State.IsInState(smart_order.End)
+	isInState, _ := smartOrder.GetStateMachine().IsInState(smart_order.End)
 	sellCallCount, sellOk := tradingApi.CallCount.Load("sell")
 
 	if isInState && sellOk && sellCallCount == 4 {
@@ -587,13 +587,13 @@ func TestSmartOrderMultiEntryClosingAfterFirstTAP(t *testing.T) {
 	}
 	tradingApi.BuyDelay = 30
 	smartOrder := smart_order.New(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
-	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
+	smartOrder.GetStateMachine().OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
 	go smartOrder.Start()
 	time.Sleep(5000 * time.Millisecond)
 
-	isInState, _ := smartOrder.State.IsInState(smart_order.End)
+	isInState, _ := smartOrder.GetStateMachine().IsInState(smart_order.End)
 	sellCallCount, sellOk := tradingApi.CallCount.Load("sell")
 
 	log.Print("sellOk ", sellOk)
@@ -601,7 +601,7 @@ func TestSmartOrderMultiEntryClosingAfterFirstTAP(t *testing.T) {
 	if isInState && sellOk && sellCallCount == 3 {
 		log.Print("Multi-Entry was closed by first TAP")
 	} else {
-		state, _ := smartOrder.State.State(context.TODO())
+		state, _ := smartOrder.GetStateMachine().State(context.TODO())
 		t.Error("Without loss order was not placed or SM was not closed by CloseAfterFirstTAP option. sellCallCount ", sellCallCount, " state ", state)
 	}
 }
@@ -846,13 +846,13 @@ func TestSmartOrderMultiEntryClosingByWithoutLoss(t *testing.T) {
 	}
 	tradingApi.BuyDelay = 30
 	smartOrder := smart_order.New(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
-	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
+	smartOrder.GetStateMachine().OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
 	go smartOrder.Start()
 	time.Sleep(3000 * time.Millisecond)
 
-	isInState, _ := smartOrder.State.IsInState(smart_order.End)
+	isInState, _ := smartOrder.GetStateMachine().IsInState(smart_order.End)
 	sellCallCount, sellOk := tradingApi.CallCount.Load("sell")
 
 	log.Print("sellOk ", sellOk)
@@ -860,7 +860,7 @@ func TestSmartOrderMultiEntryClosingByWithoutLoss(t *testing.T) {
 	if isInState && sellOk && sellCallCount == 3 {
 		log.Print("Multi-Entry was closed by Without Loss")
 	} else {
-		state, _ := smartOrder.State.State(context.TODO())
+		state, _ := smartOrder.GetStateMachine().State(context.TODO())
 		t.Error("Without loss order was not placed or SM was not closed by Without Loss. sellCallCount ", sellCallCount, " state ", state)
 	}
 }

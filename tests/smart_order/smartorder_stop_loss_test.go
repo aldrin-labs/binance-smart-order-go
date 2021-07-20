@@ -62,7 +62,7 @@ func TestSmartExitOnStopMarket(t *testing.T) {
 		SettlementMutex: &redsync.Mutex{},
 	}
 	smartOrder := smart_order.New(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
-	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
+	smartOrder.GetStateMachine().OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
 	go smartOrder.Start()
@@ -78,9 +78,9 @@ func TestSmartExitOnStopMarket(t *testing.T) {
 	}
 
 	// check if we are in right state
-	isInState, _ := smartOrder.State.IsInState(smart_order.End)
+	isInState, _ := smartOrder.GetStateMachine().IsInState(smart_order.End)
 	if !isInState {
-		state, _ := smartOrder.State.State(context.Background())
+		state, _ := smartOrder.GetStateMachine().State(context.Background())
 		stateStr := fmt.Sprintf("%v", state)
 		t.Error("SmartOrder state is not End (State: " + stateStr + ")")
 	}
@@ -141,7 +141,7 @@ func TestSmartExitOnStopMarketTimeout(t *testing.T) {
 		SettlementMutex: &redsync.Mutex{},
 	}
 	smartOrder := smart_order.New(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
-	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
+	smartOrder.GetStateMachine().OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
 	go smartOrder.Start()
@@ -157,9 +157,9 @@ func TestSmartExitOnStopMarketTimeout(t *testing.T) {
 	}
 
 	// check if we are in right state
-	isInState, _ := smartOrder.State.IsInState(smart_order.End)
+	isInState, _ := smartOrder.GetStateMachine().IsInState(smart_order.End)
 	if !isInState {
-		state, _ := smartOrder.State.State(context.Background())
+		state, _ := smartOrder.GetStateMachine().State(context.Background())
 		stateStr := fmt.Sprintf("%v", state)
 		t.Error("SmartOrder state is not End (State: " + stateStr + ")")
 	}
@@ -201,7 +201,7 @@ func TestSmartExitAfterTimeoutLoss(t *testing.T) {
 		SettlementMutex: &redsync.Mutex{},
 	}
 	smartOrder := smart_order.New(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
-	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
+	smartOrder.GetStateMachine().OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
 	go smartOrder.Start()
@@ -228,9 +228,9 @@ func TestSmartExitAfterTimeoutLoss(t *testing.T) {
 	}
 
 	// check if we are in right state
-	isInState, _ := smartOrder.State.IsInState(smart_order.End)
+	isInState, _ := smartOrder.GetStateMachine().IsInState(smart_order.End)
 	if !isInState {
-		state, _ := smartOrder.State.State(context.Background())
+		state, _ := smartOrder.GetStateMachine().State(context.Background())
 		stateStr := fmt.Sprintf("%v", state)
 		t.Error("SmartOrder state is not End (State: " + stateStr + ")")
 	}
@@ -310,7 +310,7 @@ func TestSmartOrderReturnToInEntryAfterTimeoutLoss(t *testing.T) {
 		SettlementMutex: &redsync.Mutex{},
 	}
 	smartOrder := smart_order.New(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
-	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
+	smartOrder.GetStateMachine().OnTransitioned(func(context context.Context, transition stateless.Transition) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
 	go smartOrder.Start()
@@ -339,9 +339,9 @@ func TestSmartOrderReturnToInEntryAfterTimeoutLoss(t *testing.T) {
 		t.Error("There were " + strconv.Itoa(sellCallCount.(int)) + " trading api calls with buy params and " + strconv.Itoa(btcUsdtCallCount.(int)) + " with BTC_USDT params while timeoutLoss canceled")
 	}
 
-	isInState, _ := smartOrder.State.IsInState(smart_order.InEntry)
+	isInState, _ := smartOrder.GetStateMachine().IsInState(smart_order.InEntry)
 	if !isInState {
-		state, _ := smartOrder.State.State(context.Background())
+		state, _ := smartOrder.GetStateMachine().State(context.Background())
 		stateStr := fmt.Sprintf("%v", state)
 		t.Error("SmartOrder state is not End (State: " + stateStr + ")")
 	}

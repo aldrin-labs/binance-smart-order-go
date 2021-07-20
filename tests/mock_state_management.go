@@ -47,6 +47,10 @@ func (sm *MockStateMgmt) GetOrderById(orderId *primitive.ObjectID) *models.Mongo
 	panic("implement me")
 }
 
+func (sm *MockStateMgmt) GetKeyAsset(collectionName string, assetId *primitive.ObjectID) (models.KeyAsset, error) {
+	return models.KeyAsset{}, nil
+}
+
 func NewMockedStateMgmt(trading *MockTrading, dataFeed IDataFeed) MockStateMgmt {
 	stateMgmt := MockStateMgmt{
 		Trading:  trading,
