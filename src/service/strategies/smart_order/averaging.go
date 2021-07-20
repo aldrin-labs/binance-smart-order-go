@@ -31,7 +31,7 @@ func (sm *SmartOrder) placeMultiEntryOrders(stopLoss bool) {
 		if i == len(model.Conditions.EntryLevels) - 1 {
 			currentAmount = model.Conditions.EntryOrder.Amount - sumAmount
 		}
-		currentAmount = sm.toFixed(currentAmount, sm.QuantityAmountPrecision, Floor)
+		currentAmount = sm.toFixed(currentAmount, Floor)
 
 		go sm.PlaceOrder(currentPrice, currentAmount, WaitForEntry)
 
@@ -112,12 +112,6 @@ func (sm *SmartOrder) enterMultiEntry(ctx context.Context, args ...interface{}) 
 		time.AfterFunc(3*time.Second, func() { sm.PlaceOrder(model.State.EntryPrice, 0.0, "ForcedLoss") })
 	}
 
-	//TODO: HACK, state machine should never get here after all entryTargets fired \
-	// we should look into this and fix it ASAP; until then averaging might not work as intended
-	//if sm.SelectedEntryTarget >= len(model.Conditions.EntryLevels) {
-	//	sm.Strategy.GetLogger().Error("SelectedEntry target not in model.Conditions.EntryLevels")
-	//	return nil
-	//}
 	// place BEP
 	if model.Conditions.EntryLevels[sm.SelectedEntryTarget].PlaceWithoutLoss {
 		sm.PlaceOrder(0, sm.getAveragingEntryAmount(model, sm.SelectedEntryTarget), "WithoutLoss")
@@ -126,7 +120,7 @@ func (sm *SmartOrder) enterMultiEntry(ctx context.Context, args ...interface{}) 
 	// cancel old TAP, TODO: we are not confident to keep it or remove, requires tests
 	isWaitingForOrder, ok := sm.IsWaitingForOrder.Load(TakeProfit)
 	if ok && isWaitingForOrder.(bool) {
-		state, _ := sm.State.State(ctx)
+		state, _ := sm.GetState(ctx)
 		if state == End {
 			return InMultiEntry, nil
 		}

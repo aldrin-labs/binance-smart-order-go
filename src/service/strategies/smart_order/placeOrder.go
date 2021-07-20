@@ -436,7 +436,7 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 		// model.State.ExecutedAmount += amount
 		break
 	case Canceled:
-		currentState, _ := sm.State.State(context.TODO())
+		currentState, _ := sm.GetState(context.TODO())
 		thereIsNoEntryToExit := (currentState == WaitForEntry && model.State.Amount == 0) || currentState == TrailingEntry ||
 			currentState == End || model.State.ExecutedAmount >= model.Conditions.EntryOrder.Amount
 
@@ -475,8 +475,8 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 		zap.Float64("orderPrice", orderPrice),
 		zap.String("step", step),
 	)
-	baseAmount = sm.toFixed(baseAmount, sm.QuantityAmountPrecision, Floor)
-	orderPrice = sm.toFixed(orderPrice, sm.QuantityPricePrecision, Nearest)
+	baseAmount = sm.toFixed(baseAmount, Floor)
+	orderPrice = sm.toFixed(orderPrice, Nearest)
 	sm.Strategy.GetLogger().Info("after rounding",
 		zap.Float64("baseAmount", baseAmount),
 		zap.Float64("orderPrice", orderPrice),
@@ -646,36 +646,30 @@ func (sm *SmartOrder) callTradingAPI(
 		} else {
 			// if error
 			if len(response.Data.Msg) > 0 {
-				// TODO
+				//TODO
 				// need correct message from exchange_service when down
 				//if len(response.Data.Msg) > 0 && strings.Contains(response.Data.Msg, "network error") {
 				//	time.Sleep(time.Second * 5)
 				//	continue
 				//}
-
-				if strings.Contains(response.Data.Msg, "Key is processing") && attemptsToPlaceOrder < 1 {
-					attemptsToPlaceOrder += 1
-					time.Sleep(time.Minute * 1)
+				if checkResponseNeedsWait(response.Data.Msg, "Key is processing", attemptsToPlaceOrder, 1, time.Minute * 1) {
+					attemptsToPlaceOrder++
 					continue
 				}
-				if strings.Contains(response.Data.Msg, "position side does not match") && attemptsToPlaceOrder < 3 {
-					attemptsToPlaceOrder += 1
-					time.Sleep(time.Second * 5)
+				if checkResponseNeedsWait(response.Data.Msg, "position side does not match", attemptsToPlaceOrder, 3, time.Second * 5){
+					attemptsToPlaceOrder++
 					continue
 				}
-				if strings.Contains(response.Data.Msg, "invalid json") && attemptsToPlaceOrder < 3 {
-					attemptsToPlaceOrder += 1
-					time.Sleep(2 * time.Second)
+				if checkResponseNeedsWait(response.Data.Msg, "invalid json", attemptsToPlaceOrder, 3, time.Second * 2) {
+					attemptsToPlaceOrder++
 					continue
 				}
-				if strings.Contains(response.Data.Msg, "ReduceOnly Order Failed") && attemptsToPlaceOrder < 3 {
-					attemptsToPlaceOrder += 1
-					time.Sleep(5 * time.Second)
+				if checkResponseNeedsWait(response.Data.Msg, "ReduceOnly Order Failed", attemptsToPlaceOrder, 3, time.Second * 5) {
+					attemptsToPlaceOrder++
 					continue
 				}
-				if strings.Contains(response.Data.Msg, "Cannot read property 'text' of undefined") && attemptsToPlaceOrder < 3 {
-					attemptsToPlaceOrder += 1
-					time.Sleep(5 * time.Second)
+				if checkResponseNeedsWait(response.Data.Msg, "Cannot read property 'text' of undefined", attemptsToPlaceOrder, 3, time.Second * 5) {
+					attemptsToPlaceOrder++
 					continue
 				}
 				if strings.Contains(response.Data.Msg, "immediately trigger") {
@@ -732,4 +726,12 @@ func (sm *SmartOrder) callTradingAPI(
 		sm.SelectedExitTarget += 1
 		sm.PlaceOrder(price, 0.0, step)
 	}
+}
+
+func checkResponseNeedsWait(resp string, req string, attempts int, maxAttempts int, sleepDuration time.Duration) bool {
+	if strings.Contains(resp, req) && attempts < maxAttempts {
+		time.Sleep(sleepDuration)
+		return true
+	}
+	return false
 }

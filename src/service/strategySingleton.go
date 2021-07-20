@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"github.com/go-redsync/redsync/v4"
 	"gitlab.com/crypto_project/core/strategy_service/src/logging"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies"
@@ -12,7 +11,6 @@ import (
 	"gitlab.com/crypto_project/core/strategy_service/src/sources"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
-	"gitlab.com/crypto_project/core/strategy_service/src/sources/redis"
 	"gitlab.com/crypto_project/core/strategy_service/src/trading/orders"
 	"log"
 
@@ -142,16 +140,13 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 	var strategiesAdded int64 = 0
 	for cur.Next(ctx) {
 		// create a value into which the single document can be decoded
-		strategy, err := strategies.GetStrategy(cur, ss.dataFeed, ss.trading, ss.stateMgmt, ss, &ss.statsd)
+		strategy, err := strategies.GetStrategyByCursor(cur, ss.dataFeed, ss.trading, ss.stateMgmt, ss, &ss.statsd)
 		if err != nil {
 			ss.log.Error("failing to process enabled strategy",
 				zap.String("err", err.Error()),
 				zap.String("cur", cur.Current.String()),
 			)
 			continue
-			ss.log.Fatal("",
-				zap.String("err", err.Error()),
-			) // TODO(khassanov): unreachable?
 		}
 		if strategy.Model.AccountId != nil && strategy.Model.AccountId.Hex() == "5e4ce62b1318ef1b1e85b6f4" {
 			continue
@@ -191,35 +186,34 @@ func (ss *StrategyService) Init(wg *sync.WaitGroup, isLocalBuild bool) {
 }
 
 // GetStrategy creates strategy instance with given arguments.
-func GetStrategy(strategy *models.MongoStrategy, df interfaces.IDataFeed, tr interfaces.ITrading, st interfaces.IStateMgmt, statsd *statsd_client.StatsdClient, ss *StrategyService) *strategies.Strategy {
-	// TODO(khassanov): why we use this instead of the same from the `strategy` package?
-	// TODO(khassanov): remove code copy got from the same in the strategy package
-	logger, _ := logging.GetZapLogger()
-	loggerName := fmt.Sprintf("sm-%v", strategy.ID.Hex())
-	logger = logger.With(zap.String("logger", loggerName))
-	rs := redis.GetRedsync()
-	mutexName := fmt.Sprintf("strategy:%v:%v", strategy.Conditions.Pair, strategy.ID.Hex())
-	mutex := rs.NewMutex(mutexName,
-		redsync.WithTries(2),
-		redsync.WithRetryDelay(200*time.Millisecond),
-		redsync.WithExpiry(10*time.Second), // TODO(khassanov): use parameter to conform with extend call period
-	) // upsert
-	return &strategies.Strategy{
-		Model:           strategy,
-		SettlementMutex: mutex,
-		Datafeed:        df,
-		Trading:         tr,
-		StateMgmt:       st,
-		Singleton:       ss,
-		Statsd:          statsd,
-		Log:             logger,
-	}
-}
+//func GetStrategy(strategy *models.MongoStrategy, df interfaces.IDataFeed, tr interfaces.ITrading, st interfaces.IStateMgmt, statsd *statsd_client.StatsdClient, ss *StrategyService) *strategies.Strategy {
+//	// TODO: confirm that we don't need to proxy the call with different set of parameters here
+//	logger, _ := logging.GetZapLogger()
+//	loggerName := fmt.Sprintf("sm-%v", strategy.ID.Hex())
+//	logger = logger.With(zap.String("logger", loggerName))
+//	rs := redis.GetRedsync()
+//	mutexName := fmt.Sprintf("strategy:%v:%v", strategy.Conditions.Pair, strategy.ID.Hex())
+//	mutex := rs.NewMutex(mutexName,
+//		redsync.WithTries(2),
+//		redsync.WithRetryDelay(200*time.Millisecond),
+//		redsync.WithExpiry(10*time.Second), // TODO(khassanov): use parameter to conform with extend call period
+//	) // upsert
+//	return &strategies.Strategy{
+//		Model:           strategy,
+//		SettlementMutex: mutex,
+//		Datafeed:        df,
+//		Trading:         tr,
+//		StateMgmt:       st,
+//		Statsd:          statsd,
+//		Singleton:       ss,
+//		Log:             logger,
+//	}
+//}
 
 // AddStrategy instantiates given strategy to store in the service instance and start it.
 func (ss *StrategyService) AddStrategy(strategy *models.MongoStrategy) {
 	if ss.strategies[strategy.ID.String()] == nil {
-		sig := GetStrategy(strategy, ss.dataFeed, ss.trading, ss.stateMgmt, &ss.statsd, ss)
+		sig := strategies.GetStrategy(strategy, ss.dataFeed, ss.trading, ss.stateMgmt, ss, &ss.statsd)
 		if ok, err := sig.Settle(); !ok || err != nil {
 			return // TODO(khassanov): distinguish a state locked in dlm and network errors
 		}
@@ -529,7 +523,7 @@ func (ss *StrategyService) WatchStrategies(isLocalBuild bool, accountId string) 
 		}
 
 		if event.FullDocument.Type == 2 && event.FullDocument.State.ColdStart { // 2 means maker only
-			sig := GetStrategy(&event.FullDocument, ss.dataFeed, ss.trading, ss.stateMgmt, &ss.statsd, ss)
+			sig := strategies.GetStrategy(&event.FullDocument, ss.dataFeed, ss.trading, ss.stateMgmt, ss, &ss.statsd)
 			ss.strategies[event.FullDocument.ID.String()] = sig
 			ss.log.Info("continue in maker-only cold start")
 			continue
@@ -850,15 +844,19 @@ func (ss *StrategyService) setPairs(ctx context.Context, collection *mongo.Colle
 	)
 }
 
+const maxCPUScaledAverage = 12.0
+//TODO: change whole metric to something more precise
+// also might need to find some sweet spot, as 12% per core seems kinda low
+
 // trackIsFull monitors resources continuously and sets or resets 'full' flag when instance is close to memory limit
 // or CPU usage limit.
 func (ss *StrategyService) runIsFullTracking() {
 	ss.log.Info("starting resources tracking")
 	var err error
 	var loadAvg *cpu_load.AvgStat
-	var loadAvgScaled float64     // load average scaled by number of cores
-	var cpuCoresCount int         // number of CPU cores
-	var sysinfo syscall.Sysinfo_t // contains memory usage
+	var loadFiveMinAvgScaled float64 // load average scaled by number of cores
+	var cpuCoresCount int            // number of CPU cores
+	var sysinfo syscall.Sysinfo_t    // contains memory usage
 	var isFullPrev bool
 	for {
 		isFullPrev = ss.full
@@ -871,8 +869,8 @@ func (ss *StrategyService) runIsFullTracking() {
 		if err != nil {
 			ss.log.Error("cpu count", zap.Error(err))
 		}
-		loadAvgScaled = loadAvg.Load5 / float64(cpuCoresCount)
-		if loadAvgScaled > 12.0 { // TODO(khassanov): remove magic number
+		loadFiveMinAvgScaled = loadAvg.Load5 / float64(cpuCoresCount)
+		if loadFiveMinAvgScaled > maxCPUScaledAverage {
 			ss.cpuFull = true
 		} else {
 			ss.cpuFull = false
@@ -884,9 +882,9 @@ func (ss *StrategyService) runIsFullTracking() {
 			time.Sleep(200 * time.Millisecond)
 			continue
 		}
-		if sysinfo.Freeram < 10*1024*1024 { // ten megabytes
+		if sysinfo.Freeram < 10*1024*1024 { // ten MiB
 			ss.ramFull = true
-		} else if sysinfo.Freeram > 12*1024*1024 { // 12 megabytes
+		} else if sysinfo.Freeram > 12*1024*1024 { // 12 MiB
 			ss.ramFull = false
 		}
 		// set we are full or not
@@ -900,7 +898,7 @@ func (ss *StrategyService) runIsFullTracking() {
 		}
 		ss.log.Debug("resources check",
 			zap.Uint64("free RAM, bytes", sysinfo.Freeram),
-			zap.Float64("load avg 5 scaled", loadAvgScaled),
+			zap.Float64("load avg 5 scaled", loadFiveMinAvgScaled),
 			zap.Float64("load avg 5", loadAvg.Load5),
 			zap.Int("cpu count", cpuCoresCount),
 		)

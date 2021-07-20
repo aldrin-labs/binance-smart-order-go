@@ -42,7 +42,7 @@ func (sm *SmartOrder) orderCallback(order *models.MongoOrder) {
 	sm.OrdersMux.Unlock()
 
 	sm.Strategy.GetLogger().Info("before firing CheckExistingOrders")
-	err := sm.State.Fire(CheckExistingOrders, *order)
+	err := sm.FireTrigger(CheckExistingOrders, *order)
 	// when checkExisitingOrders wasn't called
 	//if (currentState == Stoploss || currentState == End || (currentState == InEntry && model.State.StopLossAt > 0)) && order.Status == "filled" {
 	//	if order.Filled > 0 {
@@ -137,7 +137,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 					model.State.EntryPrice = order.Average
 				}
 
-				err := sm.State.Fire(TriggerAveragingEntryOrderExecuted)
+				err := sm.FireTrigger(TriggerAveragingEntryOrderExecuted)
 				if err != nil {
 					sm.Strategy.GetLogger().Warn("TriggerAveragingEntryOrderExecuted error",
 						zap.Error(err),
@@ -164,7 +164,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			}
 			if model.Conditions.MarketType == 0 {
 				amount = amount - sm.Strategy.GetModel().State.Commission
-				amount = sm.toFixed(amount, sm.QuantityAmountPrecision, Floor)
+				amount = sm.toFixed(amount, Floor)
 			}
 			sm.Strategy.GetLogger().Info("check for close",
 				zap.Bool("model.State.ExecutedAmount >= amount", model.State.ExecutedAmount >= amount),
@@ -205,7 +205,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 			amount := model.Conditions.EntryOrder.Amount
 			if model.Conditions.MarketType == 0 {
 				amount = amount - sm.Strategy.GetModel().State.Commission
-				amount = sm.toFixed(amount, sm.QuantityAmountPrecision, Floor)
+				amount = sm.toFixed(amount, Floor)
 			}
 			sm.calculateAndSavePNL(model, step, order.Filled)
 			sm.Strategy.GetLogger().Info("check for close",

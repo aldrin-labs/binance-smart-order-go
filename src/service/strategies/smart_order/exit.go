@@ -8,7 +8,7 @@ import (
 )
 
 func (sm *SmartOrder) exit(ctx context.Context, args ...interface{}) (stateless.State, error) {
-	state, _ := sm.State.State(context.TODO())
+	state, _ := sm.GetState(context.TODO())
 	nextState := End
 	model := sm.Strategy.GetModel()
 	amount := model.Conditions.EntryOrder.Amount
@@ -16,7 +16,7 @@ func (sm *SmartOrder) exit(ctx context.Context, args ...interface{}) (stateless.
 		amount = amount - sm.Strategy.GetModel().State.Commission
 	}
 
-	// TODO
+	//TODO:
 	// here we should handle case when:
 	// timeout started, state went to Stoploss but TakeProfit target executed so we go to End (coz this case not handled)
 	// {"level":"info","ts":1612872344.9915164,"caller":"smart_order/exit.go:18","msg":"exiting with","logger":"sm-60227a7a7aa73b63a13a700e","smart order state":"Stoploss","model state":"TakeProfit","executed amount":0.002,"conditions entry amount":0.004,"is executed amount >= amount in exit":false}

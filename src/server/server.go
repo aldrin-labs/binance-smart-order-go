@@ -23,7 +23,7 @@ var (
 
 func init() {
 	logger, _ := logging.GetZapLogger()
-	//TODO: handle error
+	//TODO: do we need to panic here?
 	log = logger.With(zap.String("logger", "srv"))
 }
 

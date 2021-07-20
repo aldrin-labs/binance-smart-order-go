@@ -60,7 +60,7 @@ const waitForSeconds = 5
 func (sm *SmartOrder) hedge() {
 	if sm.Strategy.GetModel().Conditions.MarketType == 1 && sm.Strategy.GetModel().Conditions.Hedging {
 		if !sm.Strategy.GetModel().Conditions.SkipInitialSetup {
-			//TODO: look into WHY is it done like that
+			//TODO: hack for binance hedge; should not work like that on all platforms
 			sm.ExchangeApi.SetHedgeMode(sm.Strategy.GetModel().AccountId, true)
 			time.Sleep(waitForSeconds * time.Second)
 		}
@@ -89,7 +89,7 @@ func (sm *SmartOrder) hedge() {
 
 func (sm *SmartOrder) hedgeCallback(winStrategy *models.MongoStrategy) {
 	if winStrategy.State != nil && winStrategy.State.ExitPrice > 0 {
-		err := sm.State.Fire(CheckHedgeLoss, *winStrategy)
+		err := sm.FireTrigger(CheckHedgeLoss, *winStrategy)
 		if err != nil {
 			// log.Print(err.Error())
 		}

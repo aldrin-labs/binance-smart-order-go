@@ -11,7 +11,7 @@ func (sm *SmartOrder) checkTimeouts() {
 	if sm.Strategy.GetModel().Conditions.WaitingEntryTimeout > 0 {
 		go func(iteration int) {
 			time.Sleep(time.Duration(sm.Strategy.GetModel().Conditions.WaitingEntryTimeout) * time.Second)
-			currentState, _ := sm.State.State(context.TODO())
+			currentState, _ := sm.GetState(context.TODO())
 			sm.Strategy.GetLogger().Info("", // TODO(khassanov): clarify it
 				zap.String("currentState ", currentState.(string)),
 				zap.Bool("sm.Lock", sm.Lock),
@@ -70,7 +70,7 @@ func (sm *SmartOrder) checkTimeouts() {
 					}
 				}
 
-				err := sm.State.Fire(TriggerTimeout)
+				err := sm.FireTrigger(TriggerTimeout)
 				if err != nil {
 					sm.Strategy.GetLogger().Warn("fire checkTimeout err",
 						zap.String("err", err.Error()),
@@ -87,10 +87,10 @@ func (sm *SmartOrder) checkTimeouts() {
 	if sm.Strategy.GetModel().Conditions.EntryOrder.ActivatePrice != 0 &&
 		sm.Strategy.GetModel().Conditions.ActivationMoveTimeout > 0 {
 		go func() {
-			currentState, _ := sm.State.State(context.TODO())
+			currentState, _ := sm.GetState(context.TODO())
 			for currentState == WaitForEntry && sm.Strategy.GetModel().Enabled {
 				time.Sleep(time.Duration(sm.Strategy.GetModel().Conditions.ActivationMoveTimeout) * time.Second)
-				currentState, _ = sm.State.State(context.TODO())
+				currentState, _ = sm.GetState(context.TODO())
 				if currentState == WaitForEntry && sm.Strategy.GetModel().Conditions.EntryOrder.ActivatePrice != 0 {
 					activatePrice := sm.Strategy.GetModel().Conditions.EntryOrder.ActivatePrice
 					side := sm.Strategy.GetModel().Conditions.EntryOrder.Side

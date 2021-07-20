@@ -13,10 +13,17 @@ import (
 	"time"
 )
 
-// GetStrategy instantiates strategy with resources created and given.
-func GetStrategy(cur *mongo.Cursor, df interfaces.IDataFeed, tr interfaces.ITrading, sm interfaces.IStateMgmt, createOrder interfaces.ICreateRequest, sd *statsd_client.StatsdClient) (*Strategy, error) {
+// GetStrategyByCursor instantiates strategy with resources created and given.
+func GetStrategyByCursor(cur *mongo.Cursor, df interfaces.IDataFeed, tr interfaces.ITrading, sm interfaces.IStateMgmt, createOrder interfaces.ICreateRequest, sd *statsd_client.StatsdClient) (*Strategy, error) {
 	var model models.MongoStrategy
 	err := cur.Decode(&model)
+	if err != nil {
+		return nil, err
+	}
+	return GetStrategy(&model, df, tr, sm, createOrder, sd), err
+}
+
+func GetStrategy(model *models.MongoStrategy, df interfaces.IDataFeed, tr interfaces.ITrading, sm interfaces.IStateMgmt, createOrder interfaces.ICreateRequest, sd *statsd_client.StatsdClient) *Strategy {
 	rs := redis.GetRedsync()
 	mutexName := fmt.Sprintf("strategy:%v:%v:%v", model.Conditions.MarketType, model.Conditions.Pair,
 		model.ID.Hex())
@@ -29,7 +36,7 @@ func GetStrategy(cur *mongo.Cursor, df interfaces.IDataFeed, tr interfaces.ITrad
 	loggerName := fmt.Sprintf("sm-%v", model.ID.Hex())
 	logger = logger.With(zap.String("logger", loggerName))
 	return &Strategy{
-		Model:           &model,
+		Model:           model,
 		SettlementMutex: mutex,
 		Datafeed:        df,
 		Trading:         tr,
@@ -37,7 +44,7 @@ func GetStrategy(cur *mongo.Cursor, df interfaces.IDataFeed, tr interfaces.ITrad
 		Statsd:          sd,
 		Singleton:       createOrder,
 		Log:             logger,
-	}, err
+	}
 }
 
 // A Strategy describes user defined rules to order trades and what are interfaces to execute these rules.

@@ -56,8 +56,8 @@ const (
 
 // A SmartOrder takes strategy to execute with context by the service runtime.
 type SmartOrder struct {
-	Strategy                interfaces.IStrategy // TODO(khassanov): can we use type instead of the interface here?
-	State                   *stateless.StateMachine
+	Strategy                interfaces.IStrategy
+	stateMachine                   *stateless.StateMachine
 	ExchangeName            string
 	KeyId                   *primitive.ObjectID
 	DataFeed                interfaces.IDataFeed
@@ -89,9 +89,9 @@ func round(num float64) int {
 	return int(num + math.Copysign(0.5, num))
 }
 
-// toFixed returns floating point number rounded to precision given to nearest, floor or ceil function.
-func (sm *SmartOrder) toFixed(n float64, precision int64, mode int) float64 {
-	rank := math.Pow(10, float64(precision))
+// toFixed returns value rounded to ceiling, floor or nearest number using smartOrder's QuantityAmountPrecision
+func (sm *SmartOrder) toFixed(n float64, mode int) float64 {
+	rank := math.Pow(10, float64(sm.QuantityAmountPrecision))
 	switch mode {
 	case Ceil:
 		return math.Ceil(n*rank) / rank
@@ -104,9 +104,10 @@ func (sm *SmartOrder) toFixed(n float64, precision int64, mode int) float64 {
 	}
 }
 
+const settlementMutexValidityDuration = 2 * time.Second
+
 // New instantiates new smart order with given strategy.
 func New(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed, TradingAPI interfaces.ITrading, Statsd interfaces.IStatsClient, keyId *primitive.ObjectID, stateMgmt interfaces.IStateMgmt) *SmartOrder {
-
 	sm := &SmartOrder{
 		Strategy:           strategy,
 		DataFeed:           DataFeed,
@@ -127,9 +128,9 @@ func New(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed, TradingAP
 	if strategy.GetModel().State != nil && strategy.GetModel().State.State != "" && !(strategy.GetModel().State.State == End && strategy.GetModel().Conditions.ContinueIfEnded == true) {
 		initState = strategy.GetModel().State.State
 	}
-	State := stateless.NewStateMachineWithMode(initState, 1) // TODO(khassanov): rename it, State is not a StateMachine
+	StateMachine := stateless.NewStateMachineWithMode(initState, 1)
 	// TODO(khassanov): prepare boilerplate state machine in package init and just copy it here
-	State.OnTransitioned(func(ctx context.Context, tr stateless.Transition) {
+	StateMachine.OnTransitioned(func(ctx context.Context, tr stateless.Transition) {
 		sm.Strategy.GetLogger().Info("sm state transition",
 			zap.String("trigger", fmt.Sprintf("%v", tr.Trigger)),
 			zap.String("source", fmt.Sprintf("%v", tr.Source)),
@@ -138,9 +139,9 @@ func New(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed, TradingAP
 	})
 
 	// define triggers and input types:
-	State.SetTriggerParameters(TriggerTrade, reflect.TypeOf(interfaces.OHLCV{}))
-	State.SetTriggerParameters(CheckExistingOrders, reflect.TypeOf(models.MongoOrder{}))
-	State.SetTriggerParameters(TriggerSpread, reflect.TypeOf(interfaces.SpreadData{}))
+	StateMachine.SetTriggerParameters(TriggerTrade, reflect.TypeOf(interfaces.OHLCV{}))
+	StateMachine.SetTriggerParameters(CheckExistingOrders, reflect.TypeOf(models.MongoOrder{}))
+	StateMachine.SetTriggerParameters(TriggerSpread, reflect.TypeOf(interfaces.SpreadData{}))
 
 	/*
 		Smart Order life cycle:
@@ -152,19 +153,19 @@ func New(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed, TradingAP
 			6) or stop-loss
 	*/
 
-	State.Configure(WaitForEntry).
+	StateMachine.Configure(WaitForEntry).
 		PermitDynamic(TriggerTrade, sm.exitWaitEntry, sm.checkWaitEntry).
 		PermitDynamic(TriggerSpread, sm.exitWaitEntry, sm.checkSpreadEntry).
 		PermitDynamic(CheckExistingOrders, sm.exitWaitEntry, sm.checkExistingOrders).
 		Permit(TriggerTimeout, Timeout).
 		OnEntry(sm.onStart)
 
-	State.Configure(TrailingEntry).
+	StateMachine.Configure(TrailingEntry).
 		Permit(TriggerTrade, InEntry, sm.checkTrailingEntry).
 		Permit(CheckExistingOrders, InEntry, sm.checkExistingOrders).
 		OnEntry(sm.enterTrailingEntry)
 
-	State.Configure(InEntry).
+	StateMachine.Configure(InEntry).
 		PermitDynamic(CheckProfitTrade, sm.exit, sm.checkProfit).
 		PermitDynamic(CheckTrailingProfitTrade, sm.exit, sm.checkTrailingProfit).
 		PermitDynamic(CheckLossTrade, sm.exit, sm.checkLoss).
@@ -172,15 +173,15 @@ func New(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed, TradingAP
 		PermitDynamic(CheckHedgeLoss, sm.exit, sm.checkLossHedge).
 		OnEntry(sm.enterEntry)
 
-	State.Configure(InMultiEntry).
+	StateMachine.Configure(InMultiEntry).
 		PermitDynamic(CheckExistingOrders, sm.exit, sm.checkExistingOrders).
 		PermitDynamic(TriggerAveragingEntryOrderExecuted, sm.enterMultiEntry)
 
-	State.Configure(WaitLossHedge).
+	StateMachine.Configure(WaitLossHedge).
 		PermitDynamic(CheckHedgeLoss, sm.exit, sm.checkLossHedge).
 		OnEntry(sm.enterWaitLossHedge)
 
-	State.Configure(TakeProfit).
+	StateMachine.Configure(TakeProfit).
 		PermitDynamic(CheckProfitTrade, sm.exit, sm.checkProfit).
 		PermitDynamic(CheckTrailingProfitTrade, sm.exit, sm.checkTrailingProfit).
 		PermitDynamic(CheckLossTrade, sm.exit, sm.checkLoss).
@@ -188,7 +189,7 @@ func New(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed, TradingAP
 		PermitDynamic(CheckHedgeLoss, sm.exit, sm.checkLossHedge).
 		OnEntry(sm.enterTakeProfit)
 
-	State.Configure(Stoploss).
+	StateMachine.Configure(Stoploss).
 		PermitDynamic(CheckProfitTrade, sm.exit, sm.checkProfit).
 		PermitDynamic(CheckTrailingProfitTrade, sm.exit, sm.checkTrailingProfit).
 		PermitDynamic(CheckLossTrade, sm.exit, sm.checkLoss).
@@ -196,33 +197,41 @@ func New(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed, TradingAP
 		PermitDynamic(CheckHedgeLoss, sm.exit, sm.checkLossHedge).
 		OnEntry(sm.enterStopLoss)
 
-	State.Configure(HedgeLoss).
+	StateMachine.Configure(HedgeLoss).
 		PermitDynamic(CheckTrailingLossTrade, sm.exit, sm.checkTrailingHedgeLoss).
 		PermitDynamic(CheckExistingOrders, sm.exit, sm.checkExistingOrders)
 
-	State.Configure(Timeout).
+	StateMachine.Configure(Timeout).
 		Permit(Restart, WaitForEntry)
 
-	State.Configure(End).
+	StateMachine.Configure(End).
 		PermitReentry(CheckExistingOrders, sm.checkExistingOrders).
 		OnEntry(sm.enterEnd)
 
-	_ = State.Activate()
+	_ = StateMachine.Activate()
 
-	sm.State = State
+	sm.stateMachine = StateMachine
 	sm.ExchangeName = sm.Strategy.GetModel().Conditions.Exchange
 	// The following piece commented creates a file at ./graph.dot with graphviz formatted state chart and also prints
 	// the same to stdout. Unfortunately I see it does not show PermitDymanic connections at least here at start.
-	// fmt.Printf(sm.State.ToGraph())
-	// graph := sm.State.ToGraph()
+	// fmt.Printf(sm.StateMachine.ToGraph())
+	// graph := sm.StateMachine.ToGraph()
 	// fd, _ := os.Create("./graph.dot")
 	// writer := bufio.NewWriter(fd)
 	// writer.WriteString(graph)
 	// writer.Flush()
-	// fmt.Println("State chart graph written to ./graph.dot")
+	// fmt.Println("StateMachine chart graph written to ./graph.dot")
 	// os.Exit(0)
 	_ = sm.onStart(nil)
 	return sm
+}
+
+func (sm *SmartOrder) FireTrigger(trigger string, args ...interface{}) error {
+	return sm.stateMachine.Fire(trigger, args...)
+}
+
+func (sm *SmartOrder) GetState(ctx context.Context) (stateless.State, error) {
+	return sm.stateMachine.State(ctx)
 }
 
 func (sm *SmartOrder) checkIfShouldCancelIfAnyActive() {
@@ -277,7 +286,7 @@ func (sm *SmartOrder) getLastTargetAmount() float64 {
 				}
 				baseAmount = sm.Strategy.GetModel().Conditions.EntryOrder.Amount * (baseAmount / 100)
 			}
-			baseAmount = sm.toFixed(baseAmount, sm.QuantityAmountPrecision, Floor)
+			baseAmount = sm.toFixed(baseAmount, Floor)
 			sumAmount += baseAmount
 		}
 	}
@@ -287,7 +296,7 @@ func (sm *SmartOrder) getLastTargetAmount() float64 {
 	// For instance if `endTargetAmount = 219.2 - 21.9`, you will get `197.29999999999998` instead of `197.3`.
 	// Bug report related: https://cryptocurrenciesai.slack.com/archives/CCSQNTQ4W/p1615040296128100
 	// We use Nearest because subtraction result may be slightly smaller or slightly bigger then true value.
-	endTargetAmount = sm.toFixed(endTargetAmount, sm.QuantityAmountPrecision, Nearest)
+	endTargetAmount = sm.toFixed(endTargetAmount, Nearest)
 
 	return endTargetAmount
 }
@@ -494,7 +503,7 @@ func (sm *SmartOrder) checkProfit(ctx context.Context, args ...interface{}) bool
 		if amount > 0 {
 			model.State.Amount = amount
 			model.State.State = TakeProfit
-			currentState, _ := sm.State.State(context.Background())
+			currentState, _ := sm.stateMachine.State(context.Background())
 			if currentState == TakeProfit {
 				model.State.State = EnterNextTarget
 				sm.StateMgmt.UpdateState(model.ID, model.State)
@@ -534,7 +543,7 @@ func (sm *SmartOrder) checkLoss(ctx context.Context, args ...interface{}) bool {
 	stopLoss := model.Conditions.StopLoss / model.Conditions.Leverage
 	forcedLoss := model.Conditions.ForcedLoss / model.Conditions.Leverage
 	currentState := model.State.State
-	stateFromStateMachine, _ := sm.State.State(ctx)
+	stateFromStateMachine, _ := sm.stateMachine.State(ctx)
 
 	// if we did not have time to go out to check existing orders (market)
 	if currentState == End || stateFromStateMachine == End {
@@ -683,7 +692,7 @@ func (sm *SmartOrder) enterStopLoss(ctx context.Context, args ...interface{}) er
 		// if timeout specified then do this sell on timeout
 		sm.Lock = false
 	}
-	_ = sm.State.Fire(CheckLossTrade, args[0])
+	_ = sm.stateMachine.Fire(CheckLossTrade, args[0])
 	return nil
 }
 
@@ -736,12 +745,12 @@ func (sm *SmartOrder) TryCancelAllOrders(orderIds []string) {
 func (sm *SmartOrder) Start() {
 	ctx := context.TODO()
 
-	state, _ := sm.State.State(context.Background())
+	state, _ := sm.stateMachine.State(context.Background())
 	localState := sm.Strategy.GetModel().State.State
 	sm.Statsd.Inc("smart_order.start")
 	var lastValidityCheckAt = time.Now().Add(-1 * time.Second)
 	for state != End && localState != End && state != Canceled && state != Timeout {
-		if time.Since(lastValidityCheckAt) > 2*time.Second { // TODO: remove magic number
+		if time.Since(lastValidityCheckAt) > settlementMutexValidityDuration {
 			sm.Strategy.GetLogger().Debug("settlement mutex validity check")
 			if valid, err := sm.Strategy.GetSettlementMutex().Valid(); !valid || err != nil {
 				sm.Strategy.GetLogger().Error("invalid settlement mutex, breaking event loop",
@@ -753,7 +762,7 @@ func (sm *SmartOrder) Start() {
 			lastValidityCheckAt = time.Now()
 		}
 		if sm.Strategy.GetModel().Enabled == false {
-			state, _ = sm.State.State(ctx)
+			state, _ = sm.stateMachine.State(ctx)
 			break
 		}
 		if !sm.Lock {
@@ -764,7 +773,7 @@ func (sm *SmartOrder) Start() {
 			}
 		}
 		time.Sleep(60 * time.Millisecond)
-		state, _ = sm.State.State(ctx)
+		state, _ = sm.stateMachine.State(ctx)
 		localState = sm.Strategy.GetModel().State.State
 	}
 	sm.Stop()
@@ -786,7 +795,7 @@ func (sm *SmartOrder) Stop() {
 	}
 
 	sm.StopLock = true
-	state, _ := sm.State.State(context.Background())
+	state, _ := sm.stateMachine.State(context.Background())
 
 	// cancel orders
 	if model.Conditions.MarketType == 0 && state != End {
@@ -854,7 +863,7 @@ func (sm *SmartOrder) Stop() {
 		sm.StateMgmt.UpdateState(model.ID, stateModel)
 		sm.StateMgmt.UpdateExecutedAmount(model.ID, stateModel)
 		sm.StateMgmt.SaveStrategyConditions(model)
-		_ = sm.State.Fire(Restart)
+		_ = sm.stateMachine.Fire(Restart)
 		//_ = sm.onStart(nil)
 		sm.Start()
 	}
@@ -873,25 +882,25 @@ func (sm *SmartOrder) processEventLoop() {
 	currentOHLCVp := sm.DataFeed.GetPriceForPairAtExchange(sm.Strategy.GetModel().Conditions.Pair, sm.ExchangeName, sm.Strategy.GetModel().Conditions.MarketType)
 	if currentOHLCVp != nil {
 		currentOHLCV := *currentOHLCVp
-		state, err := sm.State.State(context.TODO())
-		err = sm.State.FireCtx(context.TODO(), TriggerTrade, currentOHLCV)
+		state, err := sm.stateMachine.State(context.TODO())
+		err = sm.stateMachine.FireCtx(context.TODO(), TriggerTrade, currentOHLCV)
 		if err == nil {
 			return
 		}
 		if state == InEntry || state == TakeProfit || state == Stoploss || state == HedgeLoss {
-			err = sm.State.FireCtx(context.TODO(), CheckLossTrade, currentOHLCV)
+			err = sm.stateMachine.FireCtx(context.TODO(), CheckLossTrade, currentOHLCV)
 			if err == nil {
 				return
 			}
-			err = sm.State.FireCtx(context.TODO(), CheckProfitTrade, currentOHLCV)
+			err = sm.stateMachine.FireCtx(context.TODO(), CheckProfitTrade, currentOHLCV)
 			if err == nil {
 				return
 			}
-			err = sm.State.FireCtx(context.TODO(), CheckTrailingLossTrade, currentOHLCV)
+			err = sm.stateMachine.FireCtx(context.TODO(), CheckTrailingLossTrade, currentOHLCV)
 			if err == nil {
 				return
 			}
-			err = sm.State.FireCtx(context.TODO(), CheckTrailingProfitTrade, currentOHLCV)
+			err = sm.stateMachine.FireCtx(context.TODO(), CheckTrailingProfitTrade, currentOHLCV)
 			if err == nil {
 				return
 			}
@@ -907,29 +916,29 @@ func (sm *SmartOrder) processSpreadEventLoop() {
 		ohlcv := interfaces.OHLCV{
 			Close: currentSpread.BestBid,
 		}
-		state, err := sm.State.State(context.TODO())
-		err = sm.State.FireCtx(context.TODO(), TriggerSpread, currentSpread)
+		state, err := sm.stateMachine.State(context.TODO())
+		err = sm.stateMachine.FireCtx(context.TODO(), TriggerSpread, currentSpread)
 		if err == nil {
 			return
 		}
 		if state == InEntry || state == TakeProfit || state == Stoploss || state == HedgeLoss {
-			err = sm.State.FireCtx(context.TODO(), CheckSpreadProfitTrade, currentSpread)
+			err = sm.stateMachine.FireCtx(context.TODO(), CheckSpreadProfitTrade, currentSpread)
 			if err == nil {
 				return
 			}
-			err = sm.State.FireCtx(context.TODO(), CheckLossTrade, ohlcv)
+			err = sm.stateMachine.FireCtx(context.TODO(), CheckLossTrade, ohlcv)
 			if err == nil {
 				return
 			}
-			err = sm.State.FireCtx(context.TODO(), CheckProfitTrade, ohlcv)
+			err = sm.stateMachine.FireCtx(context.TODO(), CheckProfitTrade, ohlcv)
 			if err == nil {
 				return
 			}
-			err = sm.State.FireCtx(context.TODO(), CheckTrailingLossTrade, ohlcv)
+			err = sm.stateMachine.FireCtx(context.TODO(), CheckTrailingLossTrade, ohlcv)
 			if err == nil {
 				return
 			}
-			err = sm.State.FireCtx(context.TODO(), CheckTrailingProfitTrade, ohlcv)
+			err = sm.stateMachine.FireCtx(context.TODO(), CheckTrailingProfitTrade, ohlcv)
 			if err == nil {
 				return
 			}
