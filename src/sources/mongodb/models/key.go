@@ -7,3 +7,8 @@ type MongoKey struct {
 	ExchangeId *primitive.ObjectID `json:"exchangeId" bson:"exchangeId"`
 	HedgeMode  bool                `json:"hedgeMode" bson:"hedgeMode"`
 }
+
+type KeyAsset struct {
+	KeyId primitive.ObjectID `json:"keyId" bson:"keyId"`
+	Free  float64            `json:"free" bson:"free"`
+}

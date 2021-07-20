@@ -28,11 +28,11 @@ func init() {
 }
 
 func GetCollection(colName string) *mongo.Collection {
-	client := GetMongoClientInstance()
+	client := getMongoClientInstance()
 	return client.Database(os.Getenv("MONGODBNAME")).Collection(colName)
 }
 
-func GetMongoClientInstance() *mongo.Client {
+func getMongoClientInstance() *mongo.Client {
 	if mongoClient == nil {
 		url := os.Getenv("MONGODB")
 		isLocalBuild := os.Getenv("LOCAL") == "true"
@@ -395,6 +395,24 @@ func (sm *StateMgmt) GetOrderById(orderId *primitive.ObjectID) *models.MongoOrde
 	}
 	sm.Statsd.TimingDuration("state_mgmt.get_order_by_id", time.Since(t1))
 	return order
+}
+
+func (sm *StateMgmt)GetKeyAsset(collectionName string, keyAssetId *primitive.ObjectID) (models.KeyAsset, error) {
+	KeyAssets := GetCollection(collectionName)
+	var request bson.D
+	request = bson.D{
+		{"_id", keyAssetId},
+	}
+	log.Info("reading key asset document",
+		zap.String("keyAssetId", keyAssetId.String()),
+	)
+	ctx := context.Background()
+	var keyAsset models.KeyAsset
+	err := KeyAssets.FindOne(ctx, request).Decode(&keyAsset)
+	if err != nil {
+		return models.KeyAsset{}, err
+	}
+	return keyAsset, err
 }
 
 func (sm *StateMgmt) SaveStrategy(strategy *models.MongoStrategy) *models.MongoStrategy {

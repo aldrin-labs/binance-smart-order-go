@@ -15,6 +15,7 @@ type IStateMgmt interface {
 	GetPosition(strategyId *primitive.ObjectID, symbol string)
 	GetOrder(orderId string) *models.MongoOrder
 	GetOrderById(orderId *primitive.ObjectID) *models.MongoOrder
+	GetKeyAsset(collectionName string, key *primitive.ObjectID) (models.KeyAsset, error)
 	SubscribeToOrder(orderId string, onOrderStatusUpdate func(order *models.MongoOrder)) error
 	SubscribeToHedge(strategyId *primitive.ObjectID, onHedgeExitUpdate func(strategy *models.MongoStrategy)) error
 	DisableStrategy(strategyId *primitive.ObjectID)

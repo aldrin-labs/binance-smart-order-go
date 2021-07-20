@@ -1,14 +1,11 @@
 package strategies
 
 import (
-	"context"
 	"log"
 
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies/makeronly_order"
-	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
-	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -20,16 +17,8 @@ func RunMakerOnlyOrder(strategy *Strategy, df interfaces.IDataFeed, td interface
 		strategy.Model.Conditions.Leverage = 1
 	}
 	if keyId == nil {
-		KeyAssets := mongodb.GetCollection("core_key_assets") // TODO: move to statemgmt, avoid any direct dependecies here
-		keyAssetId := strategy.Model.Conditions.KeyAssetId.String()
-		var request bson.D
-		request = bson.D{
-			{"_id", strategy.Model.Conditions.KeyAssetId},
-		}
-		log.Print(keyAssetId)
-		ctx := context.Background()
-		var keyAsset KeyAsset
-		err := KeyAssets.FindOne(ctx, request).Decode(&keyAsset)
+		keyAsset, err := strategy.StateMgmt.GetKeyAsset("core_key_assets", strategy.Model.Conditions.KeyAssetId) // TODO: move to statemgmt, avoid any direct dependecies here
+
 		if err != nil {
 			log.Print("keyAssetsCursor", err.Error())
 		}

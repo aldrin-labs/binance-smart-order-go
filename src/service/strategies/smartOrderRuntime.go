@@ -1,22 +1,14 @@
 package strategies
 
 import (
-	"context"
 	"fmt"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/strategies/smart_order"
-	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
-	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 	"time"
 )
-
-type KeyAsset struct {
-	KeyId primitive.ObjectID `json:"keyId" bson:"keyId"`
-	Free  float64            `json:"free" bson:"free"`
-}
 
 // RunSmartOrder starts a runtime for the strategy with given interfaces to market data and trading API.
 func RunSmartOrder(strategy *Strategy, df interfaces.IDataFeed, td interfaces.ITrading, st interfaces.IStatsClient, keyId *primitive.ObjectID) interfaces.IStrategyRuntime {
@@ -28,25 +20,14 @@ func RunSmartOrder(strategy *Strategy, df interfaces.IDataFeed, td interfaces.IT
 		strategy.Model.Conditions.Leverage = 1
 	}
 	if keyId == nil || strategy.Model.Conditions.EntryOrder.Type == 1 {
-		KeyAssets := mongodb.GetCollection("core_key_assets") // TODO: move to statemgmt, avoid any direct dependecies here
-		keyAssetId := strategy.Model.Conditions.KeyAssetId.String()
-		var request bson.D
-		request = bson.D{
-			{"_id", strategy.Model.Conditions.KeyAssetId},
-		}
-		strategy.Log.Info("reading key asset document",
-			zap.String("keyAssetId", keyAssetId),
-		)
-		ctx := context.Background()
-		var keyAsset KeyAsset
-		err := KeyAssets.FindOne(ctx, request).Decode(&keyAsset)
+		keyAsset, err := strategy.StateMgmt.GetKeyAsset("core_key_assets", strategy.Model.Conditions.KeyAssetId)
+
 		if err != nil {
 			strategy.Log.Error("can't find a key asset",
 				zap.String("key asset", fmt.Sprintf("%+v", keyAsset)),
 				zap.String("cursor err", err.Error()),
 			)
 		}
-		keyId = &keyAsset.KeyId
 
 		// type 1 for entry point - relative amount
 		DetermineRelativeEntryAmount(strategy, keyAsset, df) // TODO(khassanov): call for relative only
@@ -82,7 +63,7 @@ func RunSmartOrder(strategy *Strategy, df interfaces.IDataFeed, td interfaces.IT
 	return runtime
 }
 
-func DetermineRelativeEntryAmount(strategy *Strategy, keyAsset KeyAsset, df interfaces.IDataFeed) {
+func DetermineRelativeEntryAmount(strategy *Strategy, keyAsset models.KeyAsset, df interfaces.IDataFeed) {
 	if strategy.Model.Conditions.EntryOrder.Type == 1 {
 		percentageOfBalance := strategy.Model.Conditions.EntryOrder.Amount
 		margin := keyAsset.Free / 100 * percentageOfBalance
