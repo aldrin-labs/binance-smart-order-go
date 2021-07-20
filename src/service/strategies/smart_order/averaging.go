@@ -26,17 +26,7 @@ func (sm *SmartOrder) placeMultiEntryOrders(stopLoss bool) {
 	for i, target := range model.Conditions.EntryLevels {
 		currentAmount := 0.0
 
-		if target.Type == 0 {
-			currentAmount = target.Amount
-			currentPrice = target.Price
-		} else {
-			currentAmount = model.Conditions.EntryOrder.Amount / 100 * target.Amount
-			if model.Conditions.EntryOrder.Side == "buy" {
-				currentPrice = currentPrice * (100 - target.Price/model.Conditions.Leverage) / 100
-			} else {
-				currentPrice = currentPrice * (100 + target.Price/model.Conditions.Leverage) / 100
-			}
-		}
+		currentAmount, currentPrice = getEntryPointAmountPrice(target, currentPrice, model)
 
 		if i == len(model.Conditions.EntryLevels) - 1 {
 			currentAmount = model.Conditions.EntryOrder.Amount - sumAmount
@@ -59,7 +49,55 @@ func (sm *SmartOrder) placeMultiEntryOrders(stopLoss bool) {
 	// TODO, for averaging without placeEntryAfterTAP
 	// we should replace stop loss if it's simple avg without placeEntryAfterTAP
 	// coz it may affect on existing position by amount > left from entry targets
+}
 
+func (sm *SmartOrder) getAveragingEntryAmount(model *models.MongoStrategy, executedTargets int) float64 {
+	amount := 0.0
+	for i, target := range model.Conditions.EntryLevels {
+		if i <= executedTargets {
+			amount += getEntryPointAmount(target, model.Conditions.EntryOrder.Amount)
+		}
+		///TODO: this looks like a smell (and it's mine) but can't find a proper way
+		if i == len(model.Conditions.EntryLevels) - 1 {
+			amount = model.Conditions.EntryOrder.Amount - amount
+		}
+	}
+	return amount
+}
+
+func (sm *SmartOrder) getLastTargetPrice(model *models.MongoStrategy) float64 {
+	currentPrice := 0.0
+	for i, target := range model.Conditions.EntryLevels {
+		// executed target
+		if i <= sm.SelectedEntryTarget {
+			currentPrice = model.State.EntryPrice
+		} else {
+			// target that will be executed (placed already)
+			currentPrice = getEntryPointPrice(target, model.Conditions.EntryOrder.Side, currentPrice, model.Conditions.Leverage)
+		}
+	}
+	return currentPrice
+}
+
+func getEntryPointAmount(target *models.MongoEntryPoint, entryOrderAmount float64) float64 {
+	if target.Type == 0 {
+		return target.Amount
+	}
+	return entryOrderAmount / 100 * target.Amount
+}
+
+func getEntryPointPrice(target *models.MongoEntryPoint, side string, price float64, leverage float64) float64 {
+	if target.Type == 0 {
+		return target.Price
+	}
+	if side == "buy" {
+		return price * (100 - target.Price/leverage) / 100
+	}
+	return price * (100 + target.Price/leverage) / 100
+}
+
+func getEntryPointAmountPrice(target *models.MongoEntryPoint, price float64, model *models.MongoStrategy) (float64, float64) {
+	return getEntryPointAmount(target, model.Conditions.EntryOrder.Amount), getEntryPointPrice(target, model.Conditions.EntryOrder.Side, price, model.Conditions.Leverage)
 }
 
 // enterMultiEntry executes once multiEntryOrder got executed
@@ -104,38 +142,3 @@ func (sm *SmartOrder) enterMultiEntry(ctx context.Context, args ...interface{}) 
 	return InMultiEntry, nil
 }
 
-func (sm *SmartOrder) getAveragingEntryAmount(model *models.MongoStrategy, executedTargets int) float64 {
-	baseAmount := 0.0
-	for i, target := range model.Conditions.EntryLevels {
-		if i <= executedTargets {
-			if target.Type == 0 {
-				baseAmount += target.Amount
-			} else {
-				baseAmount += target.Amount * model.Conditions.EntryOrder.Amount / 100
-			}
-		}
-	}
-	return baseAmount
-}
-
-func (sm *SmartOrder) getLastTargetPrice(model *models.MongoStrategy) float64 {
-	currentPrice := 0.0
-	for i, target := range model.Conditions.EntryLevels {
-		// executed target
-		if i <= sm.SelectedEntryTarget {
-			currentPrice = model.State.EntryPrice
-		} else {
-			// target that will be executed (placed already)
-			if target.Type == 0 {
-				currentPrice = target.Price
-			} else {
-				if model.Conditions.EntryOrder.Side == "buy" {
-					currentPrice = currentPrice * (100 - target.Price/model.Conditions.Leverage) / 100
-				} else {
-					currentPrice = currentPrice * (100 + target.Price/model.Conditions.Leverage) / 100
-				}
-			}
-		}
-	}
-	return currentPrice
-}

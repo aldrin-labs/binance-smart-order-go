@@ -3,6 +3,7 @@ package smart_order
 import (
 	"context"
 	"fmt"
+	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
 	"gitlab.com/crypto_project/core/strategy_service/src/trading/orders"
 	"go.uber.org/zap"
 	"strings"
@@ -488,6 +489,32 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 	}
 
 	// Call trading API with retries
+	sm.callTradingAPI(baseAmount, orderPrice,
+		orderType, isSpot, step, model,
+		ifShouldCancelPreviousOrder, isTrailingHedgeOrder, side,
+		reduceOnly, stopPrice, frequency, advancedOrderType,
+		attemptsToPlaceOrder, recursiveCall, price, leverage)
+}
+
+func (sm *SmartOrder) callTradingAPI(
+	baseAmount float64,
+	orderPrice float64,
+	orderType string,
+	isSpot bool,
+	step string,
+	model *models.MongoStrategy,
+	ifShouldCancelPreviousOrder bool,
+	isTrailingHedgeOrder bool,
+	side string,
+	reduceOnly bool,
+	stopPrice float64,
+	frequency float64,
+	advancedOrderType string,
+	attemptsToPlaceOrder int,
+	recursiveCall bool,
+	price float64,
+	leverage float64,
+) {
 	for {
 		if baseAmount == 0 || orderType == "limit" && orderPrice == 0 {
 			return
