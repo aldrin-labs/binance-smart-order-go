@@ -436,7 +436,7 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 		// model.State.ExecutedAmount += amount
 		break
 	case Canceled:
-		currentState, _ := sm.GetState(context.TODO())
+		currentState, _ := sm.stateMachine.State(context.TODO())
 		thereIsNoEntryToExit := (currentState == WaitForEntry && model.State.Amount == 0) || currentState == TrailingEntry ||
 			currentState == End || model.State.ExecutedAmount >= model.Conditions.EntryOrder.Amount
 
@@ -475,8 +475,8 @@ func (sm *SmartOrder) PlaceOrder(price, amount float64, step string) {
 		zap.Float64("orderPrice", orderPrice),
 		zap.String("step", step),
 	)
-	baseAmount = sm.toFixed(baseAmount, Floor)
-	orderPrice = sm.toFixed(orderPrice, Nearest)
+	baseAmount = sm.toFixedAmount(baseAmount, Floor)
+	orderPrice = sm.toFixedPrice(orderPrice, Nearest)
 	sm.Strategy.GetLogger().Info("after rounding",
 		zap.Float64("baseAmount", baseAmount),
 		zap.Float64("orderPrice", orderPrice),

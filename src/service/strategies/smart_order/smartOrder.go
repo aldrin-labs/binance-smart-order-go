@@ -56,18 +56,18 @@ const (
 
 // A SmartOrder takes strategy to execute with context by the service runtime.
 type SmartOrder struct {
-	Strategy                interfaces.IStrategy
-	stateMachine                   *stateless.StateMachine
-	ExchangeName            string
-	KeyId                   *primitive.ObjectID
-	DataFeed                interfaces.IDataFeed
-	ExchangeApi             interfaces.ITrading
-	Statsd                  interfaces.IStatsClient
-	StateMgmt               interfaces.IStateMgmt
-	IsWaitingForOrder       sync.Map // TODO: this must be filled on start of SM if not first start (e.g. restore the state by checking order statuses)
-	IsEntryOrderPlaced      bool     // we need it for case when response from createOrder was returned after entryTimeout was executed
-	OrdersMap               map[string]bool
-	StatusByOrderId         sync.Map
+	Strategy           interfaces.IStrategy
+	stateMachine       *stateless.StateMachine
+	ExchangeName       string
+	KeyId              *primitive.ObjectID
+	DataFeed           interfaces.IDataFeed
+	ExchangeApi        interfaces.ITrading
+	Statsd             interfaces.IStatsClient
+	StateMgmt          interfaces.IStateMgmt
+	IsWaitingForOrder  sync.Map // TODO: this must be filled on start of SM if not first start (e.g. restore the state by checking order statuses)
+	IsEntryOrderPlaced bool     // we need it for case when response from createOrder was returned after entryTimeout was executed
+	OrdersMap          map[string]bool
+	StatusByOrderId    sync.Map
 	QuantityAmountPrecision int64
 	QuantityPricePrecision  int64
 	Lock                    bool
@@ -89,9 +89,17 @@ func round(num float64) int {
 	return int(num + math.Copysign(0.5, num))
 }
 
+func (sm *SmartOrder) toFixedAmount(n float64, mode int) float64 {
+	return toFixed(n, sm.QuantityAmountPrecision, mode)
+}
+
+func (sm *SmartOrder) toFixedPrice(n float64, mode int) float64 {
+	return toFixed(n, sm.QuantityPricePrecision, mode)
+}
+
 // toFixed returns value rounded to ceiling, floor or nearest number using smartOrder's QuantityAmountPrecision
-func (sm *SmartOrder) toFixed(n float64, mode int) float64 {
-	rank := math.Pow(10, float64(sm.QuantityAmountPrecision))
+func toFixed(n float64, precision int64, mode int) float64 {
+	rank := math.Pow(10, float64(precision))
 	switch mode {
 	case Ceil:
 		return math.Ceil(n*rank) / rank
@@ -290,7 +298,7 @@ func (sm *SmartOrder) getLastTargetAmount() float64 {
 				}
 				baseAmount = sm.Strategy.GetModel().Conditions.EntryOrder.Amount * (baseAmount / 100)
 			}
-			baseAmount = sm.toFixed(baseAmount, Floor)
+			baseAmount = sm.toFixedAmount(baseAmount, Floor)
 			sumAmount += baseAmount
 		}
 	}
@@ -300,7 +308,7 @@ func (sm *SmartOrder) getLastTargetAmount() float64 {
 	// For instance if `endTargetAmount = 219.2 - 21.9`, you will get `197.29999999999998` instead of `197.3`.
 	// Bug report related: https://cryptocurrenciesai.slack.com/archives/CCSQNTQ4W/p1615040296128100
 	// We use Nearest because subtraction result may be slightly smaller or slightly bigger then true value.
-	endTargetAmount = sm.toFixed(endTargetAmount, Nearest)
+	endTargetAmount = sm.toFixedAmount(endTargetAmount, Nearest)
 
 	return endTargetAmount
 }

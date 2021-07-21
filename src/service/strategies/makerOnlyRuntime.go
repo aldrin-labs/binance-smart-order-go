@@ -19,7 +19,7 @@ func RunMakerOnlyOrder(strategy *Strategy, df interfaces.IDataFeed, td interface
 	if keyId == nil {
 		keyAsset, err := strategy.StateMgmt.GetKeyAsset("core_key_assets", strategy.Model.Conditions.KeyAssetId) // TODO: move to statemgmt, avoid any direct dependecies here
 
-		if err != nil {
+		if keyAsset == nil || err != nil {
 			log.Print("keyAssetsCursor", err.Error())
 		}
 		keyId = &keyAsset.KeyId

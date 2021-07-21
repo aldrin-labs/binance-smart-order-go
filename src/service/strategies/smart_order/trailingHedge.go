@@ -89,7 +89,7 @@ func (sm *SmartOrder) hedge() {
 
 func (sm *SmartOrder) hedgeCallback(winStrategy *models.MongoStrategy) {
 	if winStrategy.State != nil && winStrategy.State.ExitPrice > 0 {
-		err := sm.FireTrigger(CheckHedgeLoss, *winStrategy)
+		err := sm.stateMachine.Fire(CheckHedgeLoss, *winStrategy)
 		if err != nil {
 			// log.Print(err.Error())
 		}

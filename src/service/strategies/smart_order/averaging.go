@@ -31,7 +31,7 @@ func (sm *SmartOrder) placeMultiEntryOrders(stopLoss bool) {
 		if i == len(model.Conditions.EntryLevels) - 1 {
 			currentAmount = model.Conditions.EntryOrder.Amount - sumAmount
 		}
-		currentAmount = sm.toFixed(currentAmount, Floor)
+		currentAmount = sm.toFixedAmount(currentAmount, Floor)
 
 		go sm.PlaceOrder(currentPrice, currentAmount, WaitForEntry)
 
@@ -55,11 +55,11 @@ func (sm *SmartOrder) getAveragingEntryAmount(model *models.MongoStrategy, execu
 	amount := 0.0
 	for i, target := range model.Conditions.EntryLevels {
 		if i <= executedTargets {
-			amount += getEntryPointAmount(target, model.Conditions.EntryOrder.Amount)
+			amount += sm.toFixedAmount(getEntryPointAmount(target, model.Conditions.EntryOrder.Amount), Floor)
 		}
 		///TODO: this looks like a smell (and it's mine) but can't find a proper way
 		if i == len(model.Conditions.EntryLevels) - 1 {
-			amount = model.Conditions.EntryOrder.Amount - amount
+			amount = model.Conditions.EntryOrder.Amount
 		}
 	}
 	return amount

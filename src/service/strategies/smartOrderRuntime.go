@@ -30,7 +30,7 @@ func RunSmartOrder(strategy *Strategy, df interfaces.IDataFeed, td interfaces.IT
 		}
 
 		// type 1 for entry point - relative amount
-		DetermineRelativeEntryAmount(strategy, keyAsset, df) // TODO(khassanov): call for relative only
+		DetermineRelativeEntryAmount(strategy, *keyAsset, df) // TODO(khassanov): call for relative only
 	}
 
 	if strategy.Model.Conditions.MarketType == 1 && !strategy.Model.Conditions.SkipInitialSetup {

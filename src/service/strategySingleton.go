@@ -902,6 +902,6 @@ func (ss *StrategyService) runIsFullTracking() {
 			zap.Float64("load avg 5", loadAvg.Load5),
 			zap.Int("cpu count", cpuCoresCount),
 		)
-		time.Sleep(1 * time.Second)
+		time.Sleep(15 * time.Second)
 	}
 }

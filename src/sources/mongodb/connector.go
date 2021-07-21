@@ -397,7 +397,7 @@ func (sm *StateMgmt) GetOrderById(orderId *primitive.ObjectID) *models.MongoOrde
 	return order
 }
 
-func (sm *StateMgmt)GetKeyAsset(collectionName string, keyAssetId *primitive.ObjectID) (models.KeyAsset, error) {
+func (sm *StateMgmt)GetKeyAsset(collectionName string, keyAssetId *primitive.ObjectID) (*models.KeyAsset, error) {
 	KeyAssets := GetCollection(collectionName)
 	var request bson.D
 	request = bson.D{
@@ -410,9 +410,9 @@ func (sm *StateMgmt)GetKeyAsset(collectionName string, keyAssetId *primitive.Obj
 	var keyAsset models.KeyAsset
 	err := KeyAssets.FindOne(ctx, request).Decode(&keyAsset)
 	if err != nil {
-		return models.KeyAsset{}, err
+		return nil, err
 	}
-	return keyAsset, err
+	return &keyAsset, err
 }
 
 func (sm *StateMgmt) SaveStrategy(strategy *models.MongoStrategy) *models.MongoStrategy {
