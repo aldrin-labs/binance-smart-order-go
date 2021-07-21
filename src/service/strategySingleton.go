@@ -32,17 +32,17 @@ import (
 
 // A StrategyService singleton, the root for smart trades runtimes.
 type StrategyService struct {
-	pairs      map[int8]map[string]struct{} // spot and futures pairs
-	strategies map[string]*strategies.Strategy
-	trading    interfaces.ITrading
-	dataFeed   interfaces.IDataFeed
-	dataFeedSerum   interfaces.IDataFeed
-	stateMgmt  interfaces.IStateMgmt
-	statsd     statsd_client.StatsdClient
-	log        interfaces.ILogger
-	full       bool // indicates whether an instance full or can take more strategies
-	ramFull    bool // indicates close to RAM limit
-	cpuFull    bool // indicates out of CPU usage limit
+	pairs         map[int8]map[string]struct{} // spot and futures pairs
+	strategies    map[string]*strategies.Strategy
+	trading       interfaces.ITrading
+	dataFeed      interfaces.IDataFeed
+	dataFeedSerum interfaces.IDataFeed
+	stateMgmt     interfaces.IStateMgmt
+	statsd        statsd_client.StatsdClient
+	log           interfaces.ILogger
+	full          bool // indicates whether an instance full or can take more strategies
+	ramFull       bool // indicates close to RAM limit
+	cpuFull       bool // indicates out of CPU usage limit
 }
 
 var singleton *StrategyService
@@ -62,7 +62,7 @@ func GetStrategyService() *StrategyService {
 		statsd.Init()
 		sm := mongodb.StateMgmt{Statsd: &statsd}
 		singleton = &StrategyService{
-			pairs:      map[int8]map[string]struct{}{0: map[string]struct{}{}, 1: map[string]struct{}{}},
+			pairs:      map[int8]map[string]struct{}{0: {}, 1: {}},
 			strategies: map[string]*strategies.Strategy{},
 			dataFeed:   df,
 			trading:    tr,
@@ -845,6 +845,7 @@ func (ss *StrategyService) setPairs(ctx context.Context, collection *mongo.Colle
 }
 
 const maxCPUScaledAverage = 12.0
+
 //TODO: change whole metric to something more precise
 // also might need to find some sweet spot, as 12% per core seems kinda low
 

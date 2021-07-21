@@ -38,36 +38,36 @@ const (
 )
 
 const (
-	TriggerTrade             = "Trade"
-	TriggerSpread            = "Spread"
+	TriggerTrade                       = "Trade"
+	TriggerSpread                      = "Spread"
 	TriggerAveragingEntryOrderExecuted = "TriggerAveragingEntryOrderExecuted"
-	TriggerOrderExecuted     = "TriggerOrderExecuted"
-	CheckExistingOrders      = "CheckExistingOrders"
-	CheckHedgeLoss           = "CheckHedgeLoss"
-	CheckProfitTrade         = "CheckProfitTrade"
-	CheckTrailingProfitTrade = "CheckTrailingProfitTrade"
-	CheckTrailingLossTrade   = "CheckTrailingLossTrade"
-	CheckSpreadProfitTrade   = "CheckSpreadProfitTrade"
-	CheckLossTrade           = "CheckLossTrade"
-	Restart                  = "Restart"
-	ReEntry                  = "ReEntry"
-	TriggerTimeout           = "TriggerTimeout"
+	TriggerOrderExecuted               = "TriggerOrderExecuted"
+	CheckExistingOrders                = "CheckExistingOrders"
+	CheckHedgeLoss                     = "CheckHedgeLoss"
+	CheckProfitTrade                   = "CheckProfitTrade"
+	CheckTrailingProfitTrade           = "CheckTrailingProfitTrade"
+	CheckTrailingLossTrade             = "CheckTrailingLossTrade"
+	CheckSpreadProfitTrade             = "CheckSpreadProfitTrade"
+	CheckLossTrade                     = "CheckLossTrade"
+	Restart                            = "Restart"
+	ReEntry                            = "ReEntry"
+	TriggerTimeout                     = "TriggerTimeout"
 )
 
 // A SmartOrder takes strategy to execute with context by the service runtime.
 type SmartOrder struct {
-	Strategy           interfaces.IStrategy
-	stateMachine       *stateless.StateMachine
-	ExchangeName       string
-	KeyId              *primitive.ObjectID
-	DataFeed           interfaces.IDataFeed
-	ExchangeApi        interfaces.ITrading
-	Statsd             interfaces.IStatsClient
-	StateMgmt          interfaces.IStateMgmt
-	IsWaitingForOrder  sync.Map // TODO: this must be filled on start of SM if not first start (e.g. restore the state by checking order statuses)
-	IsEntryOrderPlaced bool     // we need it for case when response from createOrder was returned after entryTimeout was executed
-	OrdersMap          map[string]bool
-	StatusByOrderId    sync.Map
+	Strategy                interfaces.IStrategy
+	stateMachine            *stateless.StateMachine
+	ExchangeName            string
+	KeyId                   *primitive.ObjectID
+	DataFeed                interfaces.IDataFeed
+	ExchangeApi             interfaces.ITrading
+	Statsd                  interfaces.IStatsClient
+	StateMgmt               interfaces.IStateMgmt
+	IsWaitingForOrder       sync.Map // TODO: this must be filled on start of SM if not first start (e.g. restore the state by checking order statuses)
+	IsEntryOrderPlaced      bool     // we need it for case when response from createOrder was returned after entryTimeout was executed
+	OrdersMap               map[string]bool
+	StatusByOrderId         sync.Map
 	QuantityAmountPrecision int64
 	QuantityPricePrecision  int64
 	Lock                    bool

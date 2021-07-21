@@ -652,23 +652,23 @@ func (sm *SmartOrder) callTradingAPI(
 				//	time.Sleep(time.Second * 5)
 				//	continue
 				//}
-				if checkResponseNeedsWait(response.Data.Msg, "Key is processing", attemptsToPlaceOrder, 1, time.Minute * 1) {
+				if checkResponseNeedsWait(response.Data.Msg, "Key is processing", attemptsToPlaceOrder, 1, time.Minute*1) {
 					attemptsToPlaceOrder++
 					continue
 				}
-				if checkResponseNeedsWait(response.Data.Msg, "position side does not match", attemptsToPlaceOrder, 3, time.Second * 5){
+				if checkResponseNeedsWait(response.Data.Msg, "position side does not match", attemptsToPlaceOrder, 3, time.Second*5) {
 					attemptsToPlaceOrder++
 					continue
 				}
-				if checkResponseNeedsWait(response.Data.Msg, "invalid json", attemptsToPlaceOrder, 3, time.Second * 2) {
+				if checkResponseNeedsWait(response.Data.Msg, "invalid json", attemptsToPlaceOrder, 3, time.Second*2) {
 					attemptsToPlaceOrder++
 					continue
 				}
-				if checkResponseNeedsWait(response.Data.Msg, "ReduceOnly Order Failed", attemptsToPlaceOrder, 3, time.Second * 5) {
+				if checkResponseNeedsWait(response.Data.Msg, "ReduceOnly Order Failed", attemptsToPlaceOrder, 3, time.Second*5) {
 					attemptsToPlaceOrder++
 					continue
 				}
-				if checkResponseNeedsWait(response.Data.Msg, "Cannot read property 'text' of undefined", attemptsToPlaceOrder, 3, time.Second * 5) {
+				if checkResponseNeedsWait(response.Data.Msg, "Cannot read property 'text' of undefined", attemptsToPlaceOrder, 3, time.Second*5) {
 					attemptsToPlaceOrder++
 					continue
 				}

@@ -28,7 +28,7 @@ func (sm *SmartOrder) placeMultiEntryOrders(stopLoss bool) {
 
 		currentAmount, currentPrice = getEntryPointAmountPrice(target, currentPrice, model)
 
-		if i == len(model.Conditions.EntryLevels) - 1 {
+		if i == len(model.Conditions.EntryLevels)-1 {
 			currentAmount = model.Conditions.EntryOrder.Amount - sumAmount
 		}
 		currentAmount = sm.toFixedAmount(currentAmount, Floor)
@@ -58,7 +58,7 @@ func (sm *SmartOrder) getAveragingEntryAmount(model *models.MongoStrategy, execu
 			amount += sm.toFixedAmount(getEntryPointAmount(target, model.Conditions.EntryOrder.Amount), Floor)
 		}
 		///TODO: this looks like a smell (and it's mine) but can't find a proper way
-		if i == len(model.Conditions.EntryLevels) - 1 {
+		if i == len(model.Conditions.EntryLevels)-1 {
 			amount = model.Conditions.EntryOrder.Amount
 		}
 	}
@@ -135,4 +135,3 @@ func (sm *SmartOrder) enterMultiEntry(ctx context.Context, args ...interface{}) 
 	sm.StopMux.Unlock()
 	return InMultiEntry, nil
 }
-

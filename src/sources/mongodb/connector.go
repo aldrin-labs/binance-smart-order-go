@@ -23,7 +23,7 @@ var mongoClient *mongo.Client
 var log interfaces.ILogger
 
 func init() {
-	logger, _:= logging.GetZapLogger()
+	logger, _ := logging.GetZapLogger()
 	log = logger.With(zap.String("logger", "srcMongo"))
 }
 
@@ -141,10 +141,10 @@ func (sm *StateMgmt) EnableStrategy(strategyId *primitive.ObjectID) {
 	update = bson.D{
 		{
 			"$set", bson.D{
-				{
-					"enabled", true,
-				},
+			{
+				"enabled", true,
 			},
+		},
 		},
 	}
 	_, err := col.UpdateOne(context.TODO(), request, update)
@@ -168,10 +168,10 @@ func (sm *StateMgmt) DisableStrategy(strategyId *primitive.ObjectID) {
 	update = bson.D{
 		{
 			"$set", bson.D{
-				{
-					"enabled", false,
-				},
+			{
+				"enabled", false,
 			},
+		},
 		},
 	}
 	_, err := col.UpdateOne(context.TODO(), request, update)
@@ -397,7 +397,7 @@ func (sm *StateMgmt) GetOrderById(orderId *primitive.ObjectID) *models.MongoOrde
 	return order
 }
 
-func (sm *StateMgmt)GetKeyAsset(collectionName string, keyAssetId *primitive.ObjectID) (*models.KeyAsset, error) {
+func (sm *StateMgmt) GetKeyAsset(collectionName string, keyAssetId *primitive.ObjectID) (*models.KeyAsset, error) {
 	KeyAssets := GetCollection(collectionName)
 	var request bson.D
 	request = bson.D{
@@ -502,10 +502,10 @@ func (sm *StateMgmt) UpdateConditions(strategyId *primitive.ObjectID, state *mod
 	update = bson.D{
 		{
 			"$set", bson.D{
-				{
-					"conditions", state,
-				},
+			{
+				"conditions", state,
 			},
+		},
 		},
 	}
 	_, err := col.UpdateOne(context.TODO(), request, update)
@@ -642,7 +642,7 @@ func (sm *StateMgmt) UpdateOrders(strategyId *primitive.ObjectID, state *models.
 	if state.Orders != nil && len(state.Orders) > 0 {
 		var ordersUpdate bson.E
 		ordersUpdate = bson.E{
-			Key: "state.orders",
+			Key:   "state.orders",
 			Value: bson.D{{"$each", state.Orders}},
 		}
 		update[0].Value = append(update[0].Value.(bson.D), ordersUpdate)
@@ -650,7 +650,7 @@ func (sm *StateMgmt) UpdateOrders(strategyId *primitive.ObjectID, state *models.
 	if state.ExecutedOrders != nil && len(state.ExecutedOrders) > 0 {
 		var executedOrdersUpdate bson.E
 		executedOrdersUpdate = bson.E{
-			Key: "state.executedOrders",
+			Key:   "state.executedOrders",
 			Value: bson.D{{"$each", state.ExecutedOrders}},
 		}
 		update[0].Value = append(update[0].Value.(bson.D), executedOrdersUpdate)
@@ -696,16 +696,16 @@ func (sm *StateMgmt) UpdateEntryPrice(strategyId *primitive.ObjectID, state *mod
 	update = bson.D{
 		{
 			"$set", bson.D{
-				{
-					"state.entryPrice", state.EntryPrice,
-				},
-				{
-					"state.state", state.State,
-				},
-				{
-					"state.positionAmount", state.PositionAmount,
-				},
+			{
+				"state.entryPrice", state.EntryPrice,
 			},
+			{
+				"state.state", state.State,
+			},
+			{
+				"state.positionAmount", state.PositionAmount,
+			},
+		},
 		},
 	}
 	updated, err := col.UpdateOne(context.TODO(), request, update)
@@ -749,13 +749,13 @@ func (sm *StateMgmt) UpdateHedgeExitPrice(strategyId *primitive.ObjectID, state 
 	update = bson.D{
 		{
 			"$set", bson.D{
-				{
-					"state.hedgeExitPrice", state.HedgeExitPrice,
-				},
-				{
-					"state.state", state.State,
-				},
+			{
+				"state.hedgeExitPrice", state.HedgeExitPrice,
 			},
+			{
+				"state.state", state.State,
+			},
+		},
 		},
 	}
 	updated, err := col.UpdateOne(context.TODO(), request, update)
@@ -782,10 +782,10 @@ func (sm *StateMgmt) SavePNL(templateStrategyId *primitive.ObjectID, profitAmoun
 	update = bson.D{
 		{
 			"$inc", bson.D{
-				{
-					"conditions.templatePnl", profitAmount,
-				},
+			{
+				"conditions.templatePnl", profitAmount,
 			},
+		},
 		},
 	}
 	_, err := col.UpdateOne(context.TODO(), request, update)
@@ -811,10 +811,10 @@ func (sm *StateMgmt) EnableHedgeLossStrategy(strategyId *primitive.ObjectID) {
 	update = bson.D{
 		{
 			"$set", bson.D{
-				{
-					"conditions.takeProfitExternal", false,
-				},
+			{
+				"conditions.takeProfitExternal", false,
 			},
+		},
 		},
 	}
 	_, err := col.UpdateOne(context.TODO(), request, update)
@@ -856,13 +856,13 @@ func (sm *StateMgmt) UpdateStateAndConditions(strategyId *primitive.ObjectID, mo
 	update = bson.D{
 		{
 			"$set", bson.D{
-				{
-					"conditions", model.Conditions,
-				},
-				{
-					"state", model.State,
-				},
+			{
+				"conditions", model.Conditions,
 			},
+			{
+				"state", model.State,
+			},
+		},
 		},
 	}
 	_, err := col.UpdateOne(context.TODO(), request, update)
