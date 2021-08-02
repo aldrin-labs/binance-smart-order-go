@@ -1,12 +1,11 @@
 package sources
 
 import (
-	"github.com/joho/godotenv"
+	"gitlab.com/crypto_project/core/strategy_service/src/logging"
 	"gitlab.com/crypto_project/core/strategy_service/src/service/interfaces"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/binance"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/redis"
 	"go.uber.org/zap"
-	"os"
 )
 
 type DataFeed struct {
@@ -15,16 +14,11 @@ type DataFeed struct {
 }
 
 var dataFeed *DataFeed
-var log *zap.Logger
+var log interfaces.ILogger
 
 func init() {
-	_ = godotenv.Load()
-	if os.Getenv("LOCAL") == "true" {
-		log, _ = zap.NewDevelopment()
-	} else {
-		log, _ = zap.NewProduction() // TODO: handle the error
-	}
-	log = log.With(zap.String("logger", "datafeed"))
+	logger, _ := logging.GetZapLogger()
+	log = logger.With(zap.String("logger", "datafeed"))
 }
 
 func InitDataFeed() interfaces.IDataFeed {
