@@ -90,7 +90,7 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 
 	switch orderStatus {
 	case "closed", "filled": // TODO i
-		switch step {
+	switch step {
 		case HedgeLoss:
 			model.State.ExecutedAmount += order.Filled
 			model.State.ExitPrice = order.Average
@@ -136,7 +136,6 @@ func (sm *SmartOrder) checkExistingOrders(ctx context.Context, args ...interface
 				} else {
 					model.State.EntryPrice = order.Average
 				}
-
 				err := sm.State.Fire(TriggerAveragingEntryOrderExecuted)
 				if err != nil {
 					sm.Strategy.GetLogger().Warn("TriggerAveragingEntryOrderExecuted error",

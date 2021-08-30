@@ -38,118 +38,6 @@ func TestSmartOrderMarketEntryAndTrailingExit(t *testing.T) {
 			Low:    7000,
 			Close:  7005,
 			Volume: 30,
-		},
-		{
-			Open:   7100,
-			High:   7101,
-			Low:    7000,
-			Close:  7005,
-			Volume: 30,
-		},
-		{
-			Open:   7100,
-			High:   7101,
-			Low:    7000,
-			Close:  7005,
-			Volume: 30,
-		},
-		{
-			Open:   7100,
-			High:   7101,
-			Low:    7000,
-			Close:  7005,
-			Volume: 30,
-		},
-		{
-			Open:   7100,
-			High:   7101,
-			Low:    7000,
-			Close:  7005,
-			Volume: 30,
-		},
-		{
-			Open:   7100,
-			High:   7101,
-			Low:    7000,
-			Close:  7005,
-			Volume: 30,
-		},
-		{
-			Open:   7100,
-			High:   7101,
-			Low:    7000,
-			Close:  7005,
-			Volume: 30,
-		},
-		{
-			Open:   7100,
-			High:   7101,
-			Low:    7000,
-			Close:  7005,
-			Volume: 30,
-		},
-		{
-			Open:   7100,
-			High:   7101,
-			Low:    7000,
-			Close:  7005,
-			Volume: 30,
-		},
-		{
-			Open:   7100,
-			High:   7101,
-			Low:    7000,
-			Close:  7005,
-			Volume: 30,
-		},
-		{
-			Open:   7100,
-			High:   7101,
-			Low:    7000,
-			Close:  7005,
-			Volume: 30,
-		},
-		{
-			Open:   7100,
-			High:   7101,
-			Low:    7000,
-			Close:  7005,
-			Volume: 30,
-		},
-		{
-			Open:   7100,
-			High:   7101,
-			Low:    7000,
-			Close:  7005,
-			Volume: 30,
-		},
-		{
-			Open:   7100,
-			High:   7101,
-			Low:    7000,
-			Close:  7005,
-			Volume: 30,
-		},
-		{
-			Open:   7100,
-			High:   7101,
-			Low:    7000,
-			Close:  7005,
-			Volume: 30,
-		},
-		{
-			Open:   7100,
-			High:   7101,
-			Low:    7000,
-			Close:  7005,
-			Volume: 30,
-		},
-		{
-			Open:   7100,
-			High:   7101,
-			Low:    7000,
-			Close:  7005,
-			Volume: 30,
 		}, { // Its trading around, like in real life
 			Open:   7005,
 			High:   7005,
@@ -196,6 +84,7 @@ func TestSmartOrderMarketEntryAndTrailingExit(t *testing.T) {
 	}
 	smartOrderModel := GetTestSmartOrderStrategy("marketEntryTrailingExitLeverage")
 	df := tests.NewMockedDataFeed(fakeDataStream)
+	df.WaitForOrderInitialization = 1000
 	tradingApi := tests.NewMockedTradingAPIWithMarketAccess(df)
 	tradingApi.BuyDelay = 300
 	tradingApi.SellDelay = 300
@@ -214,7 +103,7 @@ func TestSmartOrderMarketEntryAndTrailingExit(t *testing.T) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
 	go smartOrder.Start()
-	time.Sleep(4 * time.Second) //TODO: takes way too long
+	time.Sleep(10 * time.Second) //TODO: takes way too long
 	isInState, _ := smartOrder.State.IsInState(smart_order.End)
 	if !isInState {
 		state, _ := smartOrder.State.State(context.Background())
@@ -232,96 +121,6 @@ func TestSmartOrderMarketEntryAndThenFollowTrailing(t *testing.T) {
 			Close:  7005,
 			Volume: 30,
 		}, { // Its trading around, like in real life
-			Open:   7005,
-			High:   7005,
-			Low:    7005,
-			Close:  7000,
-			Volume: 30,
-		},
-		{ // Its trading around, like in real life
-			Open:   7005,
-			High:   7005,
-			Low:    7005,
-			Close:  7000,
-			Volume: 30,
-		},
-		{ // Its trading around, like in real life
-			Open:   7005,
-			High:   7005,
-			Low:    7005,
-			Close:  7000,
-			Volume: 30,
-		},
-		{ // Its trading around, like in real life
-			Open:   7005,
-			High:   7005,
-			Low:    7005,
-			Close:  7000,
-			Volume: 30,
-		}, { // Its trading around, like in real life
-			Open:   7005,
-			High:   7005,
-			Low:    7005,
-			Close:  7000,
-			Volume: 30,
-		},
-		{ // Its trading around, like in real life
-			Open:   7005,
-			High:   7005,
-			Low:    7005,
-			Close:  7000,
-			Volume: 30,
-		},
-		{ // Its trading around, like in real life
-			Open:   7005,
-			High:   7005,
-			Low:    7005,
-			Close:  7000,
-			Volume: 30,
-		},
-		{ // Its trading around, like in real life
-			Open:   7005,
-			High:   7005,
-			Low:    7005,
-			Close:  7000,
-			Volume: 30,
-		},
-		{ // Its trading around, like in real life
-			Open:   7005,
-			High:   7005,
-			Low:    7005,
-			Close:  7000,
-			Volume: 30,
-		},
-		{ // Its trading around, like in real life
-			Open:   7005,
-			High:   7005,
-			Low:    7005,
-			Close:  7000,
-			Volume: 30,
-		},
-		{ // Its trading around, like in real life
-			Open:   7005,
-			High:   7005,
-			Low:    7005,
-			Close:  7000,
-			Volume: 30,
-		},
-		{ // Its trading around, like in real life
-			Open:   7005,
-			High:   7005,
-			Low:    7005,
-			Close:  7000,
-			Volume: 30,
-		},
-		{ // Its trading around, like in real life
-			Open:   7005,
-			High:   7005,
-			Low:    7005,
-			Close:  7000,
-			Volume: 30,
-		},
-		{ // Its trading around, like in real life
 			Open:   7005,
 			High:   7005,
 			Low:    7005,

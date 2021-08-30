@@ -156,6 +156,7 @@ func New(strategy interfaces.IStrategy, DataFeed interfaces.IDataFeed, TradingAP
 		PermitDynamic(TriggerTrade, sm.exitWaitEntry, sm.checkWaitEntry).
 		PermitDynamic(TriggerSpread, sm.exitWaitEntry, sm.checkSpreadEntry).
 		PermitDynamic(CheckExistingOrders, sm.exitWaitEntry, sm.checkExistingOrders).
+		PermitDynamic(TriggerAveragingEntryOrderExecuted, sm.enterMultiEntry).
 		Permit(TriggerTimeout, Timeout).
 		OnEntry(sm.onStart)
 

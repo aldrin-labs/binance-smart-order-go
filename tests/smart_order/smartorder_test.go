@@ -163,7 +163,7 @@ func GetTestSmartOrderStrategy(scenario string) models.MongoStrategy {
 					Type:   1,
 				},
 				{
-					Price:  20,
+					Price:  25,
 					Amount: 33,
 					Type:   1,
 				},
@@ -203,7 +203,7 @@ func GetTestSmartOrderStrategy(scenario string) models.MongoStrategy {
 					Type:   1,
 				},
 				{
-					Price:  20,
+					Price:  25,
 					Amount: 33,
 					Type:   1,
 				},

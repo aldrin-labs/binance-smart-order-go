@@ -93,7 +93,6 @@ func (sm *SmartOrder) checkTrailingProfit(ctx context.Context, args ...interface
 					return false
 				}
 				edgePrice := model.State.TrailingExitPrices[i]
-
 				if currentOHLCV.Close > edgePrice {
 					model.State.TrailingExitPrices[i] = currentOHLCV.Close
 					edgePrice = model.State.TrailingExitPrices[i]

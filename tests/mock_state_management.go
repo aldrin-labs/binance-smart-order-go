@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"fmt"
 	"gitlab.com/crypto_project/core/strategy_service/src/sources/mongodb/models"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"strings"
@@ -109,6 +110,7 @@ func (sm *MockStateMgmt) SubscribeToOrderOpts(orderId string, pair string, excha
 					order.Side == "buy" && order.Average <= currentPrice && isStopOrder ||
 					order.Side == "sell" && order.Average >= currentPrice && isStopOrder {
 					order.Status = "filled"
+					fmt.Println("filled at ", currentPrice, "order ", order)
 					sm.Trading.OrdersMap.Store(orderId, order)
 					onOrderStatusUpdate(&order)
 					break

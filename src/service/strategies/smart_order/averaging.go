@@ -84,7 +84,6 @@ func (sm *SmartOrder) enterMultiEntry(ctx context.Context, args ...interface{}) 
 	if model.Conditions.EntryLevels[sm.SelectedEntryTarget].PlaceWithoutLoss {
 		sm.PlaceOrder(0, sm.getAveragingEntryAmount(model, sm.SelectedEntryTarget), "WithoutLoss")
 	}
-
 	// cancel old TAP, TODO: we are not confident to keep it or remove, requires tests
 	isWaitingForOrder, ok := sm.IsWaitingForOrder.Load(TakeProfit)
 	if ok && isWaitingForOrder.(bool) {
@@ -107,12 +106,15 @@ func (sm *SmartOrder) enterMultiEntry(ctx context.Context, args ...interface{}) 
 func (sm *SmartOrder) getAveragingEntryAmount(model *models.MongoStrategy, executedTargets int) float64 {
 	baseAmount := 0.0
 	for i, target := range model.Conditions.EntryLevels {
-		if i <= executedTargets {
+		if i < executedTargets {
 			if target.Type == 0 {
 				baseAmount += target.Amount
 			} else {
 				baseAmount += target.Amount * model.Conditions.EntryOrder.Amount / 100
 			}
+		}
+		if i == executedTargets {
+			baseAmount = model.Conditions.EntryOrder.Amount
 		}
 	}
 	return baseAmount

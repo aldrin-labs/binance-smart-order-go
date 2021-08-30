@@ -164,35 +164,37 @@ func TestSmartOrderTakeProfitAllTargets(t *testing.T) {
 		Open:   7305,
 		High:   7305,
 		Low:    7300,
-		Close:  7300,
+		Close:  6900,
 		Volume: 30,
 	}, { // Take profit 1 target
 		Open:   7505,
 		High:   7505,
 		Low:    7500,
-		Close:  7500,
+		Close:  6950,
 		Volume: 30,
 	}, { // Take profit 2 target
 		Open:   8855,
 		High:   8855,
 		Low:    8855,
-		Close:  8855,
+		Close:  6990,
 		Volume: 30,
 	}, { // Take profit 3 target
 		Open:   9240,
 		High:   9240,
 		Low:    9240,
-		Close:  9240,
+		Close:  7010,
 		Volume: 30,
 	}, { // Take profit 3 target
 		Open:   9240,
 		High:   9240,
 		Low:    9240,
-		Close:  9240,
+		Close:  7000,
 		Volume: 30,
 	}}
 	smartOrderModel := GetTestSmartOrderStrategy("multiplePriceTargets")
-	df := tests.NewMockedDataFeedWithWait(fakeDataStream, 1500)
+	df := tests.NewMockedDataFeed(fakeDataStream)
+	df.WaitForOrderInitialization = 1500
+	df.TickTime = 500 * time.Millisecond
 	tradingApi := tests.NewMockedTradingAPI()
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
@@ -210,7 +212,7 @@ func TestSmartOrderTakeProfitAllTargets(t *testing.T) {
 	})
 	go smartOrder.Start()
 
-	time.Sleep(15 * time.Second)
+	time.Sleep(8 * time.Second)
 
 	sellCallCount, _ := tradingApi.CallCount.Load("sell")
 	amountSold, _ := tradingApi.AmountSum.Load("BTC_USDTsell")
