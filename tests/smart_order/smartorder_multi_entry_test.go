@@ -41,7 +41,7 @@ func TestSmartOrderMultiEntryPlacing(t *testing.T) {
 	}}
 
 	df := tests.NewMockedDataFeed(fakeDataStream)
-	df.WaitForOrderInitialization = 2500
+	df.WaitForOrderInitializationMillis = 2500
 
 	tradingApi := tests.NewMockedTradingAPI()
 	tradingApi.BuyDelay = 100
@@ -107,19 +107,25 @@ func TestSmartOrderMultiEntryStopLoss(t *testing.T) {
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
-		Close:  5960,
+		Close:  5975,
 		Volume: 30,
 	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
-		Low:    6950,
-		Close:  5940,
+		Low:    6970,
+		Close:  5970,
+		Volume: 30,
+	},{ // Hit entry
+		Open:   6950,
+		High:   7305,
+		Low:    6970,
+		Close:  5965,
 		Volume: 30,
 	},
 	}
 	df := tests.NewMockedDataFeed(fakeDataStream)
-	df.WaitForOrderInitialization = 1500
-	df.TickTime = 500 * time.Millisecond
+	df.WaitForOrderInitializationMillis = 1500
+	df.TickDuration = 500 * time.Millisecond
 	tradingApi := tests.NewMockedTradingAPI()
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
@@ -212,8 +218,8 @@ func TestSmartOrderMultiEntryTAP(t *testing.T) {
 		Volume: 30,
 	}}
 	df := tests.NewMockedDataFeed(fakeDataStream)
-	df.WaitForOrderInitialization = 1500
-	df.TickTime = 500 * time.Millisecond
+	df.WaitForOrderInitializationMillis = 1500
+	df.TickDuration = 500 * time.Millisecond
 	tradingApi := tests.NewMockedTradingAPI()
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
@@ -302,7 +308,7 @@ func TestSmartOrderMultiEntryClosingAfterFirstTAP(t *testing.T) {
 		Volume: 30,
 	}}
 	df := tests.NewMockedDataFeed(fakeDataStream)
-	df.WaitForOrderInitialization = 1500
+	df.WaitForOrderInitializationMillis = 1500
 	tradingApi := tests.NewMockedTradingAPI()
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)

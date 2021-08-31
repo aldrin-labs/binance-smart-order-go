@@ -186,8 +186,8 @@ func TestSmartOrderTrailingEntryAndTrailingExitWithHighLeverage(t *testing.T) {
 		}}
 	smartOrderModel := GetTestSmartOrderStrategy("trailingEntryExitLeverage")
 	df := tests.NewMockedDataFeed(fakeDataStream)
-	df.WaitForOrderInitialization = 1500
-	df.TickTime = 500 * time.Millisecond
+	df.WaitForOrderInitializationMillis = 1500
+	df.TickDuration = 1000 * time.Millisecond
 
 	df.CycleLastNEntries = 4
 	tradingApi := tests.NewMockedTradingAPI()
@@ -208,7 +208,12 @@ func TestSmartOrderTrailingEntryAndTrailingExitWithHighLeverage(t *testing.T) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
 	go smartOrder.Start()
-	time.Sleep(13 * time.Second)
+	time.Sleep(20 * time.Second)
+
+	entryPrice := smartOrder.Strategy.GetModel().State.EntryPrice
+	trailingExitPrice := smartOrder.Strategy.GetModel().State.TrailingExitPrices[0]
+	fmt.Println(entryPrice, trailingExitPrice)
+
 	isInState, _ := smartOrder.State.IsInState(smart_order.End)
 	if !isInState {
 		state, _ := smartOrder.State.State(context.Background())
@@ -268,8 +273,10 @@ func TestSmartOrderTrailingEntryAndFollowTrailingMaximumsWithoutEarlyExitWithHig
 	// inputs:
 	df := tests.NewMockedDataFeed(fakeDataStream)
 	tradingApi := tests.NewMockedTradingAPI()
+	df.WaitForOrderInitializationMillis = 1500
+	df.TickDuration = 500 * time.Millisecond
 	tradingApi.BuyDelay = 100
-	tradingApi.SellDelay = 20100
+	tradingApi.SellDelay = 100
 	//sm := mongodb.StateMgmt{}
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
 	logger, stats := tests.GetLoggerStatsd()
@@ -287,7 +294,7 @@ func TestSmartOrderTrailingEntryAndFollowTrailingMaximumsWithoutEarlyExitWithHig
 	})
 
 	go smartOrder.Start()
-	time.Sleep(7 * time.Second)
+	time.Sleep(9 * time.Second)
 	// Check if we got in entry, and follow trailing maximum
 	isInState, _ := smartOrder.State.IsInState(smart_order.InEntry)
 	if !isInState {
@@ -296,11 +303,11 @@ func TestSmartOrderTrailingEntryAndFollowTrailingMaximumsWithoutEarlyExitWithHig
 		t.Error("SmartOrder state is not InEntry (State: " + stateStr + ")")
 	}
 	// was 6952.09, changed to 6954.59
-	expectedEntryPrice := 6954.59
+	expectedEntryPrice := 6952.09
 	expectedTrailingExitPrice := 7170.0
 	entryPrice := smartOrder.Strategy.GetModel().State.EntryPrice
 	if entryPrice != expectedEntryPrice {
-		t.Error("SmartOrder entryPrice != " + fmt.Sprintf("%f", entryPrice) + "")
+		t.Error(fmt.Sprintf("SmartOrder expected entryPrice %f != %f", expectedEntryPrice, entryPrice))
 	}
 
 	if len(smartOrder.Strategy.GetModel().State.TrailingExitPrices) == 0 {

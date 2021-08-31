@@ -12,25 +12,25 @@ type IDataFeed interface {
 const defaultWaitBetweenTicks = 150 * time.Millisecond
 
 type MockDataFeed struct {
-	tickerData                 []interfaces.OHLCV
-	spreadData                 []interfaces.SpreadData
-	currentTick                int
-	lastTickTime               time.Time
-	currentSpreadTick          int
-	lastSpreadTickTime         time.Time
-	WaitForOrderInitialization int
-	TickTime                   time.Duration
-	CycleLastNEntries          int
+	tickerData                       []interfaces.OHLCV
+	spreadData                       []interfaces.SpreadData
+	currentTick                      int
+	lastTickTime                     time.Time
+	currentSpreadTick                int
+	lastSpreadTickTime               time.Time
+	WaitForOrderInitializationMillis int
+	TickDuration                     time.Duration
+	CycleLastNEntries                int
 }
 
 func NewMockedDataFeed(mockedStream []interfaces.OHLCV) *MockDataFeed {
 	dataFeed := MockDataFeed{
-		tickerData:        mockedStream,
-		currentTick:       -1,
-		CycleLastNEntries: 1,
-		TickTime:          defaultWaitBetweenTicks,
-		lastSpreadTickTime:time.Unix(0,0),
-		lastTickTime:      time.Unix(0,0),
+		tickerData:         mockedStream,
+		currentTick:        -1,
+		CycleLastNEntries:  1,
+		TickDuration:       defaultWaitBetweenTicks,
+		lastSpreadTickTime: time.Unix(0,0),
+		lastTickTime:       time.Unix(0,0),
 	}
 
 	return &dataFeed
@@ -38,14 +38,14 @@ func NewMockedDataFeed(mockedStream []interfaces.OHLCV) *MockDataFeed {
 
 func NewMockedSpreadDataFeed(mockedStream []interfaces.SpreadData, mockedOHLCVStream []interfaces.OHLCV) *MockDataFeed {
 	dataFeed := MockDataFeed{
-		spreadData:        mockedStream,
-		tickerData:        mockedOHLCVStream,
-		currentSpreadTick: -1,
-		currentTick:       -1,
-		CycleLastNEntries: 1,
-		TickTime:          defaultWaitBetweenTicks,
-		lastSpreadTickTime:time.Unix(0,0),
-		lastTickTime:      time.Unix(0,0),
+		spreadData:         mockedStream,
+		tickerData:         mockedOHLCVStream,
+		currentSpreadTick:  -1,
+		currentTick:        -1,
+		CycleLastNEntries:  1,
+		TickDuration:       defaultWaitBetweenTicks,
+		lastSpreadTickTime: time.Unix(0,0),
+		lastTickTime:       time.Unix(0,0),
 	}
 
 	return &dataFeed
@@ -53,11 +53,11 @@ func NewMockedSpreadDataFeed(mockedStream []interfaces.SpreadData, mockedOHLCVSt
 
 func (df *MockDataFeed) GetPriceForPairAtExchange(pair string, exchange string, marketType int64) *interfaces.OHLCV {
 	if df.lastTickTime == time.Unix(0,0) {
-		time.Sleep(time.Duration(df.WaitForOrderInitialization) * time.Millisecond)
+		time.Sleep(time.Duration(df.WaitForOrderInitializationMillis) * time.Millisecond)
 		df.lastTickTime = time.Now()
 	}
 
-	ticksPassed := (int)(time.Since(df.lastTickTime).Milliseconds() / df.TickTime.Milliseconds())
+	ticksPassed := (int)(time.Since(df.lastTickTime).Milliseconds() / df.TickDuration.Milliseconds())
 
 	if ticksPassed < len(df.tickerData) {
 		df.currentTick = ticksPassed
@@ -69,10 +69,10 @@ func (df *MockDataFeed) GetPriceForPairAtExchange(pair string, exchange string, 
 
 func (df *MockDataFeed) GetSpreadForPairAtExchange(pair string, exchange string, marketType int64) *interfaces.SpreadData {
 	if df.lastSpreadTickTime == time.Unix(0,0) {
-		time.Sleep(time.Duration(df.WaitForOrderInitialization) * time.Millisecond)
+		time.Sleep(time.Duration(df.WaitForOrderInitializationMillis) * time.Millisecond)
 		df.lastSpreadTickTime = time.Now()
 	}
-	ticksPassed := (int)(time.Since(df.lastSpreadTickTime).Milliseconds() / df.TickTime.Milliseconds())
+	ticksPassed := (int)(time.Since(df.lastSpreadTickTime).Milliseconds() / df.TickDuration.Milliseconds())
 
 	if ticksPassed < len(df.spreadData) {
 		df.currentSpreadTick = ticksPassed

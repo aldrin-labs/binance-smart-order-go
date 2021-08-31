@@ -85,7 +85,6 @@ func (sm *SmartOrder) checkTrailingProfit(ctx context.Context, args ...interface
 				//if currentOHLCV.Close >= model.State.EntryPrice * (1 + model.Conditions.WithoutLossAfterProfit/model.Conditions.Leverage/100){
 				//	sm.PlaceOrder(-1, "WithoutLoss")
 				//}
-
 				if !isActivated && didCrossActivatePrice {
 					model.State.TrailingExitPrices = append(model.State.TrailingExitPrices, currentOHLCV.Close)
 					return false

@@ -193,8 +193,8 @@ func TestSmartOrderTakeProfitAllTargets(t *testing.T) {
 	}}
 	smartOrderModel := GetTestSmartOrderStrategy("multiplePriceTargets")
 	df := tests.NewMockedDataFeed(fakeDataStream)
-	df.WaitForOrderInitialization = 1500
-	df.TickTime = 500 * time.Millisecond
+	df.WaitForOrderInitializationMillis = 1500
+	df.TickDuration = 500 * time.Millisecond
 	tradingApi := tests.NewMockedTradingAPI()
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)

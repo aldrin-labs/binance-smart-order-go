@@ -84,7 +84,7 @@ func TestSmartOrderMarketEntryAndTrailingExit(t *testing.T) {
 	}
 	smartOrderModel := GetTestSmartOrderStrategy("marketEntryTrailingExitLeverage")
 	df := tests.NewMockedDataFeed(fakeDataStream)
-	df.WaitForOrderInitialization = 1000
+	df.WaitForOrderInitializationMillis = 1000
 	tradingApi := tests.NewMockedTradingAPIWithMarketAccess(df)
 	tradingApi.BuyDelay = 300
 	tradingApi.SellDelay = 300
