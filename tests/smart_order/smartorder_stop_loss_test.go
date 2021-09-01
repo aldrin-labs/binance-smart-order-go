@@ -66,7 +66,7 @@ func TestSmartExitOnStopMarket(t *testing.T) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
 	go smartOrder.Start()
-	time.Sleep(5000 * time.Millisecond)
+	tests.WaitDisableSmartOrder(5 * time.Second, smartOrder)
 
 	// check that one call with 'sell' and one with 'BTC_USDT' should be done
 	sellCallCount, sellFound := tradingApi.CallCount.Load("sell")
@@ -145,7 +145,7 @@ func TestSmartExitOnStopMarketTimeout(t *testing.T) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
 	go smartOrder.Start()
-	time.Sleep(7000 * time.Millisecond)
+	tests.WaitDisableSmartOrder(7 * time.Second, smartOrder)
 
 	// check that one call with 'sell' and one with 'BTC_USDT' should be done
 	sellCallCount, sellFound := tradingApi.CallCount.Load("sell")
@@ -205,7 +205,8 @@ func TestSmartExitAfterTimeoutLoss(t *testing.T) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
 	go smartOrder.Start()
-	time.Sleep(5000 * time.Millisecond)
+	time.Sleep(5 * time.Second)
+
 	log.Print("")
 	// check that one call with 'sell' and one with 'BTC_USDT' should be done
 	sellCallCount, sellFound := tradingApi.CallCount.Load("sell")
@@ -216,7 +217,7 @@ func TestSmartExitAfterTimeoutLoss(t *testing.T) {
 		t.Error("There were " + strconv.Itoa(sellCallCount.(int)) + " trading api calls with buy params and " + strconv.Itoa(btcUsdtCallCount.(int)) + " with BTC_USDT params while timeoutLoss working")
 	}
 
-	time.Sleep(2000 * time.Millisecond)
+	tests.WaitDisableSmartOrder(2 * time.Second, smartOrder)
 
 	sellCallCount, sellFound = tradingApi.CallCount.Load("sell")
 	btcUsdtCallCount, usdtBtcFound = tradingApi.CallCount.Load("BTC_USDT")
@@ -327,8 +328,7 @@ func TestSmartOrderReturnToInEntryAfterTimeoutLoss(t *testing.T) {
 	} else {
 		t.Error("There were " + strconv.Itoa(sellCallCount.(int)) + " trading api calls with buy params and " + strconv.Itoa(btcUsdtCallCount.(int)) + " with BTC_USDT params while timeoutLoss working")
 	}
-
-	time.Sleep(2000 * time.Millisecond)
+	tests.WaitDisableSmartOrder(2 * time.Second, smartOrder)
 
 	sellCallCount, sellFound = tradingApi.CallCount.Load("sell")
 	btcUsdtCallCount, usdtBtcFound = tradingApi.CallCount.Load("BTC_USDT")

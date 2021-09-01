@@ -51,7 +51,7 @@ func TestSmartTakeProfit(t *testing.T) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
 	go smartOrder.Start()
-	time.Sleep(1450 * time.Millisecond)
+	tests.WaitDisableSmartOrder(1500 * time.Millisecond, smartOrder)
 
 	// check that one call with 'sell' and one with 'BTC_USDT' should be done
 	sellCallCount, sellFound := tradingApi.CallCount.Load("sell")
@@ -135,7 +135,7 @@ func TestSmartOrderTakeProfit(t *testing.T) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
 	go smartOrder.Start()
-	time.Sleep(2 * time.Second)
+	tests.WaitDisableSmartOrder(2 * time.Second, smartOrder)
 	// TODO: now checking if TakeProfit is triggering, but it stops when sm.exit returns default "End" state
 	// TODO: so it should test for TakeProfit state or calls to exchange API or maybe for smart order results?
 	isInState, _ := smartOrder.State.IsInState(smart_order.End)
@@ -212,7 +212,7 @@ func TestSmartOrderTakeProfitAllTargets(t *testing.T) {
 	})
 	go smartOrder.Start()
 
-	time.Sleep(8 * time.Second)
+	tests.WaitDisableSmartOrder(8 * time.Second, smartOrder)
 
 	sellCallCount, _ := tradingApi.CallCount.Load("sell")
 	amountSold, _ := tradingApi.AmountSum.Load("BTC_USDTsell")

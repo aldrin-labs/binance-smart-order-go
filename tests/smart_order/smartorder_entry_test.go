@@ -24,7 +24,6 @@ import (
 
 // smart order should create limit order while still in waitingForEntry state if not trailing
 func TestSmartOrderGetInEntryLong(t *testing.T) {
-
 	smartOrderModel := GetTestSmartOrderStrategy("entryLong")
 	// price dips in the middle (This has no meaning now, reuse and then remove fake data stream)
 	fakeDataStream := []interfaces.OHLCV{{
@@ -39,14 +38,27 @@ func TestSmartOrderGetInEntryLong(t *testing.T) {
 		Low:    6900,
 		Close:  6900,
 		Volume: 30,
+	}, { // Activation price
+		Open:   7005,
+		High:   7005,
+		Low:    6900,
+		Close:  7005,
+		Volume: 30,
 	}, { // Hit entry
 		Open:   7305,
 		High:   7305,
 		Low:    7300,
-		Close:  7300,
+		Close:  6900,
+		Volume: 30,
+	},{ // Activation price
+		Open:   7005,
+		High:   7005,
+		Low:    6900,
+		Close:  7005,
 		Volume: 30,
 	}}
 	df := tests.NewMockedDataFeed(fakeDataStream)
+	df.WaitForOrderInitializationMillis = 200
 	tradingApi := tests.NewMockedTradingAPI()
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
@@ -62,19 +74,30 @@ func TestSmartOrderGetInEntryLong(t *testing.T) {
 	}
 	smartOrder := smart_order.New(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
-		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
+		log.Print("transition: source ", transition.Source.(string), ", destination ",
+			transition.Destination.(string), ", trigger ", transition.Trigger.(string),
+			", isReentry ", transition.IsReentry())
 	})
 	go smartOrder.Start()
-	time.Sleep(50 * time.Millisecond)
+	tests.WaitDisableSmartOrder(1250 * time.Millisecond, smartOrder)
+
+	smartOrder.Strategy.GetModel().Enabled = false
 
 	// one call with 'buy' and one with 'BTC_USDT' should be done
 	buyCallCount, buyFound := tradingApi.CallCount.Load("buy")
 	btcUsdtCallCount, usdtBtcFound := tradingApi.CallCount.Load("BTC_USDT")
+	isInState, _ := smartOrder.State.IsInState(smart_order.InEntry)
 
-	if !buyFound || !usdtBtcFound || buyCallCount == 0 || btcUsdtCallCount == 0 {
-		t.Error("There were 0 trading api calls with buy params and 0 with BTC_USDT params")
+	if !buyFound || !usdtBtcFound || buyCallCount == 0 || btcUsdtCallCount == 0 || !isInState {
+		state, _ := smartOrder.State.State(context.Background())
+		if !isInState {
+			t.Error(fmt.Sprintf("State is not InEntry, actual state %v", state))
+		} else {
+			t.Error("There were 0 trading api calls with buy params and 0 with BTC_USDT params")
+		}
 	} else {
-		fmt.Println("Success! There were " + strconv.Itoa(buyCallCount.(int)) + " trading api calls with buy params and " + strconv.Itoa(btcUsdtCallCount.(int)) + " with BTC_USDT params")
+		fmt.Println("Success! There were " + strconv.Itoa(buyCallCount.(int)) +
+			" trading api calls with buy params and " + strconv.Itoa(btcUsdtCallCount.(int)) + " with BTC_USDT params")
 	}
 }
 
@@ -86,22 +109,23 @@ func TestSmartOrderGetInEntryShort(t *testing.T) {
 		Open:   6800,
 		High:   7101,
 		Low:    6750,
-		Close:  6900,
+		Close:  6901,
 		Volume: 30,
 	}, {
 		Open:   7005,
 		High:   7100,
 		Low:    6800,
-		Close:  6900,
+		Close:  6902,
 		Volume: 30,
 	}, { // Hit entry
 		Open:   6950,
 		High:   7305,
 		Low:    6950,
-		Close:  7010,
+		Close:  7011,
 		Volume: 30,
 	}}
 	df := tests.NewMockedDataFeed(fakeDataStream)
+	df.WaitForOrderInitializationMillis = 50
 	tradingApi := tests.NewMockedTradingAPI()
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(tradingApi, df)
@@ -116,22 +140,33 @@ func TestSmartOrderGetInEntryShort(t *testing.T) {
 	}
 	smartOrder := smart_order.New(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
 	smartOrder.State.OnTransitioned(func(context context.Context, transition stateless.Transition) {
-		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
+		log.Print("transition: source ", transition.Source.(string), ", destination ",
+			transition.Destination.(string), ", trigger ", transition.Trigger.(string),
+			", isReentry ", transition.IsReentry())
 	})
 	go smartOrder.Start()
-	time.Sleep(50 * time.Millisecond)
+	tests.WaitDisableSmartOrder(1250 * time.Millisecond, smartOrder)
 
 	// one call with 'sell' and one with 'BTC_USDT' should be done
 	sellCallCount, sellOk := tradingApi.CallCount.Load("sell")
 	btcUsdtCallCount, usdtBtcOk := tradingApi.CallCount.Load("BTC_USDT")
+	isInState, _ := smartOrder.State.IsInState(smart_order.InEntry)
+
 	if !sellOk || !usdtBtcOk || sellCallCount == 0 || btcUsdtCallCount == 0 {
-		t.Error("There were 0 trading api calls with sell params and 0 with BTC_USDT params")
+		state, _ := smartOrder.State.State(context.Background())
+		if !isInState {
+			t.Error(fmt.Sprintf("State is not InEntry, actual state %v", state))
+		} else {
+			t.Error("There were 0 trading api calls with sell params and 0 with BTC_USDT params")
+		}
 	} else {
-		fmt.Println("Success! There were " + strconv.Itoa(sellCallCount.(int)) + " trading api calls with sell params and " + strconv.Itoa(btcUsdtCallCount.(int)) + " with BTC_USDT params")
+		fmt.Println("Success! There were " + strconv.Itoa(sellCallCount.(int)) +
+			" trading api calls with sell params and " + strconv.Itoa(btcUsdtCallCount.(int)) + " with BTC_USDT params")
 	}
 }
 
-// smart order should transition to TrailingEntry state if ActivatePrice > 0 AND currect OHLCV close price is less than condition price
+// smart order should transition to TrailingEntry state if ActivatePrice > 0 AND currect OHLCV close price is less than
+//condition price
 func TestSmartOrderGetInTrailingEntryLong(t *testing.T) {
 	smartOrderModel := GetTestSmartOrderStrategy("trailingEntryLong")
 	// price rises
@@ -155,6 +190,8 @@ func TestSmartOrderGetInTrailingEntryLong(t *testing.T) {
 		Volume: 30,
 	}}
 	df := tests.NewMockedDataFeed(fakeDataStream)
+	df.WaitForOrderInitializationMillis = 1200
+	df.TickDuration = 1 * time.Second
 	tradingApi := *tests.NewMockedTradingAPI()
 	keyId := primitive.NewObjectID()
 	//sm := mongodb.StateMgmt{}
@@ -169,7 +206,7 @@ func TestSmartOrderGetInTrailingEntryLong(t *testing.T) {
 	}
 	smartOrder := smart_order.New(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
 	go smartOrder.Start()
-	time.Sleep(250 * time.Millisecond)
+	tests.WaitDisableSmartOrder(3250 * time.Millisecond, smartOrder)
 	isInState, _ := smartOrder.State.IsInState(smart_order.TrailingEntry)
 	if !isInState {
 		state, _ := smartOrder.State.State(context.Background())
@@ -220,7 +257,8 @@ func TestSmartOrderGetInTrailingEntryLong(t *testing.T) {
 	}
 }*/
 
-// smart order should transition to TrailingEntry state if ActivatePrice > 0 AND currect OHLCV close price is more than condition price
+// smart order should transition to TrailingEntry state if ActivatePrice > 0 AND currect OHLCV close price is more than
+//condition price
 func TestSmartOrderGetInTrailingEntryShort(t *testing.T) {
 	smartOrderModel := GetTestSmartOrderStrategy("trailingEntryShort")
 	// price falls
@@ -242,8 +280,15 @@ func TestSmartOrderGetInTrailingEntryShort(t *testing.T) {
 		Low:    6900,
 		Close:  6800,
 		Volume: 30,
+	}, {
+		Open:   7005,
+		High:   7005,
+		Low:    6900,
+		Close:  7000,
+		Volume: 30,
 	}}
 	df := tests.NewMockedDataFeed(fakeDataStream)
+	df.TickDuration = 1 * time.Second
 	tradingApi := *tests.NewMockedTradingAPI()
 	keyId := primitive.NewObjectID()
 	sm := tests.NewMockedStateMgmt(&tradingApi, df)
@@ -257,7 +302,7 @@ func TestSmartOrderGetInTrailingEntryShort(t *testing.T) {
 	}
 	smartOrder := smart_order.New(&strategy, df, tradingApi, strategy.Statsd, &keyId, &sm)
 	go smartOrder.Start()
-	time.Sleep(250 * time.Millisecond)
+	tests.WaitDisableSmartOrder(3250 * time.Millisecond, smartOrder)
 	isInState, _ := smartOrder.State.IsInState(smart_order.TrailingEntry)
 	if !isInState {
 		state, _ := smartOrder.State.State(context.Background())

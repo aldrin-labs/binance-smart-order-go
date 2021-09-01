@@ -70,7 +70,7 @@ func TestSmartOrderTrailingEntryAndThenActivateTrailingWithHighLeverage(t *testi
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
 	go smartOrder.Start()
-	time.Sleep(10 * time.Second)
+	tests.WaitDisableSmartOrder(10 * time.Second, smartOrder)
 	isInState, _ := smartOrder.State.IsInState(smart_order.InEntry)
 	if !isInState {
 		state, _ := smartOrder.State.State(context.Background())
@@ -208,7 +208,7 @@ func TestSmartOrderTrailingEntryAndTrailingExitWithHighLeverage(t *testing.T) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
 	go smartOrder.Start()
-	time.Sleep(20 * time.Second)
+	tests.WaitDisableSmartOrder(20 * time.Second, smartOrder)
 
 	entryPrice := smartOrder.Strategy.GetModel().State.EntryPrice
 	trailingExitPrice := smartOrder.Strategy.GetModel().State.TrailingExitPrices[0]
@@ -255,10 +255,28 @@ func TestSmartOrderTrailingEntryAndFollowTrailingMaximumsWithoutEarlyExitWithHig
 			Close:  6970,
 			Volume: 30,
 		}, { // It goes up..
+			Open:   6970,
+			High:   6970,
+			Low:    6970,
+			Close:  6970,
+			Volume: 30,
+		}, { // It goes up..
 			Open:   6975,
 			High:   6975,
 			Low:    6975,
-			Close:  6975,
+			Close:  6980,
+			Volume: 30,
+		}, { // It goes up..
+			Open:   6970,
+			High:   6970,
+			Low:    6970,
+			Close:  6985,
+			Volume: 30,
+		}, { // It goes up..
+			Open:   6970,
+			High:   6970,
+			Low:    6970,
+			Close:  6990,
 			Volume: 30,
 		}, { // It goes up..
 			Open:   7170,

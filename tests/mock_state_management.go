@@ -18,7 +18,7 @@ type MockStateMgmt struct {
 	pair          string
 	exchange      string
 	marketType    int64
-
+	stopChan      chan int
 }
 
 func (sm *MockStateMgmt) UpdateStrategyState(strategyId *primitive.ObjectID, state *models.MongoStrategyState) {
@@ -55,6 +55,7 @@ func NewMockedStateMgmt(trading *MockTrading, dataFeed IDataFeed) MockStateMgmt 
 		pair: "BTC_USDT",
 		exchange: "binance",
 		marketType: 1,
+		stopChan: make(chan int),
 	}
 
 	return stateMgmt
@@ -67,6 +68,7 @@ func NewMockedStateMgmtWithOpts(trading *MockTrading, dataFeed IDataFeed, pair s
 		pair: pair,
 		exchange: exchange,
 		marketType: marketType,
+		stopChan: make(chan int),
 	}
 
 	return stateMgmt
@@ -89,31 +91,36 @@ func (sm *MockStateMgmt) SubscribeToOrderOpts(orderId string, pair string, excha
 	//panic("implement me")
 	go func() {
 		for {
-			orderRaw, ok := sm.Trading.OrdersMap.Load(orderId)
-			if ok {
-				order := orderRaw.(models.MongoOrder)
-				delay := sm.Trading.BuyDelay
-				if order.Side == "sell" {
-					delay = sm.Trading.SellDelay
-				}
-				if order.Status == "canceled" {
-					break
-				}
+			select {
+			case _ = <-sm.stopChan:
+				return
+			default:
+				orderRaw, ok := sm.Trading.OrdersMap.Load(orderId)
+				if ok {
+					order := orderRaw.(models.MongoOrder)
+					delay := sm.Trading.BuyDelay
+					if order.Side == "sell" {
+						delay = sm.Trading.SellDelay
+					}
+					if order.Status == "canceled" {
+						return
+					}
 
-				time.Sleep(time.Duration(delay) * time.Millisecond)
-				isStopOrder := strings.Contains(order.Type, "stop")
-				isTapOrder := strings.Contains(order.Type, "take")
-				currentPrice := sm.DataFeed.GetPriceForPairAtExchange(pair, exchange, marketType).Close
-				if order.Type == "market" ||
-					order.Side == "sell" && order.Average <= currentPrice && (order.Type == "limit" || isTapOrder) ||
-					order.Side == "buy" && order.Average >= currentPrice && (order.Type == "limit" || isTapOrder) ||
-					order.Side == "buy" && order.Average <= currentPrice && isStopOrder ||
-					order.Side == "sell" && order.Average >= currentPrice && isStopOrder {
-					order.Status = "filled"
-					fmt.Println("filled at ", currentPrice, "order ", order)
-					sm.Trading.OrdersMap.Store(orderId, order)
-					onOrderStatusUpdate(&order)
-					break
+					time.Sleep(time.Duration(delay) * time.Millisecond)
+					isStopOrder := strings.Contains(order.Type, "stop")
+					isTapOrder := strings.Contains(order.Type, "take")
+					currentPrice := sm.DataFeed.GetPriceForPairAtExchange(pair, exchange, marketType).Close
+					if order.Type == "market" ||
+						order.Side == "sell" && order.Average <= currentPrice && (order.Type == "limit" || isTapOrder) ||
+						order.Side == "buy" && order.Average >= currentPrice && (order.Type == "limit" || isTapOrder) ||
+						order.Side == "buy" && order.Average <= currentPrice && isStopOrder ||
+						order.Side == "sell" && order.Average >= currentPrice && isStopOrder {
+						order.Status = "filled"
+						fmt.Println("filled at ", currentPrice, "order ", order)
+						sm.Trading.OrdersMap.Store(orderId, order)
+						onOrderStatusUpdate(&order)
+						return
+					}
 				}
 			}
 		}
@@ -176,4 +183,9 @@ func (sm *MockStateMgmt) SaveStrategyConditions(strategy *models.MongoStrategy) 
 
 func (sm *MockStateMgmt) EnableHedgeLossStrategy(strategyId *primitive.ObjectID) {
 	return
+}
+
+func (sm *MockStateMgmt) Stop()  {
+	fmt.Println("chan stop")
+	sm.stopChan <- 1
 }

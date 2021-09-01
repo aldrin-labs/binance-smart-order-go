@@ -61,7 +61,7 @@ func TestSmartOrderMultiEntryPlacing(t *testing.T) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
 	go smartOrder.Start()
-	time.Sleep(3 * time.Second)
+	tests.WaitDisableSmartOrder(3 * time.Second, smartOrder)
 
 	// one call with 'sell' and one with 'BTC_USDT' should be done
 	buyCallCount, buyOk := tradingApi.CallCount.Load("buy")
@@ -142,7 +142,7 @@ func TestSmartOrderMultiEntryStopLoss(t *testing.T) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
 	go smartOrder.Start()
-	time.Sleep(6 * time.Second)
+	tests.WaitDisableSmartOrder(6 * time.Second, smartOrder)
 
 	isInState, _ := smartOrder.State.IsInState(smart_order.End)
 	if isInState {
@@ -236,7 +236,7 @@ func TestSmartOrderMultiEntryTAP(t *testing.T) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
 	go smartOrder.Start()
-	time.Sleep(8 * time.Second)
+	tests.WaitDisableSmartOrder(8 * time.Second, smartOrder)
 
 	isInState, _ := smartOrder.State.IsInState(smart_order.End)
 	sellCallCount, sellOk := tradingApi.CallCount.Load("sell")
@@ -326,7 +326,7 @@ func TestSmartOrderMultiEntryClosingAfterFirstTAP(t *testing.T) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
 	go smartOrder.Start()
-	time.Sleep(5000 * time.Millisecond)
+	tests.WaitDisableSmartOrder(5 * time.Second, smartOrder)
 
 	isInState, _ := smartOrder.State.IsInState(smart_order.End)
 	sellCallCount, sellOk := tradingApi.CallCount.Load("sell")
@@ -405,7 +405,7 @@ func TestSmartOrderMultiEntryClosingByWithoutLoss(t *testing.T) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
 	go smartOrder.Start()
-	time.Sleep(3000 * time.Millisecond)
+	tests.WaitDisableSmartOrder(3 * time.Second, smartOrder)
 
 	isInState, _ := smartOrder.State.IsInState(smart_order.End)
 	sellCallCount, sellOk := tradingApi.CallCount.Load("sell")

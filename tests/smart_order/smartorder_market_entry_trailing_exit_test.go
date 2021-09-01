@@ -103,7 +103,7 @@ func TestSmartOrderMarketEntryAndTrailingExit(t *testing.T) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
 	go smartOrder.Start()
-	time.Sleep(10 * time.Second) //TODO: takes way too long
+	tests.WaitDisableSmartOrder(10 * time.Second, smartOrder)//TODO: takes way too long
 	isInState, _ := smartOrder.State.IsInState(smart_order.End)
 	if !isInState {
 		state, _ := smartOrder.State.State(context.Background())
@@ -219,7 +219,7 @@ func TestSmartOrderMarketEntryAndThenFollowTrailing(t *testing.T) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
 	go smartOrder.Start()
-	time.Sleep(10 * time.Second) //TODO: takes way too long
+	tests.WaitDisableSmartOrder(10 * time.Second, smartOrder)//TODO: takes way too long
 	isInState, _ := smartOrder.State.IsInState(smart_order.End)
 	if !isInState {
 		state, _ := smartOrder.State.State(context.Background())

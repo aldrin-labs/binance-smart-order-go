@@ -59,7 +59,7 @@ func TestSmartPlaceStopLossForEachTarget(t *testing.T) {
 		log.Print("transition: source ", transition.Source.(string), ", destination ", transition.Destination.(string), ", trigger ", transition.Trigger.(string), ", isReentry ", transition.IsReentry())
 	})
 	go smartOrder.Start()
-	time.Sleep(2000 * time.Millisecond)
+	tests.WaitDisableSmartOrder(2 * time.Second, smartOrder)
 
 	// check that one call with 'sell' and one with 'BTC_USDT' should be done
 	sellCallCount, sellCallsFound := tradingApi.CallCount.Load("sell")
